@@ -1,3 +1,5 @@
+// This is a comment
+
 struct User:
     timestamp as "time.ms": Integer
     name: String
@@ -6,6 +8,14 @@ struct User:
         year: Integer(1900..2023)
         month: Integer(1..12)
         day: Integer(1..31)
-        
+    other: ...
+   
 transfer Sum(input: List<Integer | Float>) -> Integer | Float:
-    input.sum()
+    match input:
+        Integer as i:
+            out = i.sum()
+            if out > 255:
+                out = 255
+        Float as f:
+            out = f.sum()
+    out

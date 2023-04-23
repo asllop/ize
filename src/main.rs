@@ -11,7 +11,7 @@ fn main() -> io::Result<()> {
     let lines: Vec<Line> = reader.lines().enumerate().map(|(line_num, line)| {
         let line_str = line.expect("Error reading line of code from file");
 
-        let r = match Line::scan_tokens(&line_str, line_num) {
+        let line = match Line::scan_tokens(&line_str, line_num) {
             Ok(line) => {
                 println!("Code: \'{}\'", line_str.trim());
                 println!("Line num: {}", line.position.line_num);
@@ -20,12 +20,20 @@ fn main() -> io::Result<()> {
                 println!("------------------------------------------");
                 line
             },
-            Err(_err) => todo!("Error handling"),
+            Err(err) => panic!("Error: {}", err.message),
         };
-        r
+        line
     }).collect();
 
     println!("Num Lines = {}", lines.len());
+
+    for l in lines {
+        for t in l.tokens {
+            print!("{:?} ", t.id);
+        }
+    }
+
+    println!();
     
     Ok(())
 }
