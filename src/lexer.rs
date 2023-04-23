@@ -221,11 +221,24 @@ impl Line {
                         let mut num_current_pos = current_pos + 1;
                         loop {
                             if let Some(ch) = Self::next_char(code, num_current_pos) {
-                                //TODO: parse float
                                 match ch {
                                     '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
                                         current_token.push(ch);
                                     },
+                                    '.' => {
+                                        if let Some('.') = Self::next_char(code, num_current_pos + 1) {
+                                            // Two dots, it's an integer that ends here
+                                            let num_str: String = current_token.into_iter().collect();
+                                            current_token = Vec::new();
+                                            let token = Self::number_token(&num_str, current_pos)?;
+                                            line.tokens.push(token);
+                                            current_pos = num_current_pos - 1;
+                                            break;
+                                        }
+                                        else {
+                                            current_token.push(ch);
+                                        }
+                                    }
                                     _ => {
                                         // End of number
                                         let num_str: String = current_token.into_iter().collect();

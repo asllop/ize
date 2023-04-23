@@ -8,6 +8,7 @@ struct User:
         year: Integer(1900..2023)
         month: Integer(1..12)
         day: Integer(1..31)
+    range: Float(0.99..1.99)
     other: ...
    
 #on_error(abort)
