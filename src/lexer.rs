@@ -196,7 +196,6 @@ impl Line {
                                         break;
                                     },
                                     '\\' => {
-                                        //TODO: escape sequence: \n \t \"
                                         todo!("Escape sequence")
                                     },
                                     _ => {
@@ -254,48 +253,40 @@ impl Line {
                         // if current_token.len() > 0 {
                         //     panic!("Started a Macro and current token is not empty")
                         // }
-                        //TODO: get rest of macro
+                        todo!("Scan macro token")
                     },
                     ' ' | '\t' => {
                         // Ignore
                     },
                     _ => {
-                        //TODO: create Identifier, Type and Type Definitions
-                        
-                        // Any other token: not single, not double, not triple, not string or number.
+                        // Any other token: not single, double, triple, macro, string or number.
                         if current_token.len() > 0 {
                             panic!("Started a Identifier and current token is not empty")
                         }
                         current_token.push(ch);
-                        let mut ident_current_pos = current_pos + 1;
+                        let mut sym_current_pos = current_pos + 1;
                         loop {
-                            if let Some(ch) = Self::next_char(code, ident_current_pos) {
+                            if let Some(ch) = Self::next_char(code, sym_current_pos) {
                                 if ch.is_alphanumeric() || ch == '_' {
                                     current_token.push(ch);
                                 }
                                 else {
-                                    let ident_str: String = current_token.into_iter().collect();
+                                    let symbol_str: String = current_token.into_iter().collect();
                                     current_token = Vec::new();
-                                    line.tokens.push(Token {
-                                        id: TokenId::Identifier(ident_str),
-                                        offset: current_pos
-                                    });
-                                    current_pos = ident_current_pos - 1;
+                                    line.tokens.push(Self::symbol_token(symbol_str, current_pos));
+                                    current_pos = sym_current_pos - 1;
                                     break;
                                 }
                             }
                             else {
                                 // End of line
-                                let ident_str: String = current_token.into_iter().collect();
+                                let symbol_str: String = current_token.into_iter().collect();
                                 current_token = Vec::new();
-                                line.tokens.push(Token {
-                                    id: TokenId::Identifier(ident_str),
-                                    offset: current_pos
-                                });
-                                current_pos = ident_current_pos - 1;
+                                line.tokens.push(Self::symbol_token(symbol_str, current_pos));
+                                current_pos = sym_current_pos - 1;
                                 break;
                             }
-                            ident_current_pos += 1;
+                            sym_current_pos += 1;
                         }
                     }
                 }
@@ -313,6 +304,44 @@ impl Line {
 
     fn next_char(code: &str, current_pos: usize) -> Option<char> {
         code.chars().nth(current_pos)
+    }
+
+    fn symbol_token(symbol: String, current_pos: usize) -> Token {
+        let token_id = match symbol.as_str() {
+            "match" => TokenId::Match,
+            "if" => TokenId::If,
+            "else" => TokenId::Else,
+            "as" => TokenId::As,
+            "true" => TokenId::Literal(LiteralToken::BooleanLiteral(true)),
+            "false" => TokenId::Literal(LiteralToken::BooleanLiteral(true)),
+            "string" => TokenId::Definition(DefinitionToken::StringDefinition),
+            "struct" => TokenId::Definition(DefinitionToken::StructDefinition),
+            "integer" => TokenId::Definition(DefinitionToken::IntegerDefinition),
+            "float" => TokenId::Definition(DefinitionToken::FloatDefinition),
+            "dyn" => TokenId::Definition(DefinitionToken::DynDefinition),
+            "boolean" => TokenId::Definition(DefinitionToken::BooleanDefinition),
+            "map" => TokenId::Definition(DefinitionToken::MapDefinition),
+            "list" => TokenId::Definition(DefinitionToken::ListDefinition),
+            "transfer" => TokenId::Definition(DefinitionToken::TransferDefinition),
+            "buffer" => TokenId::Definition(DefinitionToken::BufferDefinition),
+            "pipeline" => TokenId::Definition(DefinitionToken::PipelineDefinition),
+            "const" => TokenId::Definition(DefinitionToken::ConstDefinition),
+            "Any" => TokenId::Type(TypeToken::AnyType),
+            "Boolean" => TokenId::Type(TypeToken::BooleanType),
+            "Float" => TokenId::Type(TypeToken::FloatType),
+            "Integer" => TokenId::Type(TypeToken::IntegerType),
+            "List" => TokenId::Type(TypeToken::ListType),
+            "Map" => TokenId::Type(TypeToken::MapType),
+            "None" => TokenId::Type(TypeToken::NoneType),
+            "Null" => TokenId::Type(TypeToken::NullType),
+            "Pair" => TokenId::Type(TypeToken::PairType),
+            "String" => TokenId::Type(TypeToken::StringType),
+            _ => TokenId::Identifier(symbol)
+        };
+        Token {
+            id: token_id,
+            offset: current_pos
+        }
     }
 
     fn number_token(symbol: &str, current_pos: usize) -> Result<Token, LexError> {

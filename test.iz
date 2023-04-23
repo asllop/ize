@@ -19,3 +19,11 @@ transfer Sum(input: List<Integer | Float>) -> Integer | Float:
         Float as f:
             out = f.sum()
     out
+
+pipeline Main:
+    FromJSON
+    Sum
+    Whatever:
+        opts:
+            name: "Hello this is a nam"
+            num: 1987
