@@ -8,18 +8,9 @@ fn main() -> io::Result<()> {
     let file = File::open("Cargo.toml")?;
     let reader = BufReader::new(file);
 
-    // let mut lines = vec![];
-    // for line in reader.lines() {
-    //     let line = line?;
-    //     match line.as_str().scan_tokens() {
-    //         Ok(mut line) => { lines.append(&mut line) },
-    //         Err(_err) => todo!("Error handling"),
-    //     }
-    // }
-
     let lines: Vec<Line> = reader.lines().enumerate().map(|(_line_num, line)| {
         let line = line.expect("Error reading line of code from file");
-        match line.as_str().try_into() {
+        match line.parse() {
             Ok(line) => line,
             Err(_err) => todo!("Error handling"),
         }

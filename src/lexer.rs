@@ -1,3 +1,9 @@
+use alloc::{
+    string::String,
+    vec::Vec,
+};
+use core::str::FromStr;
+
 #[derive(Debug)]
 /// Lexical analysis error.
 pub struct LexError {
@@ -7,59 +13,54 @@ pub struct LexError {
     pub position: usize,
 }
 
-// /// Lexical analysis trait.
-// pub trait Scan {
-//     /// Scan one line of code and generate tokens.
-//     fn scan_tokens(&self) -> Result<Line, LexError>;
-// }
+impl FromStr for Line {
+    type Err = LexError;
 
-// impl Scan for &str {
-//     fn scan_tokens(&self) -> Result<Line, LexError> {
-//         todo!("Implement scan_tokens for &str")
-//     }
-// }
-
-// Tokenize one line of code.
-impl TryFrom<&str> for Line {
-    type Error = LexError;
-
-    fn try_from(_code: &str) -> Result<Self, Self::Error> {
+    fn from_str(_code: &str) -> Result<Self, Self::Err> {
         //TODO: Implement token scanner
         Ok(Line {
             tokens: Vec::new(),
-            position: Position { indentation: 0, indent_type: IndentType::Tab, line_num: 0, length: 0 },
+            position: Position {
+                indentation: 0,
+                indentation_type: IndentationType::Tab,
+                line_num: 0,
+                length: 0
+            },
         })
     }
 }
 
 pub struct Line {
 	pub tokens: Vec<Token>,
+    /// Line position within the source code.
 	pub position: Position,
 }
 
 pub struct Token {
-	pub identity: TokenIdent,
+	pub id: TokenId,
+    /// Token position within the line of code.
 	pub offset: usize,
 }
 
 pub struct Position {
 	pub indentation: usize,
-    pub indent_type: IndentType,
+    pub indentation_type: IndentationType,
 	pub line_num: usize,
 	pub length: usize,
 }
 
-pub enum IndentType {
+pub enum IndentationType {
 	Space,
 	Tab,
 }
 
-pub enum TokenIdent {
+pub enum TokenId {
 	Definition(DefinitionToken),
 	Type(TypeToken),
 	Literal(LiteralToken),
     Macro(MacroToken),
 	Identifier(String),
+    Underscore,
 	Match,
 	If,
 	Else,
