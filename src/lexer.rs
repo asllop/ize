@@ -76,9 +76,6 @@ impl Line {
                     '+' => {
                         line.add_token(TokenId::Plus, current_pos);
                     },
-                    '-' => {
-                        line.add_token(TokenId::Minus, current_pos);
-                    },
                     '*' => {
                         line.add_token(TokenId::Star, current_pos);
                     },
@@ -94,6 +91,16 @@ impl Line {
                         }
                         else {
                             line.add_token(TokenId::Slash, current_pos);
+                        }
+                    },
+                    '-' => {
+                        // it can be - or ->
+                        if let Some('>') = Self::next_char(code, current_pos + 1) {
+                            line.add_token(TokenId::Return, current_pos);
+                            current_pos += 1;
+                        }
+                        else {
+                            line.add_token(TokenId::Minus, current_pos);
                         }
                     },
                     '=' => {
@@ -250,15 +257,46 @@ impl Line {
                         //TODO: get rest of macro
                     },
                     ' ' | '\t' => {
-                        // TODO: token separator
+                        // Ignore
                     },
                     _ => {
+                        //TODO: create Identifier, Type and Type Definitions
+                        
                         // Any other token: not single, not double, not triple, not string or number.
-                        // if current_token.len() > 0 {
-                        //     panic!("Started a Identifier and current token is not empty")
-                        // }
-                        //current_token.push(ch);
-                        //TODO: get rest of identifier
+                        if current_token.len() > 0 {
+                            panic!("Started a Identifier and current token is not empty")
+                        }
+                        current_token.push(ch);
+                        let mut ident_current_pos = current_pos + 1;
+                        loop {
+                            if let Some(ch) = Self::next_char(code, ident_current_pos) {
+                                if ch.is_alphanumeric() || ch == '_' {
+                                    current_token.push(ch);
+                                }
+                                else {
+                                    let ident_str: String = current_token.into_iter().collect();
+                                    current_token = Vec::new();
+                                    line.tokens.push(Token {
+                                        id: TokenId::Identifier(ident_str),
+                                        offset: current_pos
+                                    });
+                                    current_pos = ident_current_pos - 1;
+                                    break;
+                                }
+                            }
+                            else {
+                                // End of line
+                                let ident_str: String = current_token.into_iter().collect();
+                                current_token = Vec::new();
+                                line.tokens.push(Token {
+                                    id: TokenId::Identifier(ident_str),
+                                    offset: current_pos
+                                });
+                                current_pos = ident_current_pos - 1;
+                                break;
+                            }
+                            ident_current_pos += 1;
+                        }
                     }
                 }
             }
@@ -371,10 +409,11 @@ pub enum TokenId {
     Comma,              // ,
     Colon,              // :
     Plus,               // +
-    Minus,              // -
     Star,               // *
     Slash,              // /
     Percent,            // %
+    Minus,              // -
+    Return,             // ->
 	OpenAngleBrack,     // <
 	ClosingAngleBrack,  // >
     GtEqual,            // >=

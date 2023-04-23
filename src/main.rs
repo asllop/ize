@@ -28,9 +28,13 @@ fn main() -> io::Result<()> {
     println!("Num Lines = {}", lines.len());
 
     for l in lines {
-        for t in l.tokens {
-            print!("{:?} , ", t.id);
+        for _ in 0..l.position.indentation {
+            print!(" ");
         }
+        for t in l.tokens {
+            print!("{:?} ", t.id);
+        }
+        println!("EOL");
     }
 
     println!();
