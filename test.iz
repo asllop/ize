@@ -18,6 +18,8 @@ transfer Sum(input: List<Integer | Float>) -> Integer | Float:
                 out = 255
         Float as f:
             out = f.sum()
+        _:  // This is not necessary here
+            out = 0
     out
 
 pipeline Main:

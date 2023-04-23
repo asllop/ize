@@ -312,6 +312,7 @@ impl Line {
             "if" => TokenId::If,
             "else" => TokenId::Else,
             "as" => TokenId::As,
+            "_" => TokenId::Underscore,
             "true" => TokenId::Literal(LiteralToken::BooleanLiteral(true)),
             "false" => TokenId::Literal(LiteralToken::BooleanLiteral(true)),
             "string" => TokenId::Definition(DefinitionToken::StringDefinition),
@@ -433,6 +434,7 @@ pub enum TokenId {
 	If,                 // if
 	Else,               // else
     As,                 // as
+    Underscore,         // _
 	OpenParenth,        // (
 	ClosingParenth,     // )
     Comma,              // ,
