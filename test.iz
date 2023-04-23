@@ -1,0 +1,11 @@
+struct User:
+    timestamp as "time.ms": Integer
+    name: String
+    surname: String
+    birthday:
+        year: Integer(1900..2023)
+        month: Integer(1..12)
+        day: Integer(1..31)
+        
+transfer Sum(input: List<Integer | Float>) -> Integer | Float:
+    input.sum()

@@ -2,7 +2,6 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use core::str::FromStr;
 
 #[derive(Debug)]
 /// Lexical analysis error.
@@ -13,27 +12,78 @@ pub struct LexError {
     pub position: usize,
 }
 
-impl FromStr for Line {
-    type Err = LexError;
-
-    fn from_str(_code: &str) -> Result<Self, Self::Err> {
-        //TODO: Implement token scanner
-        Ok(Line {
-            tokens: Vec::new(),
-            position: Position {
-                indentation: 0,
-                indentation_type: IndentationType::Tab,
-                line_num: 0,
-                length: 0
-            },
-        })
-    }
-}
-
 pub struct Line {
 	pub tokens: Vec<Token>,
     /// Line position within the source code.
 	pub position: Position,
+}
+
+impl Line {
+    pub fn scan_tokens(code: &str, line_num: usize) -> Result<Self, LexError> {
+        let mut line = Line {
+            tokens: Vec::new(),
+            position: Position {
+                indentation: 0,
+                indentation_type: IndentationType::None,
+                line_num,
+                length: code.len()
+            },
+        };
+        match Self::find_indentation(code) {
+            Ok(Some((i, t))) => {
+                line.position.indentation = i;
+                line.position.indentation_type = t;
+                Ok(line)
+            },
+            Ok(None) => {
+                // Empty line
+                Ok(line)
+            },
+            Err(err) => {
+                Err(err)
+            },
+        }
+
+        //TODO: scan tokens
+    }
+
+    fn find_indentation(code: &str) -> Result<Option<(usize, IndentationType)>, LexError> {
+        let mut indent = IndentationType::None;
+        for (i, ch) in code.chars().enumerate() {
+            match ch {
+                ' ' => {
+                    if let IndentationType::None | IndentationType::Space = indent {
+                        indent = IndentationType::Space;    
+                    }
+                    else {
+                        return Err(LexError {
+                            message: "Mismatching indentation characters".into(),
+                            position: i
+                        })
+                    }
+                },
+                '\t' => {
+                    if let IndentationType::None | IndentationType::Tab = indent {
+                        indent = IndentationType::Tab;    
+                    }
+                    else {
+                        return Err(LexError {
+                            message: "Mismatching indentation characters".into(),
+                            position: i
+                        })
+                    }
+                },
+                _ => {
+                    return Ok(Some((i, indent)))
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    fn _find_next_token(_code: &str, _position: usize) {
+        todo!("Find next token  in the code stream")
+    }
 }
 
 pub struct Token {
@@ -49,9 +99,11 @@ pub struct Position {
 	pub length: usize,
 }
 
+#[derive(Debug)]
 pub enum IndentationType {
 	Space,
 	Tab,
+    None,
 }
 
 pub enum TokenId {
