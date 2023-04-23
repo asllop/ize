@@ -250,10 +250,32 @@ impl Line {
                         }
                     },
                     '#' => {
-                        // if current_token.len() > 0 {
-                        //     panic!("Started a Macro and current token is not empty")
-                        // }
-                        todo!("Scan macro token")
+                        if current_token.len() > 0 {
+                            panic!("Started a Macro and current token is not empty")
+                        }
+                        let mut macro_current_pos = current_pos + 1;
+                        loop {
+                            if let Some(ch) = Self::next_char(code, macro_current_pos) {
+                                if ch.is_alphanumeric() || ch == '_' {
+                                    current_token.push(ch);
+                                }
+                                else {
+                                    // End of macro
+                                    line.add_token(TokenId::Macro(current_token.into_iter().collect()), current_pos);
+                                    current_token = Vec::new();
+                                    current_pos = macro_current_pos - 1;
+                                    break;
+                                }
+                            }
+                            else {
+                                // End of line
+                                line.add_token(TokenId::Macro(current_token.into_iter().collect()), current_pos);
+                                current_token = Vec::new();
+                                current_pos = macro_current_pos - 1;
+                                break;
+                            }
+                            macro_current_pos += 1;
+                        }
                     },
                     ' ' | '\t' => {
                         // Ignore
@@ -271,6 +293,7 @@ impl Line {
                                     current_token.push(ch);
                                 }
                                 else {
+                                    // End of symbol
                                     let symbol_str: String = current_token.into_iter().collect();
                                     current_token = Vec::new();
                                     line.tokens.push(Self::symbol_token(symbol_str, current_pos));

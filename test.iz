@@ -10,6 +10,7 @@ struct User:
         day: Integer(1..31)
     other: ...
    
+#on_error(abort)
 transfer Sum(input: List<Integer | Float>) -> Integer | Float:
     match input:
         Integer as i:
