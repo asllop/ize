@@ -29,7 +29,7 @@ fn main() -> io::Result<()> {
 
     for l in lines {
         for t in l.tokens {
-            print!("{:?} ", t.id);
+            print!("{:?} , ", t.id);
         }
     }
 

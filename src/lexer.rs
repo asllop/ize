@@ -54,16 +54,11 @@ impl Line {
         }
 
         // Start looking for actual tokens
-        let mut in_string = false;
-        let mut in_symbol = false;
-        let mut in_number = false;
+        let mut current_token = Vec::<char>::new();
         let mut current_pos = line.position.indentation;
 
         loop {
-            let ch = Self::next_char(code, current_pos);
-            current_pos += 1;
-
-            if let Some(ch) = ch {
+            if let Some(ch) = Self::next_char(code, current_pos) {
                 match ch {
                     // Single char tokens
                     ':' => {
@@ -90,10 +85,10 @@ impl Line {
                     '%' => {
                         line.add_token(TokenId::Percent, current_pos);
                     },
-                    // Two char tokens
+                    // Double char tokens
                     '/' => {
                         // it can be / or //
-                        if let Some('/') = Self::next_char(code, current_pos) {
+                        if let Some('/') = Self::next_char(code, current_pos + 1) {
                             // It's a comment, ignore the rest
                             break;
                         }
@@ -103,9 +98,9 @@ impl Line {
                     },
                     '=' => {
                         // it can be = or ==
-                        if let Some('=') = Self::next_char(code, current_pos) {
-                            current_pos += 1;
+                        if let Some('=') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::TwoEquals, current_pos);
+                            current_pos += 1;
                         }
                         else {
                             line.add_token(TokenId::Equal, current_pos);
@@ -113,9 +108,9 @@ impl Line {
                     },
                     '&' => {
                         // it can be & or &&
-                        if let Some('&') = Self::next_char(code, current_pos) {
-                            current_pos += 1;
+                        if let Some('&') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::TwoAnds, current_pos);
+                            current_pos += 1;
                         }
                         else {
                             line.add_token(TokenId::And, current_pos);
@@ -123,9 +118,9 @@ impl Line {
                     },
                     '|' => {
                         // it can be | or ||
-                        if let Some('|') = Self::next_char(code, current_pos) {
-                            current_pos += 1;
+                        if let Some('|') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::TwoOrs, current_pos);
+                            current_pos += 1;
                         }
                         else {
                             line.add_token(TokenId::Or, current_pos);
@@ -133,9 +128,9 @@ impl Line {
                     },
                     '!' => {
                         // it can be ! or !=
-                        if let Some('=') = Self::next_char(code, current_pos) {
-                            current_pos += 1;
+                        if let Some('=') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::NotEqual, current_pos);
+                            current_pos += 1;
                         }
                         else {
                             line.add_token(TokenId::Exclam, current_pos);
@@ -143,9 +138,9 @@ impl Line {
                     },
                     '<' => {
                         // it can be < or <=
-                        if let Some('=') = Self::next_char(code, current_pos) {
-                            current_pos += 1;
+                        if let Some('=') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::LtEqual, current_pos);
+                            current_pos += 1;
                         }
                         else {
                             line.add_token(TokenId::OpenAngleBrack, current_pos);
@@ -153,25 +148,25 @@ impl Line {
                     },
                     '>' => {
                         // it can be > or >=
-                        if let Some('=') = Self::next_char(code, current_pos) {
-                            current_pos += 1;
+                        if let Some('=') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::GtEqual, current_pos);
+                            current_pos += 1;
                         }
                         else {
                             line.add_token(TokenId::ClosingAngleBrack, current_pos);
                         }
                     },
-                    // Three char tokens
+                    // Triple char tokens
                     '.' => {
                         // it can be . or .. or ...
-                        if let Some('.') = Self::next_char(code, current_pos) {
-                            current_pos += 1;
-                            if let Some('.') = Self::next_char(code, current_pos) {
-                                current_pos += 1;
+                        if let Some('.') = Self::next_char(code, current_pos + 1) {
+                            if let Some('.') = Self::next_char(code, current_pos + 2) {
                                 line.add_token(TokenId::ThreeDots, current_pos);
+                                current_pos += 2;
                             }
                             else {
                                 line.add_token(TokenId::TwoDots, current_pos);
+                                current_pos += 1;
                             }
                         }
                         else {
@@ -179,14 +174,100 @@ impl Line {
                         }
                     },
                     // Multi char tokens
-                    ' ' | '\t' => {},
-                    _ => {}
+                    '\"' => {
+                        if current_token.len() > 0 {
+                            panic!("Started a String and current token is not empty")
+                        }
+                        let mut str_current_pos = current_pos + 1;
+                        loop {
+                            if let Some(ch) = Self::next_char(code, str_current_pos) {
+                                match ch {
+                                    '\"' => {
+                                        line.add_token(TokenId::Literal(LiteralToken::StringLiteral(current_token.into_iter().collect())), current_pos);
+                                        current_token = Vec::new();
+                                        current_pos = str_current_pos;
+                                        break;
+                                    },
+                                    '\\' => {
+                                        //TODO: escape sequence: \n \t \"
+                                        todo!("Escape sequence")
+                                    },
+                                    _ => {
+                                        current_token.push(ch);
+                                    }
+                                }
+                            }
+                            else {
+                                // End of line
+                                return Err(LexError {
+                                    message: "Premature end of string literal".into(),
+                                    position: current_pos
+                                });
+                            }
+                            str_current_pos += 1;
+                        }
+                    },
+                    '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                        if current_token.len() > 0 {
+                            panic!("Started a Number and current token is not empty")
+                        }
+                        current_token.push(ch);
+                        let mut num_current_pos = current_pos + 1;
+                        loop {
+                            if let Some(ch) = Self::next_char(code, num_current_pos) {
+                                //TODO: parse float
+                                match ch {
+                                    '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                                        current_token.push(ch);
+                                    },
+                                    _ => {
+                                        // End of number
+                                        let num_str: String = current_token.into_iter().collect();
+                                        current_token = Vec::new();
+                                        let token = Self::number_token(&num_str, current_pos)?;
+                                        line.tokens.push(token);
+                                        current_pos = num_current_pos - 1;
+                                        break;
+                                    }
+                                }
+                            }
+                            else {
+                                // End of line
+                                let num_str: String = current_token.into_iter().collect();
+                                current_token = Vec::new();
+                                let token = Self::number_token(&num_str, current_pos)?;
+                                line.tokens.push(token);
+                                current_pos = num_current_pos - 1;
+                                break;
+                            }
+                            num_current_pos += 1;
+                        }
+                    },
+                    '#' => {
+                        // if current_token.len() > 0 {
+                        //     panic!("Started a Macro and current token is not empty")
+                        // }
+                        //TODO: get rest of macro
+                    },
+                    ' ' | '\t' => {
+                        // TODO: token separator
+                    },
+                    _ => {
+                        // Any other token: not single, not double, not triple, not string or number.
+                        // if current_token.len() > 0 {
+                        //     panic!("Started a Identifier and current token is not empty")
+                        // }
+                        //current_token.push(ch);
+                        //TODO: get rest of identifier
+                    }
                 }
             }
             else {
-                // Reached the end
+                // Reached the end line
                 break;
             }
+
+            current_pos += 1;
         }
 
         Ok(line)
@@ -194,6 +275,27 @@ impl Line {
 
     fn next_char(code: &str, current_pos: usize) -> Option<char> {
         code.chars().nth(current_pos)
+    }
+
+    fn number_token(symbol: &str, current_pos: usize) -> Result<Token, LexError> {
+        if let Ok(n) = symbol.parse::<i64>() {
+            Ok(Token {
+                id: TokenId::Literal(LiteralToken::IntegerLiteral(n)),
+                offset: current_pos
+            })
+        }
+        else if let Ok(n) = symbol.parse::<f64>() {
+            Ok(Token {
+                id: TokenId::Literal(LiteralToken::FloatLiteral(n)),
+                offset: current_pos
+            })
+        }
+        else {
+            Err(LexError {
+                message: "Parsing number".into(),
+                position: current_pos
+            })
+        }
     }
 
     fn find_indentation(code: &str) -> Result<Option<(usize, IndentationType)>, LexError> {
@@ -258,7 +360,7 @@ pub enum TokenId {
 	Definition(DefinitionToken),
 	Type(TypeToken),
 	Literal(LiteralToken),
-    Macro(MacroToken),
+    Macro(String),
 	Identifier(String),
 	Match,              // match
 	If,                 // if
@@ -329,10 +431,4 @@ pub enum LiteralToken {
     FloatLiteral(f64),
     BooleanLiteral(bool),
     RegexLiteral(String),   //TODO: use the Regex type from the regex crate
-}
-
-#[derive(Debug)]
-pub enum MacroToken {
-	ImportMacro,
-	OnErrorMacro,
 }
