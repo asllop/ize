@@ -45,7 +45,7 @@ impl Line {
                 return Ok(line);
             },
             Err(err) => {
-                return Err(err)
+                return Err(err);
             },
         }
 
