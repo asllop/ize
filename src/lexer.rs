@@ -1,3 +1,18 @@
+//! # IZE Lexer
+//! 
+//! This module contains all the types and methods necessary to convert raw source code into tokens.
+//! 
+//! The main public interface from this module is [Line](crate::lexer::Line):
+//! 
+//! ```
+//! use ize::lexer::Line;
+//! 
+//! let line = match Line::scan_tokens(r#"const ME = "IZE Language""#, 0) {
+//!     Ok(line) => line,
+//!     Err(err) => panic!("Error: \"{}\" at offset {}", err.message, err.position + 1),
+//! };
+//! ```
+
 use alloc::{
     string::String,
     vec::Vec,
@@ -22,7 +37,7 @@ pub struct Line {
 }
 
 impl Line {
-    /// Scan tokens in a line of code and generates wither a Line or an error.
+    /// Scan tokens in a line of code and generates either a Line or an error.
     pub fn scan_tokens(code: &str, line_num: usize) -> Result<Self, LexError> {
         let mut line = Line {
             tokens: Vec::new(),
