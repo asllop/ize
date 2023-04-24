@@ -20,7 +20,7 @@ fn main() -> io::Result<()> {
                 println!("------------------------------------------");
                 line
             },
-            Err(err) => panic!("Error: {}", err.message),
+            Err(err) => panic!("Error: {} at line {} offset {}", err.message, line_num + 1, err.position + 1),
         };
         line
     }).collect();

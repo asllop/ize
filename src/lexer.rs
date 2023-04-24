@@ -60,6 +60,8 @@ impl Line {
         loop {
             if let Some(ch) = Self::next_char(code, current_pos) {
                 match ch {
+                    // Ignore spaces and tabs
+                    ' ' | '\t' => {},
                     // Single char tokens
                     ':' => {
                         line.add_token(TokenId::Colon, current_pos);
@@ -196,7 +198,34 @@ impl Line {
                                         break;
                                     },
                                     '\\' => {
-                                        todo!("Escape sequence")
+                                        // Escape sequence
+                                        match Self::next_char(code, str_current_pos + 1) {
+                                            Some('\"') => {
+                                                current_token.push('\"');
+                                            },
+                                            Some('n') => {
+                                                current_token.push('\n');
+                                            },
+                                            Some('t') => {
+                                                current_token.push('\t');
+                                            },
+                                            Some('r') => {
+                                                current_token.push('\r');
+                                            },
+                                            Some('\\') => {
+                                                current_token.push('\\');
+                                            },
+                                            Some('0') => {
+                                                current_token.push('\0');
+                                            },
+                                            _ => {
+                                                return Err(LexError {
+                                                    message: "Unrecognized escape sequence".into(),
+                                                    position: str_current_pos
+                                                })
+                                            }
+                                        }
+                                        str_current_pos += 1;
                                     },
                                     _ => {
                                         current_token.push(ch);
@@ -289,9 +318,6 @@ impl Line {
                             }
                             macro_current_pos += 1;
                         }
-                    },
-                    ' ' | '\t' => {
-                        // Ignore
                     },
                     _ => {
                         // Any other token: not single, double, triple, macro, string or number.

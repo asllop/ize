@@ -10,7 +10,14 @@ struct User:
         day: Integer(1..31)
     range: Float(0.99..1.99)
     other: ...
-   
+    whatever : Integer | None
+    something:Map<String,List<Integer>>
+
+dyn NewIntType<Integer>
+
+const MY_NUM = 1001
+const MY_STR = "This is \t an \"escaped\" string 'yeha' \\backslash\\\n"
+
 #on_error(abort)
 transfer Sum(input: List<Integer | Float>) -> Integer | Float:
     match input:
@@ -30,4 +37,5 @@ pipeline Main:
     Whatever:
         opts:
             name: "Hello this is a nam"
-            num: 1987
+            num: 2001
+            fnum: 20.01
