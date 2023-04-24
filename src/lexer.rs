@@ -13,20 +13,16 @@ pub struct LexError {
 }
 
 #[derive(Debug)]
+/// Tokenized line of code.
 pub struct Line {
+    /// List of tokens in this line.
 	pub tokens: Vec<Token>,
     /// Line position within the source code.
 	pub position: Position,
 }
 
 impl Line {
-    pub fn add_token(&mut self, token_id: TokenId, pos: usize) {
-        self.tokens.push(Token {
-            id: token_id,
-            offset: pos,
-        });
-    }
-
+    /// Scan tokens in a line of code and generates wither a Line or an error.
     pub fn scan_tokens(code: &str, line_num: usize) -> Result<Self, LexError> {
         let mut line = Line {
             tokens: Vec::new(),
@@ -368,6 +364,13 @@ impl Line {
         code.chars().nth(current_pos)
     }
 
+    fn add_token(&mut self, token_id: TokenId, pos: usize) {
+        self.tokens.push(Token {
+            id: token_id,
+            offset: pos,
+        });
+    }
+
     fn symbol_token(symbol: String, current_pos: usize) -> Token {
         let token_id = match symbol.as_str() {
             "match" => TokenId::Match,
@@ -465,33 +468,50 @@ impl Line {
 }
 
 #[derive(Debug)]
+/// Token object.
 pub struct Token {
+    /// Token identificator.
 	pub id: TokenId,
     /// Token position within the line of code.
 	pub offset: usize,
 }
 
 #[derive(Debug)]
+/// Line position properties.
 pub struct Position {
+    /// Line indentation.
 	pub indentation: usize,
+    /// Type of indentation symbol.
     pub indentation_type: IndentationType,
+    /// Line number within the file.
 	pub line_num: usize,
+    /// Line length.
 	pub length: usize,
 }
 
 #[derive(Debug)]
+/// Indentation symbol type.
 pub enum IndentationType {
+    /// Indentation with spaces.
 	Space,
+    /// Indentation with tabs.
 	Tab,
+    /// No indentation.
     None,
 }
 
 #[derive(Debug)]
+/// Token identificator.
 pub enum TokenId {
+    /// Object definition token.
 	Definition(DefinitionToken),
+    /// Data type token.
 	Type(TypeToken),
+    /// Data literal token.
 	Literal(LiteralToken),
+    /// Macro token.
     Macro(String),
+    /// Identifier token.
 	Identifier(String),
 	Match,              // match
 	If,                 // if
@@ -528,6 +548,7 @@ pub enum TokenId {
 // ------- Token Variants -------
 
 #[derive(Debug)]
+/// Object definition token.
 pub enum DefinitionToken {
     StructDefinition,
     MapDefinition,
@@ -544,6 +565,7 @@ pub enum DefinitionToken {
 }
 
 #[derive(Debug)]
+/// Data type token.
 pub enum TypeToken {
     StringType,
     IntegerType,
@@ -559,6 +581,7 @@ pub enum TypeToken {
 }
 
 #[derive(Debug)]
+/// Data literal token.
 pub enum LiteralToken {
     StringLiteral(String),
     IntegerLiteral(i64),
