@@ -12,10 +12,10 @@ struct User:
         month: Integer(1..12)
         day: Integer(1..31)
     range: Float(0.99..1.99)
-    other: ...
     whatever : Integer | None
     something:Map<String,List<Integer>>
     adreça: String
+    other: ...
 
 struct Something:
     pattern: String(Regex("^[a-zA-Z0-9_]+$"))

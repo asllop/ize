@@ -1,22 +1,19 @@
 //! # IZE Lexer
-//! 
+//!
 //! This module contains all the types and methods necessary to convert raw source code into tokens.
-//! 
+//!
 //! The main public interface from this module is [Line](crate::lexer::Line):
-//! 
+//!
 //! ```
 //! use ize::lexer::Line;
-//! 
+//!
 //! let line = match Line::scan_tokens(r#"const ME = "IZE Language""#, 0) {
 //!     Ok(line) => line,
 //!     Err(err) => panic!("Error: \"{}\" at offset {}", err.message, err.position + 1),
 //! };
 //! ```
 
-use alloc::{
-    string::String,
-    vec::Vec,
-};
+use alloc::{string::String, vec::Vec};
 
 #[derive(Debug)]
 /// Lexical analysis error.
@@ -31,9 +28,9 @@ pub struct LexError {
 /// Tokenized line of code.
 pub struct Line {
     /// List of tokens in this line.
-	pub tokens: Vec<Token>,
+    pub tokens: Vec<Token>,
     /// Line position within the source code.
-	pub position: Position,
+    pub position: Position,
 }
 
 impl Line {
@@ -45,7 +42,7 @@ impl Line {
                 indentation: 0,
                 indentation_type: IndentationType::None,
                 line_num,
-                length: code.len()
+                length: code.len(),
             },
         };
 
@@ -54,14 +51,14 @@ impl Line {
             Ok(Some((i, t))) => {
                 line.position.indentation = i;
                 line.position.indentation_type = t;
-            },
+            }
             Ok(None) => {
                 // Empty line
                 return Ok(line);
-            },
+            }
             Err(err) => {
                 return Err(err);
-            },
+            }
         }
 
         // Start looking for actual tokens
@@ -72,117 +69,109 @@ impl Line {
             if let Some(ch) = Self::next_char(code, current_pos) {
                 match ch {
                     // Ignore spaces and tabs
-                    ' ' | '\t' => {},
+                    ' ' | '\t' => {}
                     // Forbidden chars
                     '\n' | '\r' | '\0' => {
                         return Err(LexError {
                             message: "Forbidden char".into(),
-                            position: current_pos
+                            position: current_pos,
                         });
-                    } 
+                    }
                     // Single char tokens
                     ':' => {
                         line.add_token(TokenId::Colon, current_pos);
-                    },
+                    }
                     ',' => {
                         line.add_token(TokenId::Comma, current_pos);
-                    },
+                    }
                     '(' => {
                         line.add_token(TokenId::OpenParenth, current_pos);
-                    },
+                    }
                     ')' => {
                         line.add_token(TokenId::ClosingParenth, current_pos);
-                    },
+                    }
                     '+' => {
                         line.add_token(TokenId::Plus, current_pos);
-                    },
+                    }
                     '*' => {
                         line.add_token(TokenId::Star, current_pos);
-                    },
+                    }
                     '%' => {
                         line.add_token(TokenId::Percent, current_pos);
-                    },
+                    }
                     // Double char tokens
                     '/' => {
                         // it can be / or //
                         if let Some('/') = Self::next_char(code, current_pos + 1) {
                             // It's a comment, ignore the rest
                             break;
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::Slash, current_pos);
                         }
-                    },
+                    }
                     '-' => {
                         // it can be - or ->
                         if let Some('>') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::Return, current_pos);
                             current_pos += 1;
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::Minus, current_pos);
                         }
-                    },
+                    }
                     '=' => {
                         // it can be = or ==
                         if let Some('=') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::TwoEquals, current_pos);
                             current_pos += 1;
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::Equal, current_pos);
                         }
-                    },
+                    }
                     '&' => {
                         // it can be & or &&
                         if let Some('&') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::TwoAnds, current_pos);
                             current_pos += 1;
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::And, current_pos);
                         }
-                    },
+                    }
                     '|' => {
                         // it can be | or ||
                         if let Some('|') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::TwoOrs, current_pos);
                             current_pos += 1;
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::Or, current_pos);
                         }
-                    },
+                    }
                     '!' => {
                         // it can be ! or !=
                         if let Some('=') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::NotEqual, current_pos);
                             current_pos += 1;
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::Exclam, current_pos);
                         }
-                    },
+                    }
                     '<' => {
                         // it can be < or <=
                         if let Some('=') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::LtEqual, current_pos);
                             current_pos += 1;
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::OpenAngleBrack, current_pos);
                         }
-                    },
+                    }
                     '>' => {
                         // it can be > or >=
                         if let Some('=') = Self::next_char(code, current_pos + 1) {
                             line.add_token(TokenId::GtEqual, current_pos);
                             current_pos += 1;
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::ClosingAngleBrack, current_pos);
                         }
-                    },
+                    }
                     // Triple char tokens
                     '.' => {
                         // it can be . or .. or ...
@@ -190,16 +179,14 @@ impl Line {
                             if let Some('.') = Self::next_char(code, current_pos + 2) {
                                 line.add_token(TokenId::ThreeDots, current_pos);
                                 current_pos += 2;
-                            }
-                            else {
+                            } else {
                                 line.add_token(TokenId::TwoDots, current_pos);
                                 current_pos += 1;
                             }
-                        }
-                        else {
+                        } else {
                             line.add_token(TokenId::Dot, current_pos);
                         }
-                    },
+                    }
                     // Multi char tokens
                     '\"' => {
                         if current_token.len() > 0 {
@@ -210,56 +197,60 @@ impl Line {
                             if let Some(ch) = Self::next_char(code, str_current_pos) {
                                 match ch {
                                     '\"' => {
-                                        line.add_token(TokenId::Literal(LiteralToken::StringLiteral(current_token.into_iter().collect())), current_pos);
+                                        line.add_token(
+                                            TokenId::Literal(LiteralToken::StringLiteral(
+                                                current_token.into_iter().collect(),
+                                            )),
+                                            current_pos,
+                                        );
                                         current_token = Vec::new();
                                         current_pos = str_current_pos;
                                         break;
-                                    },
+                                    }
                                     '\\' => {
                                         // Escape sequence
                                         match Self::next_char(code, str_current_pos + 1) {
                                             Some('\"') => {
                                                 current_token.push('\"');
-                                            },
+                                            }
                                             Some('n') => {
                                                 current_token.push('\n');
-                                            },
+                                            }
                                             Some('t') => {
                                                 current_token.push('\t');
-                                            },
+                                            }
                                             Some('r') => {
                                                 current_token.push('\r');
-                                            },
+                                            }
                                             Some('\\') => {
                                                 current_token.push('\\');
-                                            },
+                                            }
                                             Some('0') => {
                                                 current_token.push('\0');
-                                            },
+                                            }
                                             _ => {
                                                 return Err(LexError {
                                                     message: "Unrecognized escape sequence".into(),
-                                                    position: str_current_pos
+                                                    position: str_current_pos,
                                                 })
                                             }
                                         }
                                         str_current_pos += 1;
-                                    },
+                                    }
                                     _ => {
                                         current_token.push(ch);
                                     }
                                 }
-                            }
-                            else {
+                            } else {
                                 // End of line
                                 return Err(LexError {
                                     message: "Premature end of string literal".into(),
-                                    position: current_pos
+                                    position: current_pos,
                                 });
                             }
                             str_current_pos += 1;
                         }
-                    },
+                    }
                     '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
                         if current_token.len() > 0 {
                             panic!("Started a Number and current token is not empty")
@@ -271,18 +262,20 @@ impl Line {
                                 match ch {
                                     '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
                                         current_token.push(ch);
-                                    },
+                                    }
                                     '.' => {
-                                        if let Some('.') = Self::next_char(code, num_current_pos + 1) {
+                                        if let Some('.') =
+                                            Self::next_char(code, num_current_pos + 1)
+                                        {
                                             // Two dots, it's an integer that ends here
-                                            let num_str: String = current_token.into_iter().collect();
+                                            let num_str: String =
+                                                current_token.into_iter().collect();
                                             current_token = Vec::new();
                                             let token = Self::number_token(&num_str, current_pos)?;
                                             line.tokens.push(token);
                                             current_pos = num_current_pos - 1;
                                             break;
-                                        }
-                                        else {
+                                        } else {
                                             current_token.push(ch);
                                         }
                                     }
@@ -296,8 +289,7 @@ impl Line {
                                         break;
                                     }
                                 }
-                            }
-                            else {
+                            } else {
                                 // End of line
                                 let num_str: String = current_token.into_iter().collect();
                                 current_token = Vec::new();
@@ -308,7 +300,7 @@ impl Line {
                             }
                             num_current_pos += 1;
                         }
-                    },
+                    }
                     '#' => {
                         if current_token.len() > 0 {
                             panic!("Started a Macro and current token is not empty")
@@ -318,25 +310,29 @@ impl Line {
                             if let Some(ch) = Self::next_char(code, macro_current_pos) {
                                 if ch.is_alphanumeric() || ch == '_' {
                                     current_token.push(ch);
-                                }
-                                else {
+                                } else {
                                     // End of macro
-                                    line.add_token(TokenId::Macro(current_token.into_iter().collect()), current_pos);
+                                    line.add_token(
+                                        TokenId::Macro(current_token.into_iter().collect()),
+                                        current_pos,
+                                    );
                                     current_token = Vec::new();
                                     current_pos = macro_current_pos - 1;
                                     break;
                                 }
-                            }
-                            else {
+                            } else {
                                 // End of line
-                                line.add_token(TokenId::Macro(current_token.into_iter().collect()), current_pos);
+                                line.add_token(
+                                    TokenId::Macro(current_token.into_iter().collect()),
+                                    current_pos,
+                                );
                                 current_token = Vec::new();
                                 current_pos = macro_current_pos - 1;
                                 break;
                             }
                             macro_current_pos += 1;
                         }
-                    },
+                    }
                     _ => {
                         // Any other token: not single, double, triple, macro, string or number.
                         if current_token.len() > 0 {
@@ -348,21 +344,21 @@ impl Line {
                             if let Some(ch) = Self::next_char(code, sym_current_pos) {
                                 if ch.is_alphanumeric() || ch == '_' {
                                     current_token.push(ch);
-                                }
-                                else {
+                                } else {
                                     // End of symbol
                                     let symbol_str: String = current_token.into_iter().collect();
                                     current_token = Vec::new();
-                                    line.tokens.push(Self::symbol_token(symbol_str, current_pos));
+                                    line.tokens
+                                        .push(Self::symbol_token(symbol_str, current_pos));
                                     current_pos = sym_current_pos - 1;
                                     break;
                                 }
-                            }
-                            else {
+                            } else {
                                 // End of line
                                 let symbol_str: String = current_token.into_iter().collect();
                                 current_token = Vec::new();
-                                line.tokens.push(Self::symbol_token(symbol_str, current_pos));
+                                line.tokens
+                                    .push(Self::symbol_token(symbol_str, current_pos));
                                 current_pos = sym_current_pos - 1;
                                 break;
                             }
@@ -370,8 +366,7 @@ impl Line {
                         }
                     }
                 }
-            }
-            else {
+            } else {
                 // Reached the end line
                 break;
             }
@@ -425,11 +420,11 @@ impl Line {
             "Pair" => TokenId::Type(TypeToken::PairType),
             "String" => TokenId::Type(TypeToken::StringType),
             "Regex" => TokenId::Type(TypeToken::Regex),
-            _ => TokenId::Identifier(symbol)
+            _ => TokenId::Identifier(symbol),
         };
         Token {
             id: token_id,
-            offset: current_pos
+            offset: current_pos,
         }
     }
 
@@ -437,19 +432,17 @@ impl Line {
         if let Ok(n) = symbol.parse::<i64>() {
             Ok(Token {
                 id: TokenId::Literal(LiteralToken::IntegerLiteral(n)),
-                offset: current_pos
+                offset: current_pos,
             })
-        }
-        else if let Ok(n) = symbol.parse::<f64>() {
+        } else if let Ok(n) = symbol.parse::<f64>() {
             Ok(Token {
                 id: TokenId::Literal(LiteralToken::FloatLiteral(n)),
-                offset: current_pos
+                offset: current_pos,
             })
-        }
-        else {
+        } else {
             Err(LexError {
                 message: "Parsing number".into(),
-                position: current_pos
+                position: current_pos,
             })
         }
     }
@@ -460,29 +453,25 @@ impl Line {
             match ch {
                 ' ' => {
                     if let IndentationType::None | IndentationType::Space = indent {
-                        indent = IndentationType::Space;    
-                    }
-                    else {
+                        indent = IndentationType::Space;
+                    } else {
                         return Err(LexError {
                             message: "Mismatching indentation, mixed spaces and tabs".into(),
-                            position: i
-                        })
+                            position: i,
+                        });
                     }
-                },
+                }
                 '\t' => {
                     if let IndentationType::None | IndentationType::Tab = indent {
-                        indent = IndentationType::Tab;    
-                    }
-                    else {
+                        indent = IndentationType::Tab;
+                    } else {
                         return Err(LexError {
                             message: "Mismatching indentation, mixed spaces and tabs".into(),
-                            position: i
-                        })
+                            position: i,
+                        });
                     }
-                },
-                _ => {
-                    return Ok(Some((i, indent)))
                 }
+                _ => return Ok(Some((i, indent))),
             }
         }
         Ok(None)
@@ -493,31 +482,31 @@ impl Line {
 /// Token object.
 pub struct Token {
     /// Token identificator.
-	pub id: TokenId,
+    pub id: TokenId,
     /// Token position within the line of code.
-	pub offset: usize,
+    pub offset: usize,
 }
 
 #[derive(Debug)]
 /// Line position properties.
 pub struct Position {
     /// Line indentation.
-	pub indentation: usize,
+    pub indentation: usize,
     /// Type of indentation symbol.
     pub indentation_type: IndentationType,
     /// Line number within the file.
-	pub line_num: usize,
+    pub line_num: usize,
     /// Line length.
-	pub length: usize,
+    pub length: usize,
 }
 
 #[derive(Debug)]
 /// Indentation symbol type.
 pub enum IndentationType {
     /// Indentation with spaces.
-	Space,
+    Space,
     /// Indentation with tabs.
-	Tab,
+    Tab,
     /// No indentation.
     None,
 }
@@ -526,45 +515,45 @@ pub enum IndentationType {
 /// Token identificator.
 pub enum TokenId {
     /// Object definition token.
-	Definition(DefinitionToken),
+    Definition(DefinitionToken),
     /// Data type token.
-	Type(TypeToken),
+    Type(TypeToken),
     /// Data literal token.
-	Literal(LiteralToken),
+    Literal(LiteralToken),
     /// Macro token.
     Macro(String),
     /// Identifier token.
-	Identifier(String),
-	Match,              // match
-	If,                 // if
-	Else,               // else
-    As,                 // as
-    Underscore,         // _
-	OpenParenth,        // (
-	ClosingParenth,     // )
-    Comma,              // ,
-    Colon,              // :
-    Plus,               // +
-    Star,               // *
-    Slash,              // /
-    Percent,            // %
-    Minus,              // -
-    Return,             // ->
-	OpenAngleBrack,     // <
-	ClosingAngleBrack,  // >
-    GtEqual,            // >=
-    LtEqual,            // <=
-    And,                // &
-    TwoAnds,            // &&
-    Or,                 // |
-    TwoOrs,             // ||
-    Exclam,             // !
-    NotEqual,           // !=
-    Equal,              // =
-    TwoEquals,          // ==
-	Dot,                // .
-	TwoDots,            // ..
-	ThreeDots,          // ...
+    Identifier(String),
+    Match,             // match
+    If,                // if
+    Else,              // else
+    As,                // as
+    Underscore,        // _
+    OpenParenth,       // (
+    ClosingParenth,    // )
+    Comma,             // ,
+    Colon,             // :
+    Plus,              // +
+    Star,              // *
+    Slash,             // /
+    Percent,           // %
+    Minus,             // -
+    Return,            // ->
+    OpenAngleBrack,    // <
+    ClosingAngleBrack, // >
+    GtEqual,           // >=
+    LtEqual,           // <=
+    And,               // &
+    TwoAnds,           // &&
+    Or,                // |
+    TwoOrs,            // ||
+    Exclam,            // !
+    NotEqual,          // !=
+    Equal,             // =
+    TwoEquals,         // ==
+    Dot,               // .
+    TwoDots,           // ..
+    ThreeDots,         // ...
 }
 
 // ------- Token Variants -------
