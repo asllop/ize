@@ -1,9 +1,12 @@
 // This is a comment
 
+#import("models/newrelic.iz")
+
 struct User:
     timestamp as "time.ms": Integer
     name: String
     surname: String
+    type: String("free", "full", "admin")
     birthday:
         year: Integer(1900..2023)
         month: Integer(1..12)
@@ -12,6 +15,9 @@ struct User:
     other: ...
     whatever : Integer | None
     something:Map<String,List<Integer>>
+
+struct Something:
+    pattern: String(Regex("^[a-zA-Z0-9_]+$"))
 
 dyn NewIntType<Integer>
 
@@ -32,10 +38,11 @@ transfer Sum(input: List<Integer | Float>) -> Integer | Float:
     out
 
 pipeline Main:
-    FromJSON
+    FromJson
     Sum
     Whatever:
         opts:
             name: "Hello this is a nam"
             num: 2001
             fnum: 20.01
+            flag: true

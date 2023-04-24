@@ -399,6 +399,7 @@ impl Line {
             "Null" => TokenId::Type(TypeToken::NullType),
             "Pair" => TokenId::Type(TypeToken::PairType),
             "String" => TokenId::Type(TypeToken::StringType),
+            "Regex" => TokenId::Type(TypeToken::Regex),
             _ => TokenId::Identifier(symbol)
         };
         Token {
@@ -554,6 +555,7 @@ pub enum TypeToken {
     AnyType,
     NoneType,
     NullType,
+    Regex,
 }
 
 #[derive(Debug)]
@@ -562,5 +564,4 @@ pub enum LiteralToken {
     IntegerLiteral(i64),
     FloatLiteral(f64),
     BooleanLiteral(bool),
-    RegexLiteral(String),   //TODO: use the Regex type from the regex crate
 }
