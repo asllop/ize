@@ -73,6 +73,13 @@ impl Line {
                 match ch {
                     // Ignore spaces and tabs
                     ' ' | '\t' => {},
+                    // Forbidden chars
+                    '\n' | '\r' | '\0' => {
+                        return Err(LexError {
+                            message: "Forbidden char".into(),
+                            position: current_pos
+                        });
+                    } 
                     // Single char tokens
                     ':' => {
                         line.add_token(TokenId::Colon, current_pos);

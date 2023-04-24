@@ -15,6 +15,7 @@ struct User:
     other: ...
     whatever : Integer | None
     something:Map<String,List<Integer>>
+    adreça: String
 
 struct Something:
     pattern: String(Regex("^[a-zA-Z0-9_]+$"))
