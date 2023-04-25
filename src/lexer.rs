@@ -85,9 +85,10 @@ enum Lexeme {
     ThreeDots,
 
     // Literals
-    #[regex("[0-9]+")]
+    #[regex("-?[0-9]+")]
     IntegerLiteral,
-    #[regex(r#"[0-9]+\.[0-9]+"#)]
+    //TODO: scientific notation: -9.09E-3, 9.09E+3
+    #[regex(r#"-?[0-9]+\.[0-9]+"#)]
     FloatLiteral,
     #[regex(r#""([^"\\]|\\"|\\)*""#)]
     StringLiteral,
