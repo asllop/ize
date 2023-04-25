@@ -14,8 +14,12 @@ struct User:
     range: Float(0.99..1.99)
     whatever : Integer | None
     something:Map<String,List<Integer>>
-    adreça: String
+    address: Address | Null
     other: ...
+
+struct Address:
+    street: String
+    number: Integer
 
 struct Something:
     pattern: String(Regex("^[a-zA-Z0-9_]+$"))
@@ -23,7 +27,8 @@ struct Something:
 dyn NewIntType<Integer>
 
 const MY_NUM = 1001
-const MY_STR = "This is \t \t\h\x\s\\\n\a an \"escaped\" \r \0 \w \xAB string 'yeha' \\backslash\\\n"
+const UNICODE_üçí_NAME = 0
+const MY_STR = "This is \t \t\h\x\s\\\n\a an \"escaped\" \r \0 \w \xAB string unicode: üçí 'yeha' \\backslash\\\n"
 
 #on_error(abort)
 transfer Sum(input: List<Integer | Float>) -> Integer | Float:
@@ -37,6 +42,18 @@ transfer Sum(input: List<Integer | Float>) -> Integer | Float:
         _:  // This is not necessary here
             out = 0
     out
+
+transfer MyTransfer(input: User) -> Integer:
+    match input:
+        .type = "free", .name = "Foo":
+            do_foo()
+        .type = "free", .name = "Bar":
+            do_bar()
+        .type = "admin":
+            do_admin()
+        _:
+            do_else()
+    0
 
 pipeline Main:
     FromJson
