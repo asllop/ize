@@ -13,8 +13,8 @@
 //! };
 //! ```
 
-use logos::Logos;
 use alloc::{string::String, vec::Vec};
+use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
 #[logos(skip r"[ \t]+")]
@@ -218,42 +218,49 @@ impl Line {
                 match lexeme {
                     Lexeme::Comment => {
                         break;
-                    },
+                    }
                     Lexeme::StringLiteral => {
-                        //TODO: check for valid escape sequences: \t \n \0 \xNN \r \\ \" \uNNNN  
+                        //TODO: check for valid escape sequences: \t \n \0 \xNN \r \\ \" \uNNNN
                         line.add_token(TokenId::StringLiteral(fragment.into()), pos.start);
                     }
                     _ => {
                         // Convert from Lexeme to Token
                         if let Ok(token_id) = TokenId::try_from(lexeme) {
                             line.add_token(token_id, pos.start);
-                        }
-                        else {
+                        } else {
                             // handle conversion of literals, macros and identifiers
                             match lexeme {
                                 Lexeme::IntegerLiteral => {
-                                    line.add_token(TokenId::IntegerLiteral(fragment.parse().unwrap()), pos.start);
-                                },
+                                    line.add_token(
+                                        TokenId::IntegerLiteral(fragment.parse().unwrap()),
+                                        pos.start,
+                                    );
+                                }
                                 Lexeme::FloatLiteral => {
-                                    line.add_token(TokenId::FloatLiteral(fragment.parse().unwrap()), pos.start);
-                                },
+                                    line.add_token(
+                                        TokenId::FloatLiteral(fragment.parse().unwrap()),
+                                        pos.start,
+                                    );
+                                }
                                 Lexeme::BooleanLiteral => {
                                     if fragment == "true" {
                                         line.add_token(TokenId::BooleanLiteral(true), pos.start);
-                                    }
-                                    else {
+                                    } else {
                                         line.add_token(TokenId::BooleanLiteral(false), pos.start);
                                     }
-                                },
+                                }
                                 Lexeme::Macro => {
                                     line.add_token(TokenId::Macro(fragment.into()), pos.start);
-                                },
+                                }
                                 Lexeme::Identifier => {
                                     line.add_token(TokenId::Identifier(fragment.into()), pos.start);
-                                },
+                                }
                                 _ => {
                                     return Err(LexError {
-                                        message: format!("Unexpected lexeme type {:?}: '{}'", lexeme, fragment),
+                                        message: format!(
+                                            "Unexpected lexeme type {:?}: '{}'",
+                                            lexeme, fragment
+                                        ),
                                         position: pos.start,
                                     });
                                 }
@@ -261,8 +268,7 @@ impl Line {
                         }
                     }
                 }
-            }
-            else {
+            } else {
                 return Err(LexError {
                     message: format!("Unrecognized lexeme: '{}'", fragment),
                     position: pos.start,
@@ -289,8 +295,7 @@ impl Line {
                     if first_indent_char == '\0' {
                         first_indent_char = ch;
                         indent_type = ch.into();
-                    }
-                    else if ch != first_indent_char {
+                    } else if ch != first_indent_char {
                         return Err(LexError {
                             message: "Mismatching indentation, mixed spaces and tabs".into(),
                             position: i,
@@ -363,7 +368,7 @@ pub enum TokenId {
     BufferDefinition,
     PipelineDefinition,
     ConstDefinition,
-    
+
     // Data type tokens.
     StringType,
     IntegerType,
@@ -376,16 +381,16 @@ pub enum TokenId {
     NoneType,
     NullType,
     RegexType,
-    
+
     // Data literal tokens.
     StringLiteral(String),
     IntegerLiteral(i64),
     FloatLiteral(f64),
     BooleanLiteral(bool),
-    
+
     // Macro token.
     Macro(String),
-    
+
     // Identifier token.
     Identifier(String),
 
@@ -404,7 +409,7 @@ pub enum TokenId {
     Slash,             // /
     Percent,           // %
     Minus,             // -
-    Arrow,            // ->
+    Arrow,             // ->
     OpenAngleBrack,    // <
     ClosingAngleBrack, // >
     GtEqual,           // >=
