@@ -31,7 +31,7 @@ const UNICODE_üçí_NAME = 0
 const MY_STR = "This is \t \t\h\x\s\\\n\a an \"escaped\" \r \0 \w \xAB string unicode: üçí 'yeha' \\backslash\\\n"
 
 #on_error(abort)
-transfer Sum(input: List<Integer | Float>) -> Integer | Float:
+transfer my_sum(input: List<Integer | Float>) -> Integer | Float:
     match input:
         Integer as i:
             out = i.sum()
@@ -43,7 +43,7 @@ transfer Sum(input: List<Integer | Float>) -> Integer | Float:
             out = 0
     out
 
-transfer MyTransfer(input: User) -> Integer:
+transfer my_transfer(input: User) -> Integer:
     match input:
         .type = "free", .name = "Foo":
             do_foo()
@@ -55,10 +55,10 @@ transfer MyTransfer(input: User) -> Integer:
             do_else()
     0
 
-pipeline Main:
-    FromJson
-    Sum
-    Whatever:
+pipeline main:
+    from_json
+    my_sum
+    whatever:
         opts:
             name: "Hello this is a name"
             num: 2001
