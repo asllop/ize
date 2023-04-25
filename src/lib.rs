@@ -8,9 +8,11 @@
 //! - Route data from multiple origins to multiple destinations.
 //! - Define data fetching and pushing policies.
 //!
-//! It transcompiles into Rust code.
+//! It can either transcompile to Rust or run an interpreter.
 
 #![no_std]
+
+#[macro_use]
 extern crate alloc;
 
 /// Lexical analyzer.

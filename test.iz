@@ -23,7 +23,7 @@ struct Something:
 dyn NewIntType<Integer>
 
 const MY_NUM = 1001
-const MY_STR = "This is \t an \"escaped\" string 'yeha' \\backslash\\\n"
+const MY_STR = "This is \t \t\h\x\s\\\n\a an \"escaped\" \r \0 \w \xAB string 'yeha' \\backslash\\\n"
 
 #on_error(abort)
 transfer Sum(input: List<Integer | Float>) -> Integer | Float:
@@ -43,7 +43,7 @@ pipeline Main:
     Sum
     Whatever:
         opts:
-            name: "Hello this is a nam"
+            name: "Hello this is a name"
             num: 2001
             fnum: 20.01
             flag: true

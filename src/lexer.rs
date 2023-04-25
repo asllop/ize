@@ -13,7 +13,148 @@
 //! };
 //! ```
 
+use logos::Logos;
 use alloc::{string::String, vec::Vec};
+
+#[derive(Logos, Debug, PartialEq, Copy, Clone)]
+#[logos(skip r"[ \t]+")]
+/// Patterns to scan valid lexemes.
+enum Lexeme {
+    // Flow and multipurpose
+    #[token("match")]
+    Match,
+    #[token("if")]
+    If,
+    #[token("else")]
+    Else,
+    #[token("as")]
+    As,
+
+    // Single, double and triple chars
+    #[token("_")]
+    Underscore,
+    #[token("(")]
+    OpenParenth,
+    #[token(")")]
+    ClosingParenth,
+    #[token(",")]
+    Comma,
+    #[token(":")]
+    Colon,
+    #[token("+")]
+    Plus,
+    #[token("*")]
+    Star,
+    #[token("/")]
+    Slash,
+    #[token("%")]
+    Percent,
+    #[token("-")]
+    Minus,
+    #[token("->")]
+    Arrow,
+    #[token("<")]
+    OpenAngleBrack,
+    #[token(">")]
+    ClosingAngleBrack,
+    #[token(">=")]
+    GtEqual,
+    #[token("<=")]
+    LtEqual,
+    #[token("&")]
+    And,
+    #[token("&&")]
+    TwoAnds,
+    #[token("|")]
+    Or,
+    #[token("||")]
+    TwoOrs,
+    #[token("!")]
+    Exclam,
+    #[token("!=")]
+    NotEqual,
+    #[token("=")]
+    Equal,
+    #[token("==")]
+    TwoEquals,
+    #[token(".")]
+    Dot,
+    #[token("..")]
+    TwoDots,
+    #[token("...")]
+    ThreeDots,
+
+    // Literals
+    #[regex("[0-9]+")]
+    IntegerLiteral,
+    #[regex(r#"[0-9]+\.[0-9]+"#)]
+    FloatLiteral,
+    #[regex(r#""([^"\\]|\\"|\\)*""#)]
+    StringLiteral,
+    #[token("true")]
+    #[token("false")]
+    BooleanLiteral,
+
+    // Types
+    #[token("String")]
+    StringType,
+    #[token("Integer")]
+    IntegerType,
+    #[token("Float")]
+    FloatType,
+    #[token("Boolean")]
+    BooleanType,
+    #[token("Map")]
+    MapType,
+    #[token("Pair")]
+    PairType,
+    #[token("List")]
+    ListType,
+    #[token("Any")]
+    AnyType,
+    #[token("None")]
+    NoneType,
+    #[token("Null")]
+    NullType,
+    #[token("Regex")]
+    RegexType,
+
+    // Definition
+    #[token("struct")]
+    StructDefinition,
+    #[token("map")]
+    MapDefinition,
+    #[token("list")]
+    ListDefinition,
+    #[token("string")]
+    StringDefinition,
+    #[token("boolean")]
+    BooleanDefinition,
+    #[token("integer")]
+    IntegerDefinition,
+    #[token("float")]
+    FloatDefinition,
+    #[token("dyn")]
+    DynDefinition,
+    #[token("transfer")]
+    TransferDefinition,
+    #[token("buffer")]
+    BufferDefinition,
+    #[token("pipeline")]
+    PipelineDefinition,
+    #[token("const")]
+    ConstDefinition,
+
+    // Comment
+    #[token("//")]
+    Comment,
+
+    // Multichar
+    #[regex(r#"#[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#)]
+    Macro,
+    #[regex(r#"[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#)]
+    Identifier,
+}
 
 #[derive(Debug)]
 /// Lexical analysis error.
@@ -34,9 +175,9 @@ pub struct Line {
 }
 
 impl Line {
-    /// Scan tokens in a line of code and generates either a Line or an error.
-    pub fn scan_tokens(code: &str, line_num: usize) -> Result<Self, LexError> {
-        let mut line = Line {
+    /// Create new empty Line.
+    pub fn new(code: &str, line_num: usize) -> Self {
+        Line {
             tokens: Vec::new(),
             position: Position {
                 indentation: 0,
@@ -44,9 +185,14 @@ impl Line {
                 line_num,
                 length: code.len(),
             },
-        };
+        }
+    }
 
-        // Get line indentation
+    /// Scan tokens in a line of code and generate either a Line or an error.
+    pub fn scan_tokens(code: &str, line_num: usize) -> Result<Self, LexError> {
+        let mut line = Line::new(code, line_num);
+
+        // Extract line indentation
         match Self::find_indentation(code) {
             Ok(Some((i, t))) => {
                 line.position.indentation = i;
@@ -61,324 +207,70 @@ impl Line {
             }
         }
 
-        // Start looking for actual tokens
-        let mut current_token = Vec::<char>::new();
-        let mut current_pos = line.position.indentation;
+        let code = &code[line.position.indentation..];
 
-        loop {
-            if let Some(ch) = Self::next_char(code, current_pos) {
-                match ch {
-                    // Ignore spaces and tabs
-                    ' ' | '\t' => {}
-                    // Forbidden chars
-                    '\n' | '\r' | '\0' => {
-                        return Err(LexError {
-                            message: "Forbidden char".into(),
-                            position: current_pos,
-                        });
-                    }
-                    // Single char tokens
-                    ':' => {
-                        line.add_token(TokenId::Colon, current_pos);
-                    }
-                    ',' => {
-                        line.add_token(TokenId::Comma, current_pos);
-                    }
-                    '(' => {
-                        line.add_token(TokenId::OpenParenth, current_pos);
-                    }
-                    ')' => {
-                        line.add_token(TokenId::ClosingParenth, current_pos);
-                    }
-                    '+' => {
-                        line.add_token(TokenId::Plus, current_pos);
-                    }
-                    '*' => {
-                        line.add_token(TokenId::Star, current_pos);
-                    }
-                    '%' => {
-                        line.add_token(TokenId::Percent, current_pos);
-                    }
-                    // Double char tokens
-                    '/' => {
-                        // it can be / or //
-                        if let Some('/') = Self::next_char(code, current_pos + 1) {
-                            // It's a comment, ignore the rest
-                            break;
-                        } else {
-                            line.add_token(TokenId::Slash, current_pos);
-                        }
-                    }
-                    '-' => {
-                        // it can be - or ->
-                        if let Some('>') = Self::next_char(code, current_pos + 1) {
-                            line.add_token(TokenId::Return, current_pos);
-                            current_pos += 1;
-                        } else {
-                            line.add_token(TokenId::Minus, current_pos);
-                        }
-                    }
-                    '=' => {
-                        // it can be = or ==
-                        if let Some('=') = Self::next_char(code, current_pos + 1) {
-                            line.add_token(TokenId::TwoEquals, current_pos);
-                            current_pos += 1;
-                        } else {
-                            line.add_token(TokenId::Equal, current_pos);
-                        }
-                    }
-                    '&' => {
-                        // it can be & or &&
-                        if let Some('&') = Self::next_char(code, current_pos + 1) {
-                            line.add_token(TokenId::TwoAnds, current_pos);
-                            current_pos += 1;
-                        } else {
-                            line.add_token(TokenId::And, current_pos);
-                        }
-                    }
-                    '|' => {
-                        // it can be | or ||
-                        if let Some('|') = Self::next_char(code, current_pos + 1) {
-                            line.add_token(TokenId::TwoOrs, current_pos);
-                            current_pos += 1;
-                        } else {
-                            line.add_token(TokenId::Or, current_pos);
-                        }
-                    }
-                    '!' => {
-                        // it can be ! or !=
-                        if let Some('=') = Self::next_char(code, current_pos + 1) {
-                            line.add_token(TokenId::NotEqual, current_pos);
-                            current_pos += 1;
-                        } else {
-                            line.add_token(TokenId::Exclam, current_pos);
-                        }
-                    }
-                    '<' => {
-                        // it can be < or <=
-                        if let Some('=') = Self::next_char(code, current_pos + 1) {
-                            line.add_token(TokenId::LtEqual, current_pos);
-                            current_pos += 1;
-                        } else {
-                            line.add_token(TokenId::OpenAngleBrack, current_pos);
-                        }
-                    }
-                    '>' => {
-                        // it can be > or >=
-                        if let Some('=') = Self::next_char(code, current_pos + 1) {
-                            line.add_token(TokenId::GtEqual, current_pos);
-                            current_pos += 1;
-                        } else {
-                            line.add_token(TokenId::ClosingAngleBrack, current_pos);
-                        }
-                    }
-                    // Triple char tokens
-                    '.' => {
-                        // it can be . or .. or ...
-                        if let Some('.') = Self::next_char(code, current_pos + 1) {
-                            if let Some('.') = Self::next_char(code, current_pos + 2) {
-                                line.add_token(TokenId::ThreeDots, current_pos);
-                                current_pos += 2;
-                            } else {
-                                line.add_token(TokenId::TwoDots, current_pos);
-                                current_pos += 1;
-                            }
-                        } else {
-                            line.add_token(TokenId::Dot, current_pos);
-                        }
-                    }
-                    // Multi char tokens
-                    '\"' => {
-                        if current_token.len() > 0 {
-                            panic!("Started a String and current token is not empty")
-                        }
-                        let mut str_current_pos = current_pos + 1;
-                        loop {
-                            if let Some(ch) = Self::next_char(code, str_current_pos) {
-                                match ch {
-                                    '\"' => {
-                                        line.add_token(
-                                            TokenId::Literal(LiteralToken::StringLiteral(
-                                                current_token.into_iter().collect(),
-                                            )),
-                                            current_pos,
-                                        );
-                                        current_token = Vec::new();
-                                        current_pos = str_current_pos;
-                                        break;
-                                    }
-                                    '\\' => {
-                                        // Escape sequence
-                                        match Self::next_char(code, str_current_pos + 1) {
-                                            Some('\"') => {
-                                                current_token.push('\"');
-                                            }
-                                            Some('n') => {
-                                                current_token.push('\n');
-                                            }
-                                            Some('t') => {
-                                                current_token.push('\t');
-                                            }
-                                            Some('r') => {
-                                                current_token.push('\r');
-                                            }
-                                            Some('\\') => {
-                                                current_token.push('\\');
-                                            }
-                                            Some('0') => {
-                                                current_token.push('\0');
-                                            }
-                                            _ => {
-                                                return Err(LexError {
-                                                    message: "Unrecognized escape sequence".into(),
-                                                    position: str_current_pos,
-                                                })
-                                            }
-                                        }
-                                        str_current_pos += 1;
-                                    }
-                                    _ => {
-                                        current_token.push(ch);
-                                    }
-                                }
-                            } else {
-                                // End of line
-                                return Err(LexError {
-                                    message: "Premature end of string literal".into(),
-                                    position: current_pos,
-                                });
-                            }
-                            str_current_pos += 1;
-                        }
-                    }
-                    '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                        if current_token.len() > 0 {
-                            panic!("Started a Number and current token is not empty")
-                        }
-                        current_token.push(ch);
-                        let mut num_current_pos = current_pos + 1;
-                        loop {
-                            if let Some(ch) = Self::next_char(code, num_current_pos) {
-                                match ch {
-                                    '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                                        current_token.push(ch);
-                                    }
-                                    '.' => {
-                                        if let Some('.') =
-                                            Self::next_char(code, num_current_pos + 1)
-                                        {
-                                            // Two dots, it's an integer that ends here
-                                            let num_str: String =
-                                                current_token.into_iter().collect();
-                                            current_token = Vec::new();
-                                            let token = Self::number_token(&num_str, current_pos)?;
-                                            line.tokens.push(token);
-                                            current_pos = num_current_pos - 1;
-                                            break;
-                                        } else {
-                                            current_token.push(ch);
-                                        }
-                                    }
-                                    _ => {
-                                        // End of number
-                                        let num_str: String = current_token.into_iter().collect();
-                                        current_token = Vec::new();
-                                        let token = Self::number_token(&num_str, current_pos)?;
-                                        line.tokens.push(token);
-                                        current_pos = num_current_pos - 1;
-                                        break;
-                                    }
-                                }
-                            } else {
-                                // End of line
-                                let num_str: String = current_token.into_iter().collect();
-                                current_token = Vec::new();
-                                let token = Self::number_token(&num_str, current_pos)?;
-                                line.tokens.push(token);
-                                current_pos = num_current_pos - 1;
-                                break;
-                            }
-                            num_current_pos += 1;
-                        }
-                    }
-                    '#' => {
-                        if current_token.len() > 0 {
-                            panic!("Started a Macro and current token is not empty")
-                        }
-                        let mut macro_current_pos = current_pos + 1;
-                        loop {
-                            if let Some(ch) = Self::next_char(code, macro_current_pos) {
-                                if ch.is_alphanumeric() || ch == '_' {
-                                    current_token.push(ch);
-                                } else {
-                                    // End of macro
-                                    line.add_token(
-                                        TokenId::Macro(current_token.into_iter().collect()),
-                                        current_pos,
-                                    );
-                                    current_token = Vec::new();
-                                    current_pos = macro_current_pos - 1;
-                                    break;
-                                }
-                            } else {
-                                // End of line
-                                line.add_token(
-                                    TokenId::Macro(current_token.into_iter().collect()),
-                                    current_pos,
-                                );
-                                current_token = Vec::new();
-                                current_pos = macro_current_pos - 1;
-                                break;
-                            }
-                            macro_current_pos += 1;
-                        }
+        // Start regular analysis part
+        let lex = Lexeme::lexer(code);
+        for (lexeme, pos) in lex.spanned() {
+            let fragment = &code[pos.start..pos.end];
+
+            if let Ok(lexeme) = lexeme {
+                match lexeme {
+                    Lexeme::Comment => {
+                        break;
+                    },
+                    Lexeme::StringLiteral => {
+                        //TODO: check for valid escape sequences: \t \n \0 \xNN \r \\ \" \uNNNN  
+                        line.add_token(TokenId::StringLiteral(fragment.into()), pos.start);
                     }
                     _ => {
-                        // Any other token: not single, double, triple, macro, string or number.
-                        if current_token.len() > 0 {
-                            panic!("Started a Identifier and current token is not empty")
+                        // Convert from Lexeme to Token
+                        if let Ok(token_id) = TokenId::try_from(lexeme) {
+                            line.add_token(token_id, pos.start);
                         }
-                        current_token.push(ch);
-                        let mut sym_current_pos = current_pos + 1;
-                        loop {
-                            if let Some(ch) = Self::next_char(code, sym_current_pos) {
-                                if ch.is_alphanumeric() || ch == '_' {
-                                    current_token.push(ch);
-                                } else {
-                                    // End of symbol
-                                    let symbol_str: String = current_token.into_iter().collect();
-                                    current_token = Vec::new();
-                                    line.tokens
-                                        .push(Self::symbol_token(symbol_str, current_pos));
-                                    current_pos = sym_current_pos - 1;
-                                    break;
+                        else {
+                            // handle conversion of literals, macros and identifiers
+                            match lexeme {
+                                Lexeme::IntegerLiteral => {
+                                    line.add_token(TokenId::IntegerLiteral(fragment.parse().unwrap()), pos.start);
+                                },
+                                Lexeme::FloatLiteral => {
+                                    line.add_token(TokenId::FloatLiteral(fragment.parse().unwrap()), pos.start);
+                                },
+                                Lexeme::BooleanLiteral => {
+                                    if fragment == "true" {
+                                        line.add_token(TokenId::BooleanLiteral(true), pos.start);
+                                    }
+                                    else {
+                                        line.add_token(TokenId::BooleanLiteral(false), pos.start);
+                                    }
+                                },
+                                Lexeme::Macro => {
+                                    line.add_token(TokenId::Macro(fragment.into()), pos.start);
+                                },
+                                Lexeme::Identifier => {
+                                    line.add_token(TokenId::Identifier(fragment.into()), pos.start);
+                                },
+                                _ => {
+                                    return Err(LexError {
+                                        message: format!("Unexpected lexeme type {:?}: '{}'", lexeme, fragment),
+                                        position: pos.start,
+                                    });
                                 }
-                            } else {
-                                // End of line
-                                let symbol_str: String = current_token.into_iter().collect();
-                                current_token = Vec::new();
-                                line.tokens
-                                    .push(Self::symbol_token(symbol_str, current_pos));
-                                current_pos = sym_current_pos - 1;
-                                break;
                             }
-                            sym_current_pos += 1;
                         }
                     }
                 }
-            } else {
-                // Reached the end line
-                break;
             }
-
-            current_pos += 1;
+            else {
+                return Err(LexError {
+                    message: format!("Unrecognized lexeme: '{}'", fragment),
+                    position: pos.start,
+                });
+            }
         }
 
         Ok(line)
-    }
-
-    fn next_char(code: &str, current_pos: usize) -> Option<char> {
-        code.chars().nth(current_pos)
     }
 
     fn add_token(&mut self, token_id: TokenId, pos: usize) {
@@ -388,90 +280,24 @@ impl Line {
         });
     }
 
-    fn symbol_token(symbol: String, current_pos: usize) -> Token {
-        let token_id = match symbol.as_str() {
-            "match" => TokenId::Match,
-            "if" => TokenId::If,
-            "else" => TokenId::Else,
-            "as" => TokenId::As,
-            "_" => TokenId::Underscore,
-            "true" => TokenId::Literal(LiteralToken::BooleanLiteral(true)),
-            "false" => TokenId::Literal(LiteralToken::BooleanLiteral(true)),
-            "string" => TokenId::Definition(DefinitionToken::StringDefinition),
-            "struct" => TokenId::Definition(DefinitionToken::StructDefinition),
-            "integer" => TokenId::Definition(DefinitionToken::IntegerDefinition),
-            "float" => TokenId::Definition(DefinitionToken::FloatDefinition),
-            "dyn" => TokenId::Definition(DefinitionToken::DynDefinition),
-            "boolean" => TokenId::Definition(DefinitionToken::BooleanDefinition),
-            "map" => TokenId::Definition(DefinitionToken::MapDefinition),
-            "list" => TokenId::Definition(DefinitionToken::ListDefinition),
-            "transfer" => TokenId::Definition(DefinitionToken::TransferDefinition),
-            "buffer" => TokenId::Definition(DefinitionToken::BufferDefinition),
-            "pipeline" => TokenId::Definition(DefinitionToken::PipelineDefinition),
-            "const" => TokenId::Definition(DefinitionToken::ConstDefinition),
-            "Any" => TokenId::Type(TypeToken::AnyType),
-            "Boolean" => TokenId::Type(TypeToken::BooleanType),
-            "Float" => TokenId::Type(TypeToken::FloatType),
-            "Integer" => TokenId::Type(TypeToken::IntegerType),
-            "List" => TokenId::Type(TypeToken::ListType),
-            "Map" => TokenId::Type(TypeToken::MapType),
-            "None" => TokenId::Type(TypeToken::NoneType),
-            "Null" => TokenId::Type(TypeToken::NullType),
-            "Pair" => TokenId::Type(TypeToken::PairType),
-            "String" => TokenId::Type(TypeToken::StringType),
-            "Regex" => TokenId::Type(TypeToken::Regex),
-            _ => TokenId::Identifier(symbol),
-        };
-        Token {
-            id: token_id,
-            offset: current_pos,
-        }
-    }
-
-    fn number_token(symbol: &str, current_pos: usize) -> Result<Token, LexError> {
-        if let Ok(n) = symbol.parse::<i64>() {
-            Ok(Token {
-                id: TokenId::Literal(LiteralToken::IntegerLiteral(n)),
-                offset: current_pos,
-            })
-        } else if let Ok(n) = symbol.parse::<f64>() {
-            Ok(Token {
-                id: TokenId::Literal(LiteralToken::FloatLiteral(n)),
-                offset: current_pos,
-            })
-        } else {
-            Err(LexError {
-                message: "Parsing number".into(),
-                position: current_pos,
-            })
-        }
-    }
-
     fn find_indentation(code: &str) -> Result<Option<(usize, IndentationType)>, LexError> {
-        let mut indent = IndentationType::None;
+        let mut indent_type = IndentationType::None;
+        let mut first_indent_char = '\0';
         for (i, ch) in code.chars().enumerate() {
             match ch {
-                ' ' => {
-                    if let IndentationType::None | IndentationType::Space = indent {
-                        indent = IndentationType::Space;
-                    } else {
+                ' ' | '\t' => {
+                    if first_indent_char == '\0' {
+                        first_indent_char = ch;
+                        indent_type = ch.into();
+                    }
+                    else if ch != first_indent_char {
                         return Err(LexError {
                             message: "Mismatching indentation, mixed spaces and tabs".into(),
                             position: i,
                         });
                     }
                 }
-                '\t' => {
-                    if let IndentationType::None | IndentationType::Tab = indent {
-                        indent = IndentationType::Tab;
-                    } else {
-                        return Err(LexError {
-                            message: "Mismatching indentation, mixed spaces and tabs".into(),
-                            position: i,
-                        });
-                    }
-                }
-                _ => return Ok(Some((i, indent))),
+                _ => return Ok(Some((i, indent_type))),
             }
         }
         Ok(None)
@@ -511,19 +337,59 @@ pub enum IndentationType {
     None,
 }
 
+impl From<char> for IndentationType {
+    fn from(value: char) -> Self {
+        match value {
+            ' ' => Self::Space,
+            '\r' => Self::Tab,
+            _ => Self::None,
+        }
+    }
+}
+
 #[derive(Debug)]
 /// Token identificator.
 pub enum TokenId {
-    /// Object definition token.
-    Definition(DefinitionToken),
-    /// Data type token.
-    Type(TypeToken),
-    /// Data literal token.
-    Literal(LiteralToken),
-    /// Macro token.
+    // Object definition tokens.
+    StructDefinition,
+    MapDefinition,
+    ListDefinition,
+    StringDefinition,
+    BooleanDefinition,
+    IntegerDefinition,
+    FloatDefinition,
+    DynDefinition,
+    TransferDefinition,
+    BufferDefinition,
+    PipelineDefinition,
+    ConstDefinition,
+    
+    // Data type tokens.
+    StringType,
+    IntegerType,
+    FloatType,
+    BooleanType,
+    MapType,
+    PairType,
+    ListType,
+    AnyType,
+    NoneType,
+    NullType,
+    RegexType,
+    
+    // Data literal tokens.
+    StringLiteral(String),
+    IntegerLiteral(i64),
+    FloatLiteral(f64),
+    BooleanLiteral(bool),
+    
+    // Macro token.
     Macro(String),
-    /// Identifier token.
+    
+    // Identifier token.
     Identifier(String),
+
+    // The rest.
     Match,             // match
     If,                // if
     Else,              // else
@@ -538,7 +404,7 @@ pub enum TokenId {
     Slash,             // /
     Percent,           // %
     Minus,             // -
-    Return,            // ->
+    Arrow,            // ->
     OpenAngleBrack,    // <
     ClosingAngleBrack, // >
     GtEqual,           // >=
@@ -556,46 +422,84 @@ pub enum TokenId {
     ThreeDots,         // ...
 }
 
-// ------- Token Variants -------
+impl TryFrom<Lexeme> for TokenId {
+    type Error = ();
 
-#[derive(Debug)]
-/// Object definition token.
-pub enum DefinitionToken {
-    StructDefinition,
-    MapDefinition,
-    ListDefinition,
-    StringDefinition,
-    BooleanDefinition,
-    IntegerDefinition,
-    FloatDefinition,
-    DynDefinition,
-    TransferDefinition,
-    BufferDefinition,
-    PipelineDefinition,
-    ConstDefinition,
+    fn try_from(value: Lexeme) -> Result<Self, Self::Error> {
+        match value {
+            Lexeme::Match => Ok(Self::Match),
+            Lexeme::If => Ok(Self::If),
+            Lexeme::Else => Ok(Self::Else),
+            Lexeme::As => Ok(Self::As),
+            Lexeme::Underscore => Ok(Self::Underscore),
+            Lexeme::OpenParenth => Ok(Self::OpenParenth),
+            Lexeme::ClosingParenth => Ok(Self::ClosingParenth),
+            Lexeme::Comma => Ok(Self::Comma),
+            Lexeme::Colon => Ok(Self::Colon),
+            Lexeme::Plus => Ok(Self::Plus),
+            Lexeme::Star => Ok(Self::Star),
+            Lexeme::Slash => Ok(Self::Slash),
+            Lexeme::Percent => Ok(Self::Percent),
+            Lexeme::Minus => Ok(Self::Minus),
+            Lexeme::Arrow => Ok(Self::Arrow),
+            Lexeme::OpenAngleBrack => Ok(Self::OpenAngleBrack),
+            Lexeme::ClosingAngleBrack => Ok(Self::ClosingAngleBrack),
+            Lexeme::GtEqual => Ok(Self::GtEqual),
+            Lexeme::LtEqual => Ok(Self::LtEqual),
+            Lexeme::And => Ok(Self::And),
+            Lexeme::TwoAnds => Ok(Self::TwoAnds),
+            Lexeme::Or => Ok(Self::Or),
+            Lexeme::TwoOrs => Ok(Self::TwoOrs),
+            Lexeme::Exclam => Ok(Self::Exclam),
+            Lexeme::NotEqual => Ok(Self::NotEqual),
+            Lexeme::Equal => Ok(Self::Equal),
+            Lexeme::TwoEquals => Ok(Self::TwoEquals),
+            Lexeme::Dot => Ok(Self::Dot),
+            Lexeme::TwoDots => Ok(Self::TwoDots),
+            Lexeme::ThreeDots => Ok(Self::ThreeDots),
+            Lexeme::StringType => Ok(Self::StringType),
+            Lexeme::IntegerType => Ok(Self::IntegerType),
+            Lexeme::FloatType => Ok(Self::FloatType),
+            Lexeme::BooleanType => Ok(Self::BooleanType),
+            Lexeme::MapType => Ok(Self::MapType),
+            Lexeme::PairType => Ok(Self::PairType),
+            Lexeme::ListType => Ok(Self::ListType),
+            Lexeme::AnyType => Ok(Self::AnyType),
+            Lexeme::NoneType => Ok(Self::NoneType),
+            Lexeme::NullType => Ok(Self::NullType),
+            Lexeme::RegexType => Ok(Self::RegexType),
+            Lexeme::StructDefinition => Ok(Self::StructDefinition),
+            Lexeme::MapDefinition => Ok(Self::MapDefinition),
+            Lexeme::ListDefinition => Ok(Self::ListDefinition),
+            Lexeme::StringDefinition => Ok(Self::StringDefinition),
+            Lexeme::BooleanDefinition => Ok(Self::BooleanDefinition),
+            Lexeme::IntegerDefinition => Ok(Self::IntegerDefinition),
+            Lexeme::FloatDefinition => Ok(Self::FloatDefinition),
+            Lexeme::DynDefinition => Ok(Self::DynDefinition),
+            Lexeme::TransferDefinition => Ok(Self::TransferDefinition),
+            Lexeme::BufferDefinition => Ok(Self::BufferDefinition),
+            Lexeme::PipelineDefinition => Ok(Self::PipelineDefinition),
+            Lexeme::ConstDefinition => Ok(Self::ConstDefinition),
+            _ => {
+                // we have to handle literals, macros and identifiers conversion outside
+                Err(())
+            }
+        }
+    }
 }
 
-#[derive(Debug)]
-/// Data type token.
-pub enum TypeToken {
-    StringType,
-    IntegerType,
-    FloatType,
-    BooleanType,
-    MapType,
-    PairType,
-    ListType,
-    AnyType,
-    NoneType,
-    NullType,
-    Regex,
-}
+#[cfg(test)]
+mod test {
+    use crate::lexer::Line;
 
-#[derive(Debug)]
-/// Data literal token.
-pub enum LiteralToken {
-    StringLiteral(String),
-    IntegerLiteral(i64),
-    FloatLiteral(f64),
-    BooleanLiteral(bool),
+    #[test]
+    fn no_forbidden_chars() {
+        assert!(Line::scan_tokens("const ME = \"IZE Language\"", 0).is_ok());
+        assert!(Line::scan_tokens("const ME =\t\"IZE Language\"", 0).is_ok());
+
+        assert!(Line::scan_tokens("const ME =\n\"IZE Language\"", 0).is_err());
+        assert!(Line::scan_tokens("const ME =\r\"IZE Language\"", 0).is_err());
+        assert!(Line::scan_tokens("const ME =\0\"IZE Language\"", 0).is_err());
+        assert!(Line::scan_tokens("const ME =\x07\"IZE Language\"", 0).is_err());
+    }
 }

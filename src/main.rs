@@ -23,7 +23,7 @@ fn main() -> io::Result<()> {
         })
         .collect();
 
-    // Print
+    // Print tokens
     for l in lines {
         for _ in 0..l.position.indentation {
             print!(" ");
