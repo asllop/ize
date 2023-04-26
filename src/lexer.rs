@@ -9,7 +9,7 @@
 //!
 //! let line = match Line::scan_tokens(r#"const ME = "IZE Language""#, 0) {
 //!     Ok(line) => line,
-//!     Err(err) => panic!("Error: \"{}\" at offset {}", err.message, err.position + 1),
+//!     Err(err) => panic!("Error: \"{}\" at offset {}", err.message, err.position),
 //! };
 //! ```
 
@@ -211,8 +211,7 @@ impl Line {
         let code = &code[line.position.indentation..];
 
         // Start regular analysis part
-        let lex = Lexeme::lexer(code);
-        for (lexeme, pos) in lex.spanned() {
+        for (lexeme, pos) in Lexeme::lexer(code).spanned() {
             let fragment = &code[pos.start..pos.end];
 
             if let Ok(lexeme) = lexeme {
@@ -233,12 +232,14 @@ impl Line {
                             match lexeme {
                                 Lexeme::IntegerLiteral => {
                                     line.add_token(
+                                        // Unwrapping because Logos already checked that it is actually a well formatted integer
                                         TokenId::IntegerLiteral(fragment.parse().unwrap()),
                                         pos.start,
                                     );
                                 }
                                 Lexeme::FloatLiteral => {
                                     line.add_token(
+                                        // Unwrapping because Logos already checked that it is actually a well formatted float
                                         TokenId::FloatLiteral(fragment.parse().unwrap()),
                                         pos.start,
                                     );

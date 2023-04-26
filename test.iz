@@ -1,6 +1,6 @@
 // This is a comment
 
-#import("models/newrelic.iz")
+#import("models/metric.iz")
 
 struct User:
     timestamp as "time.ms": Integer
