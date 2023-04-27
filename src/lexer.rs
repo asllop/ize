@@ -390,7 +390,6 @@ pub enum TokenId {
     AnyType,
     NoneType,
     NullType,
-    RegexType,
 
     // Data literal tokens.
     StringLiteral(String),
@@ -495,10 +494,7 @@ impl TryFrom<Lexeme> for TokenId {
             Lexeme::BufferDefinition => Ok(Self::BufferDefinition),
             Lexeme::PipelineDefinition => Ok(Self::PipelineDefinition),
             Lexeme::ConstDefinition => Ok(Self::ConstDefinition),
-            _ => {
-                // we have to handle literals, macros and identifiers conversion outside
-                Err(())
-            }
+            _ => Err(())
         }
     }
 }
