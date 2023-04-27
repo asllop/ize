@@ -9,7 +9,7 @@
 //! - Define data fetching and pushing policies.
 //!
 //! It can either transcompile to Rust or run an interpreter.
-//! 
+//!
 //! IZE is a statically typed, async oriented, and functional-styled programming language with a minimalistic and expressive syntax.
 
 #![no_std]

@@ -15,6 +15,7 @@
 
 use alloc::{string::String, vec::Vec};
 use logos::Logos;
+use regex::Regex;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
 #[logos(skip r"[ \t]+")]
@@ -92,6 +93,8 @@ enum Lexeme {
     FloatLiteral,
     #[regex(r#""([^"\\]|\\"|\\)*""#)]
     StringLiteral,
+    #[regex(r#"r"([^"\\]|\\"|\\)*""#)]
+    RegexLiteral,
     #[token("true")]
     #[token("false")]
     BooleanLiteral,
@@ -117,8 +120,6 @@ enum Lexeme {
     NoneType,
     #[token("Null")]
     NullType,
-    #[token("Regex")]
-    RegexType,
 
     // Definition
     #[token("struct")]
@@ -221,7 +222,20 @@ impl Line {
                     }
                     Lexeme::StringLiteral => {
                         //TODO: check for valid escape sequences: \t \n \0 \xNN \r \\ \" \uNNNN
-                        line.add_token(TokenId::StringLiteral(fragment.into()), pos.start);
+                        line.add_token(
+                            TokenId::StringLiteral(fragment[1..(fragment.len() - 1)].into()),
+                            pos.start,
+                        );
+                    }
+                    Lexeme::RegexLiteral => {
+                        if let Ok(regex) = Regex::new(&fragment[2..(fragment.len() - 1)]) {
+                            line.add_token(TokenId::RegexLiteral(regex), pos.start);
+                        } else {
+                            return Err(LexError {
+                                message: format!("Malformed regular expression: '{}'", fragment),
+                                position: pos.start,
+                            });
+                        }
                     }
                     _ => {
                         // Convert from Lexeme to Token
@@ -386,6 +400,7 @@ pub enum TokenId {
 
     // Data literal tokens.
     StringLiteral(String),
+    RegexLiteral(Regex),
     IntegerLiteral(i64),
     FloatLiteral(f64),
     BooleanLiteral(bool),
@@ -474,7 +489,6 @@ impl TryFrom<Lexeme> for TokenId {
             Lexeme::AnyType => Ok(Self::AnyType),
             Lexeme::NoneType => Ok(Self::NoneType),
             Lexeme::NullType => Ok(Self::NullType),
-            Lexeme::RegexType => Ok(Self::RegexType),
             Lexeme::StructDefinition => Ok(Self::StructDefinition),
             Lexeme::MapDefinition => Ok(Self::MapDefinition),
             Lexeme::ListDefinition => Ok(Self::ListDefinition),

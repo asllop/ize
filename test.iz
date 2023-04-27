@@ -22,13 +22,13 @@ struct Address:
     number: Integer
 
 struct Something:
-    pattern: String(Regex("^[a-zA-Z0-9_]+$"))
+    pattern: String(r"^[a-zA-Z0-9_]+$")
 
 dyn NewIntType<Integer>
 
 const MY_NUM = 1001
 const UNICODE_üçí_NAME = 0
-const MY_STR = "This is \t \t\h\x\s\\\n\a an \"escaped\" \r \0 \w \xAB string unicode: üçí 'yeha' \\backslash\\\n"
+const MY_STR = "This is \t \t\h\x\s\\\n\a an \"escaped\" \ \r \0 \w \xAB string unicode: üçí 'yeha' \\backslash\\\n"
 const NEATIVE_F = -9.09
 const NEATIVE_I = -9
 
