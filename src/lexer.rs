@@ -298,14 +298,12 @@ impl Line {
 
     fn find_indentation(code: &str) -> Result<Option<(usize, IndentationType)>, LexError> {
         let mut indent_type = IndentationType::None;
-        let mut first_indent_char = '\0';
         for (i, ch) in code.chars().enumerate() {
             match ch {
                 ' ' | '\t' => {
-                    if first_indent_char == '\0' {
-                        first_indent_char = ch;
+                    if indent_type == IndentationType::None {
                         indent_type = ch.into();
-                    } else if ch != first_indent_char {
+                    } else if IndentationType::from(ch) != indent_type {
                         return Err(LexError {
                             message: "Mismatching indentation, mixed spaces and tabs".into(),
                             position: i,
@@ -341,7 +339,7 @@ pub struct Position {
     pub length: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Indentation symbol type.
 pub enum IndentationType {
     /// Indentation with spaces.
@@ -494,7 +492,7 @@ impl TryFrom<Lexeme> for TokenId {
             Lexeme::BufferDefinition => Ok(Self::BufferDefinition),
             Lexeme::PipelineDefinition => Ok(Self::PipelineDefinition),
             Lexeme::ConstDefinition => Ok(Self::ConstDefinition),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
