@@ -237,50 +237,44 @@ impl Line {
                             });
                         }
                     }
+                    Lexeme::IntegerLiteral => {
+                        line.add_token(
+                            // Unwrapping because Logos already checked that it is actually a well formatted integer
+                            TokenId::IntegerLiteral(fragment.parse().unwrap()),
+                            pos.start,
+                        );
+                    }
+                    Lexeme::FloatLiteral => {
+                        line.add_token(
+                            // Unwrapping because Logos already checked that it is actually a well formatted float
+                            TokenId::FloatLiteral(fragment.parse().unwrap()),
+                            pos.start,
+                        );
+                    }
+                    Lexeme::BooleanLiteral => {
+                        if fragment == "true" {
+                            line.add_token(TokenId::BooleanLiteral(true), pos.start);
+                        } else {
+                            line.add_token(TokenId::BooleanLiteral(false), pos.start);
+                        }
+                    }
+                    Lexeme::Macro => {
+                        line.add_token(TokenId::Macro(fragment.into()), pos.start);
+                    }
+                    Lexeme::Identifier => {
+                        line.add_token(TokenId::Identifier(fragment.into()), pos.start);
+                    }
                     _ => {
-                        // Convert from Lexeme to Token
                         if let Ok(token_id) = TokenId::try_from(lexeme) {
                             line.add_token(token_id, pos.start);
                         } else {
-                            // handle conversion of literals, macros and identifiers
-                            match lexeme {
-                                Lexeme::IntegerLiteral => {
-                                    line.add_token(
-                                        // Unwrapping because Logos already checked that it is actually a well formatted integer
-                                        TokenId::IntegerLiteral(fragment.parse().unwrap()),
-                                        pos.start,
-                                    );
-                                }
-                                Lexeme::FloatLiteral => {
-                                    line.add_token(
-                                        // Unwrapping because Logos already checked that it is actually a well formatted float
-                                        TokenId::FloatLiteral(fragment.parse().unwrap()),
-                                        pos.start,
-                                    );
-                                }
-                                Lexeme::BooleanLiteral => {
-                                    if fragment == "true" {
-                                        line.add_token(TokenId::BooleanLiteral(true), pos.start);
-                                    } else {
-                                        line.add_token(TokenId::BooleanLiteral(false), pos.start);
-                                    }
-                                }
-                                Lexeme::Macro => {
-                                    line.add_token(TokenId::Macro(fragment.into()), pos.start);
-                                }
-                                Lexeme::Identifier => {
-                                    line.add_token(TokenId::Identifier(fragment.into()), pos.start);
-                                }
-                                _ => {
-                                    return Err(LexError {
-                                        message: format!(
-                                            "Unexpected lexeme type {:?}: '{}'",
-                                            lexeme, fragment
-                                        ),
-                                        position: pos.start,
-                                    });
-                                }
-                            }
+                            return Err(LexError {
+                                message: format!(
+                                    "Unexpected lexeme type {:?}: '{}'",
+                                    lexeme, fragment
+                                ),
+                                position: pos.start,
+                            });
                         }
                     }
                 }
