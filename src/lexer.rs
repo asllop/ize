@@ -19,7 +19,7 @@ use regex::Regex;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
 #[logos(skip r"[ \t]+")]
-/// Patterns to scan valid lexemes.
+/// Token types.
 pub enum TokenType {
     // Flow and multipurpose
     #[token("match")]

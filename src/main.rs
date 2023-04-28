@@ -1,4 +1,4 @@
-use ize::lexer::Line;
+use ize::{lexer::Line, parser::LineParser};
 use std::{
     fs::File,
     io::{self, prelude::*, BufReader},
@@ -18,7 +18,7 @@ fn main() -> io::Result<()> {
                 Ok(line) => line,
                 Err(err) => {
                     println!(
-                        "Error: \"{}\" at line {} offset {}",
+                        "Lexer Error: \"{}\" at line {} offset {}",
                         err.message,
                         line_num + 1,
                         err.position + 1
@@ -29,17 +29,35 @@ fn main() -> io::Result<()> {
         })
         .collect();
 
+    println!("------- LEXER\n");
+
     // Print tokens
-    for l in lines {
+    for l in &lines {
         for _ in 0..l.position.indentation {
             print!(" ");
         }
-        for t in l.tokens {
+        for t in &l.tokens {
             print!("{:?}({:?}) ", t.token_type, t.data);
         }
         println!("EOL");
     }
     println!("\nEOF");
+
+    println!("------- PARSER\n");
+
+    for l in lines {
+        match LineParser::parse(l) {
+            Ok(expr) => println!("EXPR = {:?}", expr),
+            Err(err) => {
+                println!(
+                    "Parser Error: \"{}\" at line {} offset {}",
+                    err.message,
+                    err.line + 1,
+                    err.offset + 1
+                );
+            }
+        }
+    }
 
     Ok(())
 }
