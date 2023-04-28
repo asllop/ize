@@ -34,6 +34,7 @@ const NEATIVE_I = -9
 
 #on_error(abort)
 transfer my_sum(input: List<Integer | Float>) -> Integer | Float:
+    // This is the primary use of MATCH
     match input:
         Integer as i:
             out = i.sum()
@@ -46,6 +47,7 @@ transfer my_sum(input: List<Integer | Float>) -> Integer | Float:
     out
 
 transfer my_transfer(input: User) -> Integer:
+    // This can be an IF-ELSE chain
     match input:
         .type = "free", .name = "Foo":
             do_foo()
@@ -56,6 +58,16 @@ transfer my_transfer(input: User) -> Integer:
         _:
             do_else()
     0
+
+transfer valid_password(input: String) -> Boolean:
+    // This can be an IF-ELSE chain
+    match input:
+        "12345" | "password" | "admin":
+            return false
+        "whatever":
+            return false
+        _:
+            return true
 
 pipeline main:
     from_json

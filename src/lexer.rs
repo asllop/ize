@@ -30,6 +30,8 @@ enum Lexeme {
     Else,
     #[token("as")]
     As,
+    #[token("return")]
+    Return,
 
     // Single, double and triple chars
     #[token("_")]
@@ -407,6 +409,7 @@ pub enum TokenId {
     If,                // if
     Else,              // else
     As,                // as
+    Return,            // return
     Underscore,        // _
     OpenParenth,       // (
     ClosingParenth,    // )
@@ -444,6 +447,7 @@ impl TryFrom<Lexeme> for TokenId {
             Lexeme::If => Ok(Self::If),
             Lexeme::Else => Ok(Self::Else),
             Lexeme::As => Ok(Self::As),
+            Lexeme::Return => Ok(Self::Return),
             Lexeme::Underscore => Ok(Self::Underscore),
             Lexeme::OpenParenth => Ok(Self::OpenParenth),
             Lexeme::ClosingParenth => Ok(Self::ClosingParenth),

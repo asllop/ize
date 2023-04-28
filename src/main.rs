@@ -1,6 +1,9 @@
 use ize::lexer::Line;
-use std::fs::File;
-use std::io::{self, prelude::*, BufReader};
+use std::{
+    fs::File,
+    io::{self, prelude::*, BufReader},
+    process::exit,
+};
 
 fn main() -> io::Result<()> {
     let file = File::open("test.iz")?;
@@ -13,12 +16,15 @@ fn main() -> io::Result<()> {
             let line = line.expect("Error reading line of code from file");
             match Line::scan_tokens(&line, line_num) {
                 Ok(line) => line,
-                Err(err) => panic!(
-                    "Error: \"{}\" at line {} offset {}",
-                    err.message,
-                    line_num + 1,
-                    err.position + 1
-                ),
+                Err(err) => {
+                    println!(
+                        "Error: \"{}\" at line {} offset {}",
+                        err.message,
+                        line_num + 1,
+                        err.position + 1
+                    );
+                    exit(1);
+                }
             }
         })
         .collect();
