@@ -46,15 +46,17 @@ fn main() -> io::Result<()> {
     println!("------- PARSER\n");
 
     for l in lines {
+        let line_num = l.position.line_num;
         match LineParser::parse(l) {
             Ok(expr) => println!("EXPR = {:?}", expr),
             Err(err) => {
                 println!(
                     "Parser Error: \"{}\" at line {} offset {}",
                     err.message,
-                    err.line + 1,
+                    line_num + 1,
                     err.offset + 1
                 );
+                exit(2);
             }
         }
     }
