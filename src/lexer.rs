@@ -20,7 +20,7 @@ use regex::Regex;
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
 #[logos(skip r"[ \t]+")]
 /// Patterns to scan valid lexemes.
-enum Lexeme {
+pub enum TokenType {
     // Flow and multipurpose
     #[token("match")]
     Match,
@@ -214,24 +214,21 @@ impl Line {
         let code = &code[line.position.indentation..];
 
         // Start regular analysis part
-        for (lexeme, pos) in Lexeme::lexer(code).spanned() {
+        for (lexeme, pos) in TokenType::lexer(code).spanned() {
             let fragment = &code[pos.start..pos.end];
 
             if let Ok(lexeme) = lexeme {
                 match lexeme {
-                    Lexeme::Comment => {
+                    TokenType::Comment => {
                         break;
                     }
-                    Lexeme::StringLiteral => {
+                    TokenType::StringLiteral => {
                         //TODO: check for valid escape sequences: \t \n \0 \xNN \r \\ \" \uNNNN
-                        line.add_token(
-                            TokenId::StringLiteral(fragment[1..(fragment.len() - 1)].into()),
-                            pos.start,
-                        );
+                        line.add_token(lexeme, fragment[1..(fragment.len() - 1)].into(), pos.start);
                     }
-                    Lexeme::RegexLiteral => {
+                    TokenType::RegexLiteral => {
                         if let Ok(regex) = Regex::new(&fragment[2..(fragment.len() - 1)]) {
-                            line.add_token(TokenId::RegexLiteral(regex), pos.start);
+                            line.add_token(lexeme, regex.into(), pos.start);
                         } else {
                             return Err(LexError {
                                 message: format!("Malformed regular expression: '{}'", fragment),
@@ -239,48 +236,41 @@ impl Line {
                             });
                         }
                     }
-                    Lexeme::IntegerLiteral => {
+                    TokenType::IntegerLiteral => {
                         line.add_token(
+                            lexeme,
                             // Unwrapping because Logos already checked that it is actually a well formatted integer
-                            TokenId::IntegerLiteral(fragment.parse().unwrap()),
+                            fragment.parse::<i64>().unwrap().into(),
                             pos.start,
                         );
                     }
-                    Lexeme::FloatLiteral => {
+                    TokenType::FloatLiteral => {
                         line.add_token(
+                            lexeme,
                             // Unwrapping because Logos already checked that it is actually a well formatted float
-                            TokenId::FloatLiteral(fragment.parse().unwrap()),
+                            fragment.parse::<f64>().unwrap().into(),
                             pos.start,
                         );
                     }
-                    Lexeme::BooleanLiteral => {
+                    TokenType::BooleanLiteral => {
                         if fragment == "true" {
-                            line.add_token(TokenId::BooleanLiteral(true), pos.start);
+                            line.add_token(lexeme, true.into(), pos.start);
                         } else {
-                            line.add_token(TokenId::BooleanLiteral(false), pos.start);
+                            line.add_token(lexeme, false.into(), pos.start);
                         }
                     }
-                    Lexeme::Macro => {
-                        line.add_token(TokenId::Macro(fragment.into()), pos.start);
+                    TokenType::Macro => {
+                        line.add_token(lexeme, fragment.into(), pos.start);
                     }
-                    Lexeme::Identifier => {
-                        line.add_token(TokenId::Identifier(fragment.into()), pos.start);
+                    TokenType::Identifier => {
+                        line.add_token(lexeme, fragment.into(), pos.start);
                     }
                     _ => {
-                        if let Ok(token_id) = TokenId::try_from(lexeme) {
-                            line.add_token(token_id, pos.start);
-                        } else {
-                            return Err(LexError {
-                                message: format!(
-                                    "Unexpected lexeme type {:?}: '{}'",
-                                    lexeme, fragment
-                                ),
-                                position: pos.start,
-                            });
-                        }
+                        line.add_token(lexeme, TokenData::None, pos.start);
                     }
                 }
             } else {
+                //TODO: check for the most common mistakes: not closed string
                 return Err(LexError {
                     message: format!("Unrecognized lexeme: '{}'", fragment),
                     position: pos.start,
@@ -291,9 +281,10 @@ impl Line {
         Ok(line)
     }
 
-    fn add_token(&mut self, token_id: TokenId, pos: usize) {
+    fn add_token(&mut self, token_type: TokenType, data: TokenData, pos: usize) {
         self.tokens.push(Token {
-            id: token_id,
+            token_type,
+            data,
             offset: pos,
         });
     }
@@ -322,8 +313,10 @@ impl Line {
 #[derive(Debug)]
 /// Token object.
 pub struct Token {
-    /// Token identificator.
-    pub id: TokenId,
+    /// Token type.
+    pub token_type: TokenType,
+    /// Token content.
+    pub data: TokenData,
     /// Token position within the line of code.
     pub offset: usize,
 }
@@ -363,141 +356,49 @@ impl From<char> for IndentationType {
 }
 
 #[derive(Debug)]
-/// Token identificator.
-pub enum TokenId {
-    // Object definition tokens.
-    StructDefinition,
-    MapDefinition,
-    ListDefinition,
-    StringDefinition,
-    BooleanDefinition,
-    IntegerDefinition,
-    FloatDefinition,
-    DynDefinition,
-    TransferDefinition,
-    BufferDefinition,
-    PipelineDefinition,
-    ConstDefinition,
-
-    // Data type tokens.
-    StringType,
-    IntegerType,
-    FloatType,
-    BooleanType,
-    MapType,
-    PairType,
-    ListType,
-    AnyType,
-    NoneType,
-    NullType,
-
-    // Data literal tokens.
-    StringLiteral(String),
-    RegexLiteral(Regex),
-    IntegerLiteral(i64),
-    FloatLiteral(f64),
-    BooleanLiteral(bool),
-
-    // Macro token.
-    Macro(String),
-
-    // Identifier token.
-    Identifier(String),
-
-    // The rest.
-    Match,             // match
-    If,                // if
-    Else,              // else
-    As,                // as
-    Return,            // return
-    Underscore,        // _
-    OpenParenth,       // (
-    ClosingParenth,    // )
-    Comma,             // ,
-    Colon,             // :
-    Plus,              // +
-    Star,              // *
-    Slash,             // /
-    Percent,           // %
-    Minus,             // -
-    Arrow,             // ->
-    OpenAngleBrack,    // <
-    ClosingAngleBrack, // >
-    GtEqual,           // >=
-    LtEqual,           // <=
-    And,               // &
-    TwoAnds,           // &&
-    Or,                // |
-    TwoOrs,            // ||
-    Exclam,            // !
-    NotEqual,          // !=
-    Equal,             // =
-    TwoEquals,         // ==
-    Dot,               // .
-    TwoDots,           // ..
-    ThreeDots,         // ...
+/// Token data.
+pub enum TokenData {
+    String(String),
+    Regex(Regex),
+    Integer(i64),
+    Float(f64),
+    Boolean(bool),
+    None,
 }
 
-impl TryFrom<Lexeme> for TokenId {
-    type Error = ();
+impl From<i64> for TokenData {
+    fn from(value: i64) -> Self {
+        TokenData::Integer(value)
+    }
+}
 
-    fn try_from(value: Lexeme) -> Result<Self, Self::Error> {
-        match value {
-            Lexeme::Match => Ok(Self::Match),
-            Lexeme::If => Ok(Self::If),
-            Lexeme::Else => Ok(Self::Else),
-            Lexeme::As => Ok(Self::As),
-            Lexeme::Return => Ok(Self::Return),
-            Lexeme::Underscore => Ok(Self::Underscore),
-            Lexeme::OpenParenth => Ok(Self::OpenParenth),
-            Lexeme::ClosingParenth => Ok(Self::ClosingParenth),
-            Lexeme::Comma => Ok(Self::Comma),
-            Lexeme::Colon => Ok(Self::Colon),
-            Lexeme::Plus => Ok(Self::Plus),
-            Lexeme::Star => Ok(Self::Star),
-            Lexeme::Slash => Ok(Self::Slash),
-            Lexeme::Percent => Ok(Self::Percent),
-            Lexeme::Minus => Ok(Self::Minus),
-            Lexeme::Arrow => Ok(Self::Arrow),
-            Lexeme::OpenAngleBrack => Ok(Self::OpenAngleBrack),
-            Lexeme::ClosingAngleBrack => Ok(Self::ClosingAngleBrack),
-            Lexeme::GtEqual => Ok(Self::GtEqual),
-            Lexeme::LtEqual => Ok(Self::LtEqual),
-            Lexeme::And => Ok(Self::And),
-            Lexeme::TwoAnds => Ok(Self::TwoAnds),
-            Lexeme::Or => Ok(Self::Or),
-            Lexeme::TwoOrs => Ok(Self::TwoOrs),
-            Lexeme::Exclam => Ok(Self::Exclam),
-            Lexeme::NotEqual => Ok(Self::NotEqual),
-            Lexeme::Equal => Ok(Self::Equal),
-            Lexeme::TwoEquals => Ok(Self::TwoEquals),
-            Lexeme::Dot => Ok(Self::Dot),
-            Lexeme::TwoDots => Ok(Self::TwoDots),
-            Lexeme::ThreeDots => Ok(Self::ThreeDots),
-            Lexeme::StringType => Ok(Self::StringType),
-            Lexeme::IntegerType => Ok(Self::IntegerType),
-            Lexeme::FloatType => Ok(Self::FloatType),
-            Lexeme::BooleanType => Ok(Self::BooleanType),
-            Lexeme::MapType => Ok(Self::MapType),
-            Lexeme::PairType => Ok(Self::PairType),
-            Lexeme::ListType => Ok(Self::ListType),
-            Lexeme::AnyType => Ok(Self::AnyType),
-            Lexeme::NoneType => Ok(Self::NoneType),
-            Lexeme::NullType => Ok(Self::NullType),
-            Lexeme::StructDefinition => Ok(Self::StructDefinition),
-            Lexeme::MapDefinition => Ok(Self::MapDefinition),
-            Lexeme::ListDefinition => Ok(Self::ListDefinition),
-            Lexeme::StringDefinition => Ok(Self::StringDefinition),
-            Lexeme::BooleanDefinition => Ok(Self::BooleanDefinition),
-            Lexeme::IntegerDefinition => Ok(Self::IntegerDefinition),
-            Lexeme::FloatDefinition => Ok(Self::FloatDefinition),
-            Lexeme::DynDefinition => Ok(Self::DynDefinition),
-            Lexeme::TransferDefinition => Ok(Self::TransferDefinition),
-            Lexeme::BufferDefinition => Ok(Self::BufferDefinition),
-            Lexeme::PipelineDefinition => Ok(Self::PipelineDefinition),
-            Lexeme::ConstDefinition => Ok(Self::ConstDefinition),
-            _ => Err(()),
-        }
+impl From<f64> for TokenData {
+    fn from(value: f64) -> Self {
+        TokenData::Float(value)
+    }
+}
+
+impl From<bool> for TokenData {
+    fn from(value: bool) -> Self {
+        TokenData::Boolean(value)
+    }
+}
+
+impl From<String> for TokenData {
+    fn from(value: String) -> Self {
+        TokenData::String(value)
+    }
+}
+
+impl From<&str> for TokenData {
+    fn from(value: &str) -> Self {
+        TokenData::String(value.into())
+    }
+}
+
+impl From<Regex> for TokenData {
+    fn from(value: Regex) -> Self {
+        TokenData::Regex(value)
     }
 }
 

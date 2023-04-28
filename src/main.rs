@@ -6,7 +6,7 @@ use std::{
 };
 
 fn main() -> io::Result<()> {
-    let file = File::open("test.iz")?;
+    let file = File::open("izeware/test.iz")?;
     let reader = BufReader::new(file);
 
     let lines: Vec<Line> = reader
@@ -35,7 +35,7 @@ fn main() -> io::Result<()> {
             print!(" ");
         }
         for t in l.tokens {
-            print!("{:?} ", t.id);
+            print!("{:?}({:?}) ", t.token_type, t.data);
         }
         println!("EOL");
     }
