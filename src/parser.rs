@@ -67,6 +67,20 @@ impl LineParser {
 
     /// Equal and not equal.
     fn equality(&mut self) -> Result<Expr, ParserError> {
+        let mut expr: Expr = self.comparison()?;
+        while let Some(operator) = self.match_token(&[TokenType::TwoEquals, TokenType::NotEqual]) {
+            let right = self.comparison()?;
+            expr = Expr::BinaryOp {
+                op: operator,
+                left_child: Box::new(expr),
+                right_child: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    // Greather than, Litle than, Gt or Equal, Lt or Equal. 
+    fn comparison(&mut self) -> Result<Expr, ParserError> {
         let mut expr: Expr = self.term()?;
         while let Some(operator) = self.match_token(&[TokenType::TwoEquals, TokenType::NotEqual]) {
             let right = self.term()?;
@@ -78,8 +92,6 @@ impl LineParser {
         }
         Ok(expr)
     }
-
-    //TODO: comparison parsing
 
     /// Additions and subtractions.
     fn term(&mut self) -> Result<Expr, ParserError> {
@@ -97,11 +109,11 @@ impl LineParser {
 
     /// Multiplications, divisions and reminder.
     fn factor(&mut self) -> Result<Expr, ParserError> {
-        let mut expr = self.primary()?;
+        let mut expr = self.unary()?;
         while let Some(operator) =
             self.match_token(&[TokenType::Star, TokenType::Slash, TokenType::Percent])
         {
-            let right = self.primary()?;
+            let right = self.unary()?;
             expr = Expr::BinaryOp {
                 op: operator,
                 left_child: Box::new(expr),
@@ -111,7 +123,17 @@ impl LineParser {
         Ok(expr)
     }
 
-    //TODO: unary parsing
+    /// Negate or invert.
+    fn unary(&mut self) -> Result<Expr, ParserError> {
+        if let Some(operator) = self.match_token(&[TokenType::Exclam, TokenType::Minus]) {
+            let right = self.unary()?;
+            return Ok(Expr::UnaryOp {
+                op: operator,
+                child: Box::new(right),
+            });
+        }
+        return self.primary();
+    }
 
     /// Literals and groups of expressions in parenthesis.
     fn primary(&mut self) -> Result<Expr, ParserError> {
