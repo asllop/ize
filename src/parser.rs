@@ -96,10 +96,31 @@ impl LineParser {
         Ok(expr)
     }
 
-    // Greather than, Litle than, Gt or Equal, Lt or Equal.
+    // Greather than, Lesser than, Gt or Equal, Lt or Equal, And, Or.
     fn comparison(&mut self) -> Result<Expr, ParserError> {
-        let mut expr: Expr = self.term()?;
-        while let Some(operator) = self.match_token(&[TokenType::TwoEquals, TokenType::NotEqual]) {
+        let mut expr: Expr = self.logic()?;
+        while let Some(operator) = self.match_token(&[
+            TokenType::ClosingAngleBrack,
+            TokenType::OpenAngleBrack,
+            TokenType::GtEqual,
+            TokenType::LtEqual,
+            TokenType::TwoAnds,
+            TokenType::TwoOrs,
+        ]) {
+            let right = self.logic()?;
+            expr = Expr::BinaryOp {
+                op: operator,
+                left_child: Box::new(expr),
+                right_child: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    /// Logic And, logic Or.
+    fn logic(&mut self) -> Result<Expr, ParserError> {
+        let mut expr = self.term()?;
+        while let Some(operator) = self.match_token(&[TokenType::And, TokenType::Or]) {
             let right = self.term()?;
             expr = Expr::BinaryOp {
                 op: operator,
