@@ -40,25 +40,13 @@ impl Display for Expr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Expr::Terminal(t) => write!(f, "{}{}", t.token_type, t.data),
-            Expr::Group { expression } => {
-                write!(f, "[").unwrap_or_default();
-                write!(f, "{}", expression).unwrap_or_default();
-                write!(f, "]")
-            }
-            Expr::UnaryOp { op, child } => {
-                write!(f, "({} ", op.token_type).unwrap_or_default();
-                write!(f, "{}", child).unwrap_or_default();
-                write!(f, ")")
-            }
+            Expr::Group { expression } => write!(f, "[{}]", expression),
+            Expr::UnaryOp { op, child } => write!(f, "({} {})", op.token_type, child),
             Expr::BinaryOp {
                 op,
                 left_child,
                 right_child,
-            } => {
-                write!(f, "({} ", op.token_type).unwrap_or_default();
-                write!(f, "{} , {}", left_child, right_child).unwrap_or_default();
-                write!(f, ")")
-            }
+            } => write!(f, "({} {} , {})", op.token_type, left_child, right_child),
             Expr::Empty => write!(f, ""),
         }
     }

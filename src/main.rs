@@ -68,6 +68,6 @@ fn main() -> io::Result<()> {
         }
     }
     println!("");
-    
+
     Ok(())
 }
