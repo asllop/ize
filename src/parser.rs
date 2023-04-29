@@ -4,6 +4,7 @@
 
 use crate::lexer::{Line, Position, Token, TokenType};
 use alloc::{boxed::Box, collections::VecDeque, string::String};
+use core::fmt::Display;
 
 #[derive(Debug)]
 /// Parsing error.
@@ -33,6 +34,34 @@ pub enum Expr {
         right_child: Box<Expr>,
     },
     Empty,
+}
+
+impl Display for Expr {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Expr::Terminal(t) => write!(f, "{}{}", t.token_type, t.data),
+            Expr::Group { expression } => {
+                write!(f, "[").unwrap_or_default();
+                write!(f, "{}", expression).unwrap_or_default();
+                write!(f, "]")
+            }
+            Expr::UnaryOp { op, child } => {
+                write!(f, "({} ", op.token_type).unwrap_or_default();
+                write!(f, "{}", child).unwrap_or_default();
+                write!(f, ")")
+            }
+            Expr::BinaryOp {
+                op,
+                left_child,
+                right_child,
+            } => {
+                write!(f, "({} ", op.token_type).unwrap_or_default();
+                write!(f, "{} , {}", left_child, right_child).unwrap_or_default();
+                write!(f, ")")
+            }
+            Expr::Empty => write!(f, ""),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -79,7 +108,7 @@ impl LineParser {
         Ok(expr)
     }
 
-    // Greather than, Litle than, Gt or Equal, Lt or Equal. 
+    // Greather than, Litle than, Gt or Equal, Lt or Equal.
     fn comparison(&mut self) -> Result<Expr, ParserError> {
         let mut expr: Expr = self.term()?;
         while let Some(operator) = self.match_token(&[TokenType::TwoEquals, TokenType::NotEqual]) {
@@ -174,6 +203,7 @@ impl LineParser {
         if !self.is_at_end() {
             for token_type in token_types {
                 if self.tokens[0].token_type == *token_type {
+                    // Unwrapping because we know for sure there is something in self.tokens
                     return Some(self.tokens.pop_front().unwrap());
                 }
             }

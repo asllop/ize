@@ -14,6 +14,7 @@
 //! ```
 
 use alloc::{string::String, vec::Vec};
+use core::fmt::Display;
 use logos::Logos;
 use regex::Regex;
 
@@ -160,6 +161,74 @@ pub enum TokenType {
     Identifier,
 }
 
+impl Display for TokenType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            TokenType::Match => write!(f, "match"),
+            TokenType::If => write!(f, "if"),
+            TokenType::Else => write!(f, "else"),
+            TokenType::As => write!(f, "as"),
+            TokenType::Return => write!(f, "return"),
+            TokenType::Underscore => write!(f, "_"),
+            TokenType::OpenParenth => write!(f, "("),
+            TokenType::ClosingParenth => write!(f, ")"),
+            TokenType::Comma => write!(f, ","),
+            TokenType::Colon => write!(f, ":"),
+            TokenType::Plus => write!(f, "+"),
+            TokenType::Star => write!(f, "*"),
+            TokenType::Slash => write!(f, "/"),
+            TokenType::Percent => write!(f, "%"),
+            TokenType::Minus => write!(f, "-"),
+            TokenType::Arrow => write!(f, "->"),
+            TokenType::OpenAngleBrack => write!(f, "<"),
+            TokenType::ClosingAngleBrack => write!(f, ">"),
+            TokenType::GtEqual => write!(f, ">="),
+            TokenType::LtEqual => write!(f, "<="),
+            TokenType::And => write!(f, "&"),
+            TokenType::TwoAnds => write!(f, "&&"),
+            TokenType::Or => write!(f, "|"),
+            TokenType::TwoOrs => write!(f, "||"),
+            TokenType::Exclam => write!(f, "!"),
+            TokenType::NotEqual => write!(f, "!="),
+            TokenType::Equal => write!(f, "="),
+            TokenType::TwoEquals => write!(f, "=="),
+            TokenType::Dot => write!(f, "."),
+            TokenType::TwoDots => write!(f, ".."),
+            TokenType::ThreeDots => write!(f, "..."),
+            TokenType::IntegerLiteral => write!(f, "INT\\"),
+            TokenType::FloatLiteral => write!(f, "FLT\\"),
+            TokenType::StringLiteral => write!(f, "STR\\"),
+            TokenType::RegexLiteral => write!(f, "REX\\"),
+            TokenType::BooleanLiteral => write!(f, "BOL\\"),
+            TokenType::StringType => write!(f, "StringType"),
+            TokenType::IntegerType => write!(f, "IntegerType"),
+            TokenType::FloatType => write!(f, "FloatType"),
+            TokenType::BooleanType => write!(f, "BooleanType"),
+            TokenType::MapType => write!(f, "MapType"),
+            TokenType::PairType => write!(f, "PairType"),
+            TokenType::ListType => write!(f, "ListType"),
+            TokenType::AnyType => write!(f, "AnyType"),
+            TokenType::NoneType => write!(f, "NoneType"),
+            TokenType::NullType => write!(f, "NullType"),
+            TokenType::StructDefinition => write!(f, "struct"),
+            TokenType::MapDefinition => write!(f, "map"),
+            TokenType::ListDefinition => write!(f, "list"),
+            TokenType::StringDefinition => write!(f, "string"),
+            TokenType::BooleanDefinition => write!(f, "boolean"),
+            TokenType::IntegerDefinition => write!(f, "integer"),
+            TokenType::FloatDefinition => write!(f, "float"),
+            TokenType::DynDefinition => write!(f, "dyn"),
+            TokenType::TransferDefinition => write!(f, "transfer"),
+            TokenType::BufferDefinition => write!(f, "buffer"),
+            TokenType::PipelineDefinition => write!(f, "pipeline"),
+            TokenType::ConstDefinition => write!(f, "const"),
+            TokenType::Comment => write!(f, "//"),
+            TokenType::Macro => write!(f, "#\\"),
+            TokenType::Identifier => write!(f, "ID\\"),
+        }
+    }
+}
+
 #[derive(Debug)]
 /// Lexical analysis error.
 pub struct LexError {
@@ -260,7 +329,7 @@ impl Line {
                         }
                     }
                     TokenType::Macro => {
-                        line.add_token(lexeme, fragment.into(), pos.start);
+                        line.add_token(lexeme, fragment[1..].into(), pos.start);
                     }
                     TokenType::Identifier => {
                         line.add_token(lexeme, fragment.into(), pos.start);
@@ -364,6 +433,19 @@ pub enum TokenData {
     Float(f64),
     Boolean(bool),
     None,
+}
+
+impl Display for TokenData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            TokenData::String(s) => write!(f, "\"{}\"", s),
+            TokenData::Regex(r) => write!(f, "\"{}\"", r),
+            TokenData::Integer(i) => write!(f, "{}", i),
+            TokenData::Float(fl) => write!(f, "{}", fl),
+            TokenData::Boolean(b) => write!(f, "{}", b),
+            TokenData::None => write!(f, ""),
+        }
+    }
 }
 
 impl From<i64> for TokenData {

@@ -1,4 +1,7 @@
-use ize::{lexer::Line, parser::LineParser};
+use ize::{
+    lexer::{Line, TokenData},
+    parser::LineParser,
+};
 use std::{
     fs::File,
     io::{self, prelude::*, BufReader},
@@ -37,18 +40,22 @@ fn main() -> io::Result<()> {
             print!(" ");
         }
         for t in &l.tokens {
-            print!("{:?}({:?}) ", t.token_type, t.data);
+            if let TokenData::None = t.data {
+                print!("{} ", t.token_type);
+            } else {
+                print!("{}{} ", t.token_type, t.data);
+            }
         }
-        println!("EOL");
+        println!("");
     }
-    println!("\nEOF");
+    println!("");
 
     println!("------- PARSER\n");
 
     for l in lines {
         let line_num = l.position.line_num;
         match LineParser::parse(l) {
-            Ok(expr) => println!("EXPR = {:?}", expr),
+            Ok(expr) => println!("EXPR => {}", expr),
             Err(err) => {
                 println!(
                     "Parser Error: \"{}\" at line {} offset {}",
@@ -60,6 +67,7 @@ fn main() -> io::Result<()> {
             }
         }
     }
-
+    println!("");
+    
     Ok(())
 }
