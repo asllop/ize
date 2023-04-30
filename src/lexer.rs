@@ -280,11 +280,13 @@ impl Line {
             }
         }
 
-        let code = &code[line.position.indentation..];
+        let line_offset = line.position.indentation;
+        let code = &code[line_offset..];
 
         // Start regular analysis part
         for (lexeme, pos) in TokenType::lexer(code).spanned() {
             let fragment = &code[pos.start..pos.end];
+            let lex_pos = pos.start + line_offset;
 
             if let Ok(lexeme) = lexeme {
                 match lexeme {
@@ -293,11 +295,11 @@ impl Line {
                     }
                     TokenType::StringLiteral => {
                         //TODO: check for valid escape sequences: \t \n \0 \xNN \r \\ \" \uNNNN
-                        line.add_token(lexeme, fragment[1..(fragment.len() - 1)].into(), pos.start);
+                        line.add_token(lexeme, fragment[1..(fragment.len() - 1)].into(), lex_pos);
                     }
                     TokenType::RegexLiteral => {
                         if let Ok(regex) = Regex::new(&fragment[2..(fragment.len() - 1)]) {
-                            line.add_token(lexeme, regex.into(), pos.start);
+                            line.add_token(lexeme, regex.into(), lex_pos);
                         } else {
                             return Err(LexError {
                                 message: format!("Malformed regular expression: '{}'", fragment),
@@ -310,7 +312,7 @@ impl Line {
                             lexeme,
                             // Unwrapping because Logos already checked that it is actually a well formatted integer
                             fragment.parse::<i64>().unwrap().into(),
-                            pos.start,
+                            lex_pos,
                         );
                     }
                     TokenType::FloatLiteral => {
@@ -318,24 +320,24 @@ impl Line {
                             lexeme,
                             // Unwrapping because Logos already checked that it is actually a well formatted float
                             fragment.parse::<f64>().unwrap().into(),
-                            pos.start,
+                            lex_pos,
                         );
                     }
                     TokenType::BooleanLiteral => {
                         if fragment == "true" {
-                            line.add_token(lexeme, true.into(), pos.start);
+                            line.add_token(lexeme, true.into(), lex_pos);
                         } else {
-                            line.add_token(lexeme, false.into(), pos.start);
+                            line.add_token(lexeme, false.into(), lex_pos);
                         }
                     }
                     TokenType::Macro => {
-                        line.add_token(lexeme, fragment[1..].into(), pos.start);
+                        line.add_token(lexeme, fragment[1..].into(), lex_pos);
                     }
                     TokenType::Identifier => {
-                        line.add_token(lexeme, fragment.into(), pos.start);
+                        line.add_token(lexeme, fragment.into(), lex_pos);
                     }
                     _ => {
-                        line.add_token(lexeme, TokenData::None, pos.start);
+                        line.add_token(lexeme, TokenData::None, lex_pos);
                     }
                 }
             } else {
