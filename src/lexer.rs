@@ -303,7 +303,7 @@ impl Line {
                         } else {
                             return Err(LexError {
                                 message: format!("Malformed regular expression: '{}'", fragment),
-                                position: pos.start,
+                                position: lex_pos,
                             });
                         }
                     }
@@ -344,7 +344,7 @@ impl Line {
                 //TODO: check for the most common mistakes: not closed string
                 return Err(LexError {
                     message: format!("Unrecognized lexeme: '{}'", fragment),
-                    position: pos.start,
+                    position: lex_pos,
                 });
             }
         }
