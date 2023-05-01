@@ -20,7 +20,7 @@ pub struct ParserError {
 #[derive(Debug)]
 /// Expression, it represents a node of the AST.
 pub enum Expr {
-    Terminal(Token),
+    Lit(Token),
     Group {
         expression: Box<Expr>,
     },
@@ -39,7 +39,7 @@ pub enum Expr {
 impl Display for Expr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Expr::Terminal(t) => write!(f, "{}{}", t.token_type, t.data),
+            Expr::Lit(t) => write!(f, "{}{}", t.token_type, t.data),
             Expr::Group { expression } => write!(f, "[{}]", expression),
             Expr::UnaryOp { op, child } => write!(f, "({} {})", op.token_type, child),
             Expr::BinaryOp {
@@ -182,7 +182,7 @@ impl LineParser {
             TokenType::StringLiteral,
             TokenType::RegexLiteral,
         ]) {
-            let expr = Expr::Terminal(token);
+            let expr = Expr::Lit(token);
             return Ok(expr);
         }
         if let Some(token) = self.match_token(&[TokenType::OpenParenth]) {

@@ -426,7 +426,7 @@ impl From<char> for IndentationType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Token data.
 pub enum TokenData {
     String(String),

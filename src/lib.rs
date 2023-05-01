@@ -22,3 +22,6 @@ pub mod lexer;
 
 /// Second stage: Parser.
 pub mod parser;
+
+/// Third stage: Interpreter.
+pub mod eval;

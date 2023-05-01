@@ -1,4 +1,5 @@
 use ize::{
+    eval::Interpreter,
     lexer::{Line, TokenData},
     parser::LineParser,
 };
@@ -52,10 +53,14 @@ fn main() -> io::Result<()> {
 
     println!("------- PARSER\n");
 
+    let mut expressions = vec![];
     for l in lines {
         let line_num = l.position.line_num;
         match LineParser::parse(l) {
-            Ok(expr) => println!("EXPR => {}", expr),
+            Ok(expr) => {
+                println!("EXPR => {}", expr);
+                expressions.push(expr);
+            }
             Err(err) => {
                 println!(
                     "Parser Error: \"{}\" at line {} offset {}",
@@ -64,6 +69,24 @@ fn main() -> io::Result<()> {
                     err.offset + 1
                 );
                 exit(2);
+            }
+        }
+    }
+    println!("");
+
+    println!("------- INTERPRETER\n");
+
+    for (line_num, expr) in expressions.iter().enumerate() {
+        match Interpreter::eval(expr, line_num) {
+            Ok(res) => println!("RES => {}", res),
+            Err(err) => {
+                println!(
+                    "Interpreter Error: \"{}\" at line {} offset {}",
+                    err.message,
+                    line_num + 1,
+                    err.offset + 1
+                );
+                exit(3);
             }
         }
     }

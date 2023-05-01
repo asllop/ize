@@ -70,11 +70,13 @@ transfer valid_password(input: String) -> Boolean:
             return true
 
 pipeline main:
-    from_json
-    my_sum
+    from_json:
+        on_error: "skip"
+    my_sum:
+        on_error: "abort"   // Alternative on_error system, the pipeline decides how to handle it, not the transfer.
     whatever:
         opts:
             name: "Hello this is a name"
             num: 2001
-            fnum: 20.01
+            f_num: 20.01
             flag: true
