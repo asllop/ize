@@ -29,10 +29,16 @@ impl Interpreter {
                 left_child,
                 right_child,
             } => {
-                //TODO: lazy AND, OR operators (&& , ||). If Left is false/true don't even evaluate Right.
                 let left_child_data = Self::eval(left_child, line_num)?;
-                let right_child_data = Self::eval(right_child, line_num)?;
-                left_child_data.binary_op(&right_child_data, op, line_num)
+                // lazy AND, OR operators (&& , ||). If Left is false/true don't even evaluate Right.
+                match (op.token_type, &left_child_data) {
+                    (TokenType::TwoAnds, TokenData::Boolean(false)) => Ok(TokenData::Boolean(false)),
+                    (TokenType::TwoOrs, TokenData::Boolean(true)) => Ok(TokenData::Boolean(true)),
+                    _ => {
+                        let right_child_data = Self::eval(right_child, line_num)?;
+                        left_child_data.binary_op(&right_child_data, op, line_num)
+                    }
+                }
             }
             Expr::Empty => Ok(TokenData::None),
         }
@@ -239,6 +245,12 @@ impl Operation for bool {
             },
             TokenType::Or => {
                 Ok(TokenData::Boolean(self | right))
+            },
+            TokenType::TwoAnds => {
+                Ok(TokenData::Boolean(*self && *right))
+            },
+            TokenType::TwoOrs => {
+                Ok(TokenData::Boolean(*self || *right))
             },
             TokenType::OpenAngleBrack => {
                 Ok(TokenData::Boolean(self < right))
