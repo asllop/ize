@@ -56,7 +56,7 @@ impl Display for Expr {
             Expr::Call { func, args } => {
                 write!(f, "{}(", func.data).ok();
                 for arg in args {
-                    write!(f, "{},", arg).ok();
+                    write!(f, "{} ; ", arg).ok();
                 }
                 write!(f, ")")
             }
@@ -232,7 +232,7 @@ impl LineParser {
         }
     }
 
-    /// Literals, variables, and groups of expressions in parenthesis.
+    /// Literals and groups of expressions in parenthesis.
     fn primary(&mut self) -> Result<Expr, ParserError> {
         if let Some(token) = self.match_token(&[
             TokenType::IntegerLiteral,
@@ -242,9 +242,6 @@ impl LineParser {
             TokenType::RegexLiteral,
         ]) {
             let expr = Expr::Literal(token);
-            return Ok(expr);
-        } else if let Some(token) = self.match_token(&[TokenType::Identifier]) {
-            let expr = Expr::Identifier(token);
             return Ok(expr);
         }
         if let Some(token) = self.match_token(&[TokenType::OpenParenth]) {
