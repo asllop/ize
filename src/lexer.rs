@@ -434,6 +434,7 @@ pub enum TokenData {
     Integer(i64),
     Float(f64),
     Boolean(bool),
+    //TODO: Struct, List, Map, Pair, Null
     None,
 }
 

@@ -5,12 +5,12 @@ use ize::{
 };
 use std::{
     fs::File,
-    io::{self, prelude::*, BufReader},
+    io::{prelude::*, BufReader},
     process::exit,
 };
 
-fn main() -> io::Result<()> {
-    let file = File::open("izeware/test.iz")?;
+fn main() {
+    let file = File::open("izeware/test.iz").expect("Error opening file");
     let reader = BufReader::new(file);
 
     let lines: Vec<Line> = reader
@@ -59,7 +59,7 @@ fn main() -> io::Result<()> {
         match LineParser::parse(l) {
             Ok(expr) => {
                 println!("EXPR => {}", expr);
-                expressions.push(expr);
+                expressions.push((line_num, expr));
             }
             Err(err) => {
                 println!(
@@ -76,8 +76,8 @@ fn main() -> io::Result<()> {
 
     println!("------- INTERPRETER\n");
 
-    for (line_num, expr) in expressions.iter().enumerate() {
-        match Interpreter::eval(expr, line_num) {
+    for (line_num, expr) in expressions {
+        match Interpreter::eval(&expr, line_num) {
             Ok(res) => println!("RES => {}", res),
             Err(err) => {
                 println!(
@@ -91,6 +91,4 @@ fn main() -> io::Result<()> {
         }
     }
     println!("");
-
-    Ok(())
 }

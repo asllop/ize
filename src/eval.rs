@@ -2,7 +2,7 @@ use crate::{
     lexer::{Token, TokenData, TokenType},
     parser::Expr,
 };
-use alloc::{string::String, borrow::ToOwned};
+use alloc::{borrow::ToOwned, string::String};
 use regex::Regex;
 
 pub struct EvalErr {
@@ -18,8 +18,9 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn eval(expr: &Expr, line_num: usize) -> Result<TokenData, EvalErr> {
         match expr {
-            Expr::Lit(token) => Ok(token.data.clone()),
-            Expr::Group { expression } => Self::eval(expression, line_num),
+            Expr::Literal(token) => Ok(token.data.clone()),
+            Expr::Identifier(token) => todo!("get value for identifier {:?}", token),
+            Expr::Group { expr } => Self::eval(expr, line_num),
             Expr::UnaryOp { op, child } => {
                 let child_data = Self::eval(child, line_num)?;
                 child_data.unary_op(op, line_num)
@@ -32,7 +33,9 @@ impl Interpreter {
                 let left_child_data = Self::eval(left_child, line_num)?;
                 // lazy AND, OR operators (&& , ||). If Left is false/true don't even evaluate Right.
                 match (op.token_type, &left_child_data) {
-                    (TokenType::TwoAnds, TokenData::Boolean(false)) => Ok(TokenData::Boolean(false)),
+                    (TokenType::TwoAnds, TokenData::Boolean(false)) => {
+                        Ok(TokenData::Boolean(false))
+                    }
                     (TokenType::TwoOrs, TokenData::Boolean(true)) => Ok(TokenData::Boolean(true)),
                     _ => {
                         let right_child_data = Self::eval(right_child, line_num)?;
@@ -41,6 +44,7 @@ impl Interpreter {
                 }
             }
             Expr::Empty => Ok(TokenData::None),
+            _ => todo!("Implement evaluation of all Expr variants"),
         }
     }
 }
@@ -116,50 +120,24 @@ impl Operation for i64 {
 
     fn binary_op(&self, right: &Self, op: &Token, line_num: usize) -> Result<TokenData, EvalErr> {
         match op.token_type {
-            TokenType::Plus => {
-                Ok(TokenData::Integer(self + right))
-            },
-            TokenType::Minus => {
-                Ok(TokenData::Integer(self - right))
-            },
-            TokenType::Star => {
-                Ok(TokenData::Integer(self * right))
-            },
-            TokenType::Slash => {
-                Ok(TokenData::Integer(self / right))
-            },
-            TokenType::Percent => {
-                Ok(TokenData::Integer(self % right))
-            },
-            TokenType::And => {
-                Ok(TokenData::Integer(self & right))
-            },
-            TokenType::Or => {
-                Ok(TokenData::Integer(self | right))
-            },
-            TokenType::OpenAngleBrack => {
-                Ok(TokenData::Boolean(self < right))
-            },
-            TokenType::ClosingAngleBrack => {
-                Ok(TokenData::Boolean(self > right))
-            },
-            TokenType::LtEqual => {
-                Ok(TokenData::Boolean(self <= right))
-            },
-            TokenType::GtEqual => {
-                Ok(TokenData::Boolean(self >= right))
-            },
-            TokenType::TwoEquals => {
-                Ok(TokenData::Boolean(self == right))
-            },
-            TokenType::NotEqual => {
-                Ok(TokenData::Boolean(self != right))
-            },
+            TokenType::Plus => Ok(TokenData::Integer(self + right)),
+            TokenType::Minus => Ok(TokenData::Integer(self - right)),
+            TokenType::Star => Ok(TokenData::Integer(self * right)),
+            TokenType::Slash => Ok(TokenData::Integer(self / right)),
+            TokenType::Percent => Ok(TokenData::Integer(self % right)),
+            TokenType::And => Ok(TokenData::Integer(self & right)),
+            TokenType::Or => Ok(TokenData::Integer(self | right)),
+            TokenType::OpenAngleBrack => Ok(TokenData::Boolean(self < right)),
+            TokenType::ClosingAngleBrack => Ok(TokenData::Boolean(self > right)),
+            TokenType::LtEqual => Ok(TokenData::Boolean(self <= right)),
+            TokenType::GtEqual => Ok(TokenData::Boolean(self >= right)),
+            TokenType::TwoEquals => Ok(TokenData::Boolean(self == right)),
+            TokenType::NotEqual => Ok(TokenData::Boolean(self != right)),
             _ => Err(EvalErr {
                 message: format!("Invalid binary operator '{}' for integer", op.token_type),
                 line: line_num,
                 offset: op.offset,
-            })
+            }),
         }
     }
 }
@@ -181,44 +159,22 @@ impl Operation for f64 {
 
     fn binary_op(&self, right: &Self, op: &Token, line_num: usize) -> Result<TokenData, EvalErr> {
         match op.token_type {
-            TokenType::Plus => {
-                Ok(TokenData::Float(self + right))
-            },
-            TokenType::Minus => {
-                Ok(TokenData::Float(self - right))
-            },
-            TokenType::Star => {
-                Ok(TokenData::Float(self * right))
-            },
-            TokenType::Slash => {
-                Ok(TokenData::Float(self / right))
-            },
-            TokenType::Percent => {
-                Ok(TokenData::Float(self % right))
-            },
-            TokenType::OpenAngleBrack => {
-                Ok(TokenData::Boolean(self < right))
-            },
-            TokenType::ClosingAngleBrack => {
-                Ok(TokenData::Boolean(self > right))
-            },
-            TokenType::LtEqual => {
-                Ok(TokenData::Boolean(self <= right))
-            },
-            TokenType::GtEqual => {
-                Ok(TokenData::Boolean(self >= right))
-            },
-            TokenType::TwoEquals => {
-                Ok(TokenData::Boolean(self == right))
-            },
-            TokenType::NotEqual => {
-                Ok(TokenData::Boolean(self != right))
-            },
+            TokenType::Plus => Ok(TokenData::Float(self + right)),
+            TokenType::Minus => Ok(TokenData::Float(self - right)),
+            TokenType::Star => Ok(TokenData::Float(self * right)),
+            TokenType::Slash => Ok(TokenData::Float(self / right)),
+            TokenType::Percent => Ok(TokenData::Float(self % right)),
+            TokenType::OpenAngleBrack => Ok(TokenData::Boolean(self < right)),
+            TokenType::ClosingAngleBrack => Ok(TokenData::Boolean(self > right)),
+            TokenType::LtEqual => Ok(TokenData::Boolean(self <= right)),
+            TokenType::GtEqual => Ok(TokenData::Boolean(self >= right)),
+            TokenType::TwoEquals => Ok(TokenData::Boolean(self == right)),
+            TokenType::NotEqual => Ok(TokenData::Boolean(self != right)),
             _ => Err(EvalErr {
                 message: format!("Invalid binary operator '{}' for float", op.token_type),
                 line: line_num,
                 offset: op.offset,
-            })
+            }),
         }
     }
 }
@@ -240,41 +196,21 @@ impl Operation for bool {
 
     fn binary_op(&self, right: &Self, op: &Token, line_num: usize) -> Result<TokenData, EvalErr> {
         match op.token_type {
-            TokenType::And => {
-                Ok(TokenData::Boolean(self & right))
-            },
-            TokenType::Or => {
-                Ok(TokenData::Boolean(self | right))
-            },
-            TokenType::TwoAnds => {
-                Ok(TokenData::Boolean(*self && *right))
-            },
-            TokenType::TwoOrs => {
-                Ok(TokenData::Boolean(*self || *right))
-            },
-            TokenType::OpenAngleBrack => {
-                Ok(TokenData::Boolean(self < right))
-            },
-            TokenType::ClosingAngleBrack => {
-                Ok(TokenData::Boolean(self > right))
-            },
-            TokenType::LtEqual => {
-                Ok(TokenData::Boolean(self <= right))
-            },
-            TokenType::GtEqual => {
-                Ok(TokenData::Boolean(self >= right))
-            },
-            TokenType::TwoEquals => {
-                Ok(TokenData::Boolean(self == right))
-            },
-            TokenType::NotEqual => {
-                Ok(TokenData::Boolean(self != right))
-            },
+            TokenType::And => Ok(TokenData::Boolean(self & right)),
+            TokenType::Or => Ok(TokenData::Boolean(self | right)),
+            TokenType::TwoAnds => Ok(TokenData::Boolean(*self && *right)),
+            TokenType::TwoOrs => Ok(TokenData::Boolean(*self || *right)),
+            TokenType::OpenAngleBrack => Ok(TokenData::Boolean(self < right)),
+            TokenType::ClosingAngleBrack => Ok(TokenData::Boolean(self > right)),
+            TokenType::LtEqual => Ok(TokenData::Boolean(self <= right)),
+            TokenType::GtEqual => Ok(TokenData::Boolean(self >= right)),
+            TokenType::TwoEquals => Ok(TokenData::Boolean(self == right)),
+            TokenType::NotEqual => Ok(TokenData::Boolean(self != right)),
             _ => Err(EvalErr {
                 message: format!("Invalid binary operator '{}' for boolean", op.token_type),
                 line: line_num,
                 offset: op.offset,
-            })
+            }),
         }
     }
 }
@@ -293,32 +229,18 @@ impl Operation for String {
 
     fn binary_op(&self, right: &Self, op: &Token, line_num: usize) -> Result<TokenData, EvalErr> {
         match op.token_type {
-            TokenType::Plus => {
-                Ok(TokenData::String(self.to_owned() + right))
-            },
-            TokenType::OpenAngleBrack => {
-                Ok(TokenData::Boolean(self < right))
-            },
-            TokenType::ClosingAngleBrack => {
-                Ok(TokenData::Boolean(self > right))
-            },
-            TokenType::LtEqual => {
-                Ok(TokenData::Boolean(self <= right))
-            },
-            TokenType::GtEqual => {
-                Ok(TokenData::Boolean(self >= right))
-            },
-            TokenType::TwoEquals => {
-                Ok(TokenData::Boolean(self == right))
-            },
-            TokenType::NotEqual => {
-                Ok(TokenData::Boolean(self != right))
-            },
+            TokenType::Plus => Ok(TokenData::String(self.to_owned() + right)),
+            TokenType::OpenAngleBrack => Ok(TokenData::Boolean(self < right)),
+            TokenType::ClosingAngleBrack => Ok(TokenData::Boolean(self > right)),
+            TokenType::LtEqual => Ok(TokenData::Boolean(self <= right)),
+            TokenType::GtEqual => Ok(TokenData::Boolean(self >= right)),
+            TokenType::TwoEquals => Ok(TokenData::Boolean(self == right)),
+            TokenType::NotEqual => Ok(TokenData::Boolean(self != right)),
             _ => Err(EvalErr {
                 message: format!("Invalid binary operator '{}' for string", op.token_type),
                 line: line_num,
                 offset: op.offset,
-            })
+            }),
         }
     }
 }
@@ -337,29 +259,17 @@ impl Operation for Regex {
 
     fn binary_op(&self, right: &Self, op: &Token, line_num: usize) -> Result<TokenData, EvalErr> {
         match op.token_type {
-            TokenType::OpenAngleBrack => {
-                Ok(TokenData::Boolean(self.as_str() < right.as_str()))
-            },
-            TokenType::ClosingAngleBrack => {
-                Ok(TokenData::Boolean(self.as_str() > right.as_str()))
-            },
-            TokenType::LtEqual => {
-                Ok(TokenData::Boolean(self.as_str() <= right.as_str()))
-            },
-            TokenType::GtEqual => {
-                Ok(TokenData::Boolean(self.as_str() >= right.as_str()))
-            },
-            TokenType::TwoEquals => {
-                Ok(TokenData::Boolean(self.as_str() == right.as_str()))
-            },
-            TokenType::NotEqual => {
-                Ok(TokenData::Boolean(self.as_str() != right.as_str()))
-            },
+            TokenType::OpenAngleBrack => Ok(TokenData::Boolean(self.as_str() < right.as_str())),
+            TokenType::ClosingAngleBrack => Ok(TokenData::Boolean(self.as_str() > right.as_str())),
+            TokenType::LtEqual => Ok(TokenData::Boolean(self.as_str() <= right.as_str())),
+            TokenType::GtEqual => Ok(TokenData::Boolean(self.as_str() >= right.as_str())),
+            TokenType::TwoEquals => Ok(TokenData::Boolean(self.as_str() == right.as_str())),
+            TokenType::NotEqual => Ok(TokenData::Boolean(self.as_str() != right.as_str())),
             _ => Err(EvalErr {
                 message: format!("Invalid binary operator '{}' for string", op.token_type),
                 line: line_num,
                 offset: op.offset,
-            })
+            }),
         }
     }
 }
