@@ -76,8 +76,8 @@ fn main() {
 
     println!("------- INTERPRETER\n");
 
-    for (line_num, expr) in expressions {
-        match Interpreter::eval(&expr, line_num) {
+    for (line_num, expr) in expressions.iter() {
+        match Interpreter::eval(expr, *line_num) {
             Ok(res) => println!("RES => {}", res),
             Err(err) => {
                 println!(

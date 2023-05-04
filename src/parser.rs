@@ -34,6 +34,9 @@ pub enum Expr {
         left_child: Box<Expr>,
         right_child: Box<Expr>,
     },
+    Object {
+        chain: Vec<Expr>,
+    },
     Call {
         func: Token,
         args: Vec<Expr>,
@@ -59,6 +62,12 @@ impl Display for Expr {
                     write!(f, "{} ; ", arg).ok();
                 }
                 write!(f, ")")
+            }
+            Expr::Object { chain } => {
+                for link in chain {
+                    write!(f, "{}.", link).ok();
+                }
+                Ok(())
             }
             Expr::Empty => write!(f, ""),
         }
@@ -94,6 +103,23 @@ impl LineParser {
     fn expression(&mut self) -> Result<Expr, ParserError> {
         self.equality()
     }
+
+    //TODO: assignments are statements, not expressions
+    // (IDENTIFIER | OBJECT_CHAIN) "=" EXPRESSION
+    /// Assignment.
+    // fn assign(&mut self) -> Result<Expr, ParserError> {
+    //     let mut expr: Expr = self.equality()?;
+    //     //TODO: check if "expr" is either an identifier or an object
+    //     while let Some(operator) = self.match_token(&[TokenType::Equal]) {
+    //         let right = self.equality()?;
+    //         expr = Expr::BinaryOp {
+    //             op: operator,
+    //             left_child: Box::new(expr),
+    //             right_child: Box::new(right),
+    //         };
+    //     }
+    //     Ok(expr)
+    // }
 
     /// Equal and not equal.
     fn equality(&mut self) -> Result<Expr, ParserError> {
@@ -186,16 +212,35 @@ impl LineParser {
         return self.object();
     }
 
+    //TODO: improve errors, things like "obj.String.foo()" or "obj.+.foo()" produces a generic "Couldn't parse a valid expression".
     /// Objects.
     fn object(&mut self) -> Result<Expr, ParserError> {
         let mut expr = self.call()?;
-        while let Some(operator) = self.match_token(&[TokenType::Dot]) {
-            let right = self.call()?;
-            expr = Expr::BinaryOp {
-                op: operator,
-                left_child: Box::new(expr),
-                right_child: Box::new(right),
-            };
+        let mut chain = vec![];
+        loop {
+            if let Expr::Call { .. } | Expr::Identifier(_) | Expr::Literal(_) = expr {
+                if let Some(_) = self.match_token(&[TokenType::Dot]) {
+                    // Is an object chain
+                    chain.push(expr);
+                    expr = self.call()?;
+                } else {
+                    if !chain.is_empty() {
+                        // End of object chain
+                        chain.push(expr);
+                        expr = Expr::Object { chain }
+                    }
+                    break;
+                }
+            } else {
+                if !chain.is_empty() {
+                    return Err(ParserError {
+                        message: "Object chain contains something that is not a call, identifier or literal".into(),
+                        //TODO: get offset
+                        offset: 0
+                    });
+                }
+                break;
+            }
         }
         Ok(expr)
     }

@@ -1,3 +1,5 @@
-# IZE Language
+# IZE
 
-*Work In Progress*
+*The Data Pipeline Description Language*
+
+**Work In Progress**
