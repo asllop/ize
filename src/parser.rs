@@ -78,7 +78,7 @@ impl Display for Expr {
 /// Statement.
 pub enum Stmt {
     VarDef { var_name: String, init: Expr },
-    ConstDef { var_name: String, init: Expr },
+    ConstDef { const_name: String, init: Expr },
     Print(Expr),
     Expr(Expr),
 }
@@ -173,18 +173,18 @@ impl LineParser {
             if let Some(_) = self.match_token(&[TokenType::Equal]) {
                 let expr = self.expression()?;
                 Ok(Stmt::ConstDef {
-                    var_name: ident,
+                    const_name: ident,
                     init: expr,
                 })
             } else {
                 return Err(ParserError {
-                    message: "Expected '=' after variable name".into(),
+                    message: "Expected '=' after constant name".into(),
                     offset,
                 });
             }
         } else {
             return Err(ParserError {
-                message: "Expected variable name after 'var'".into(),
+                message: "Expected constant name after 'const'".into(),
                 offset: 0,
             });
         }

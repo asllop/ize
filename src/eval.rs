@@ -34,9 +34,9 @@ impl Interpreter {
                 self.variables.insert(var_name.into(), init_val);
                 Ok(TokenData::None)
             }
-            Stmt::ConstDef { var_name, init } => {
+            Stmt::ConstDef { const_name, init } => {
                 let init_val = self.eval_expr(init, line_num)?;
-                self.variables.insert(var_name.into(), init_val);
+                self.variables.insert(const_name.into(), init_val);
                 Ok(TokenData::None)
             }
             Stmt::Print(expr) => {
