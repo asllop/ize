@@ -1,7 +1,7 @@
 use ize::{
     eval::Interpreter,
     lexer::{Line, TokenData},
-    parser::LineParser,
+    parser::{Ast, LineParser},
 };
 use std::{
     fs::File,
@@ -53,13 +53,14 @@ fn main() {
 
     println!("------- PARSER\n");
 
-    let mut expressions = vec![];
+    let mut ast = Ast::default();
+
     for l in lines {
         let line_num = l.position.line_num;
         match LineParser::parse(l) {
-            Ok(expr) => {
-                println!("EXPR => {}", expr);
-                expressions.push((line_num, expr));
+            Ok(stmt) => {
+                println!("STMT => {:?}", stmt);
+                ast.push(line_num, stmt);
             }
             Err(err) => {
                 println!(
@@ -76,19 +77,21 @@ fn main() {
 
     println!("------- INTERPRETER\n");
 
-    for (line_num, expr) in expressions.iter() {
-        match Interpreter::eval(expr, *line_num) {
-            Ok(res) => println!("RES => {}", res),
-            Err(err) => {
-                println!(
-                    "Interpreter Error: \"{}\" at line {} offset {}",
-                    err.message,
-                    line_num + 1,
-                    err.offset + 1
-                );
-                exit(3);
-            }
+    let mut intr = Interpreter::new(console_log);
+    for (line_num, stmt) in ast.statements.iter() {
+        if let Err(err) = intr.eval_stmt(stmt, *line_num) {
+            println!(
+                "Interpreter Error: \"{}\" at line {} offset {}",
+                err.message,
+                line_num + 1,
+                err.offset + 1
+            );
+            exit(3);
         }
     }
     println!("");
+}
+
+fn console_log(data: &str) {
+    println!("CONSOLE: {}", data);
 }

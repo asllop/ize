@@ -1,8 +1,8 @@
 use crate::{
     lexer::{Token, TokenData, TokenType},
-    parser::Expr,
+    parser::{Expr, Stmt},
 };
-use alloc::{borrow::ToOwned, string::String};
+use alloc::{borrow::ToOwned, collections::BTreeMap, string::String};
 use regex::Regex;
 
 pub struct EvalErr {
@@ -12,17 +12,57 @@ pub struct EvalErr {
 }
 
 pub struct Interpreter {
-    //TODO: store context, variables, constants, defined types, etc.
+    variables: BTreeMap<String, TokenData>,
+    console_log: fn(&str),
 }
 
 impl Interpreter {
-    pub fn eval(expr: &Expr, line_num: usize) -> Result<TokenData, EvalErr> {
+    pub fn new(console_log: fn(&str)) -> Self {
+        Self {
+            variables: Default::default(),
+            console_log,
+        }
+    }
+}
+
+impl Interpreter {
+    pub fn eval_stmt(&mut self, stmt: &Stmt, line_num: usize) -> Result<TokenData, EvalErr> {
+        match stmt {
+            Stmt::VarDef { var_name, init } => {
+                let init_val = self.eval_expr(init, line_num)?;
+                self.variables.insert(var_name.into(), init_val);
+                Ok(TokenData::None)
+            }
+            Stmt::Print(expr) => {
+                let res = self.eval_expr(expr, line_num)?;
+                (self.console_log)(format!("{}", res).as_str());
+                Ok(TokenData::None)
+            }
+            Stmt::Expr(expr) => self.eval_expr(expr, line_num),
+        }
+    }
+
+    pub fn eval_expr(&mut self, expr: &Expr, line_num: usize) -> Result<TokenData, EvalErr> {
         match expr {
             Expr::Literal(token) => Ok(token.data.clone()),
-            Expr::Identifier(token) => todo!("get value for identifier {:?}", token),
-            Expr::Group { expr } => Self::eval(expr, line_num),
+            Expr::Identifier(Token {
+                data: TokenData::String(ident),
+                offset,
+                ..
+            }) => {
+                if let Some(v) = self.variables.get(ident) {
+                    Ok(v.clone())
+                } else {
+                    Err(EvalErr {
+                        message: format!("Variable '{}' doesn't exist", ident),
+                        line: line_num,
+                        offset: *offset,
+                    })
+                }
+            }
+            Expr::Group { expr } => self.eval_expr(expr, line_num),
             Expr::UnaryOp { op, child } => {
-                let child_data = Self::eval(child, line_num)?;
+                let child_data = self.eval_expr(child, line_num)?;
                 child_data.unary_op(op, line_num)
             }
             Expr::BinaryOp {
@@ -30,7 +70,7 @@ impl Interpreter {
                 left_child,
                 right_child,
             } => {
-                let left_child_data = Self::eval(left_child, line_num)?;
+                let left_child_data = self.eval_expr(left_child, line_num)?;
                 // lazy AND, OR operators (&& , ||). If Left is false/true don't even evaluate Right.
                 match (op.token_type, &left_child_data) {
                     (TokenType::TwoAnds, TokenData::Boolean(false)) => {
@@ -38,7 +78,7 @@ impl Interpreter {
                     }
                     (TokenType::TwoOrs, TokenData::Boolean(true)) => Ok(TokenData::Boolean(true)),
                     _ => {
-                        let right_child_data = Self::eval(right_child, line_num)?;
+                        let right_child_data = self.eval_expr(right_child, line_num)?;
                         left_child_data.binary_op(&right_child_data, op, line_num)
                     }
                 }

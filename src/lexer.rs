@@ -22,7 +22,8 @@ use regex::Regex;
 #[logos(skip r"[ \t]+")]
 /// Token types.
 pub enum TokenType {
-    // Flow and multipurpose
+    #[token("var")]
+    Var,
     #[token("match")]
     Match,
     #[token("if")]
@@ -33,6 +34,9 @@ pub enum TokenType {
     As,
     #[token("return")]
     Return,
+    // Debug only
+    #[token("print")]
+    Print,
 
     // Single, double and triple chars
     #[token("_")]
@@ -164,11 +168,13 @@ pub enum TokenType {
 impl Display for TokenType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            TokenType::Var => write!(f, "var"),
             TokenType::Match => write!(f, "match"),
             TokenType::If => write!(f, "if"),
             TokenType::Else => write!(f, "else"),
             TokenType::As => write!(f, "as"),
             TokenType::Return => write!(f, "return"),
+            TokenType::Print => write!(f, "print"),
             TokenType::Underscore => write!(f, "_"),
             TokenType::OpenParenth => write!(f, "("),
             TokenType::ClosingParenth => write!(f, ")"),
