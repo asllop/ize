@@ -22,8 +22,7 @@ use regex::Regex;
 #[logos(skip r"[ \t]+")]
 /// Token types.
 pub enum TokenType {
-    #[token("var")]
-    Var,
+    // Control flow and multiuse
     #[token("match")]
     Match,
     #[token("if")]
@@ -34,6 +33,7 @@ pub enum TokenType {
     As,
     #[token("return")]
     Return,
+
     // Debug only
     #[token("print")]
     Print,
@@ -153,6 +153,8 @@ pub enum TokenType {
     PipelineDefinition,
     #[token("const")]
     ConstDefinition,
+    #[token("var")]
+    VarDefinition,
 
     // Comment
     #[token("//")]
@@ -168,7 +170,6 @@ pub enum TokenType {
 impl Display for TokenType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TokenType::Var => write!(f, "var"),
             TokenType::Match => write!(f, "match"),
             TokenType::If => write!(f, "if"),
             TokenType::Else => write!(f, "else"),
@@ -227,6 +228,7 @@ impl Display for TokenType {
             TokenType::TransferDefinition => write!(f, "transfer"),
             TokenType::BufferDefinition => write!(f, "buffer"),
             TokenType::PipelineDefinition => write!(f, "pipeline"),
+            TokenType::VarDefinition => write!(f, "var"),
             TokenType::ConstDefinition => write!(f, "const"),
             TokenType::Comment => write!(f, "//"),
             TokenType::Macro => write!(f, "#\\"),

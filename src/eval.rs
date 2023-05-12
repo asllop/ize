@@ -12,6 +12,7 @@ pub struct EvalErr {
 }
 
 pub struct Interpreter {
+    //TODO: distinguish variables, contants and other things. Scope.
     variables: BTreeMap<String, TokenData>,
     console_log: fn(&str),
 }
@@ -29,6 +30,11 @@ impl Interpreter {
     pub fn eval_stmt(&mut self, stmt: &Stmt, line_num: usize) -> Result<TokenData, EvalErr> {
         match stmt {
             Stmt::VarDef { var_name, init } => {
+                let init_val = self.eval_expr(init, line_num)?;
+                self.variables.insert(var_name.into(), init_val);
+                Ok(TokenData::None)
+            }
+            Stmt::ConstDef { var_name, init } => {
                 let init_val = self.eval_expr(init, line_num)?;
                 self.variables.insert(var_name.into(), init_val);
                 Ok(TokenData::None)
