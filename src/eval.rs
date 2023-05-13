@@ -2,8 +2,9 @@ use crate::{
     lexer::{Token, TokenData, TokenType},
     parser::{Expr, Stmt},
 };
-use alloc::{borrow::ToOwned, collections::BTreeMap, string::String};
+use alloc::{borrow::ToOwned, string::String};
 use regex::Regex;
+use rustc_hash::FxHashMap;
 
 pub struct EvalErr {
     pub message: String,
@@ -13,7 +14,7 @@ pub struct EvalErr {
 
 pub struct Interpreter {
     //TODO: distinguish variables, contants and other things. Scope.
-    variables: BTreeMap<String, TokenData>,
+    variables: FxHashMap<String, TokenData>,
     console_log: fn(&str),
 }
 

@@ -196,7 +196,7 @@ impl LineParser {
         Ok(Stmt::Print(expr))
     }
 
-    /// Any expression.
+    /// Expression statement.
     fn expression_statement(&mut self) -> Result<Stmt, ParserError> {
         let expr = self.expression()?;
         Ok(Stmt::Expr(expr))
