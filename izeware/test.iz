@@ -21,8 +21,7 @@ print "Num 2 is = ", num2
 const bar = "Hello" + " " + "Andreu!"
 print bar + " :-)"
 
-print num2 = "this is the new" + " value"
-num = (num2 = 100)
+print num = num2 = "this is the new" + " value"
 print "Now num = ", num
 print "Now num2 = ", num2
 

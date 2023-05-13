@@ -225,8 +225,8 @@ impl LineParser {
     /// Assignment.
     fn assign(&mut self) -> Result<Expr, ParserError> {
         let mut expr: Expr = self.equality()?;
-        if let Some(_) = self.match_token(&[TokenType::Equal]) {
-            let right = self.equality()?;
+        while let Some(_) = self.match_token(&[TokenType::Equal]) {
+            let right = self.assign()?;
             expr = Expr::AssignOp {
                 dest: Box::new(expr),
                 value: Box::new(right),
