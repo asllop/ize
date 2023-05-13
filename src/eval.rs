@@ -12,16 +12,22 @@ pub struct EvalErr {
     pub offset: usize,
 }
 
+enum ElemType {
+    Variable,
+    Constant,
+    //TODO: other types: structs, transfers, etc
+}
+
 pub struct Interpreter {
     //TODO: distinguish variables, contants and other things. Scope.
-    variables: FxHashMap<String, TokenData>,
+    state: FxHashMap<String, (TokenData, ElemType)>,
     console_log: fn(&str),
 }
 
 impl Interpreter {
     pub fn new(console_log: fn(&str)) -> Self {
         Self {
-            variables: Default::default(),
+            state: Default::default(),
             console_log,
         }
     }
@@ -32,12 +38,14 @@ impl Interpreter {
         match stmt {
             Stmt::VarDef { var_name, init } => {
                 let init_val = self.eval_expr(init, line_num)?;
-                self.variables.insert(var_name.into(), init_val);
+                self.state
+                    .insert(var_name.into(), (init_val, ElemType::Variable));
                 Ok(TokenData::None)
             }
             Stmt::ConstDef { const_name, init } => {
                 let init_val = self.eval_expr(init, line_num)?;
-                self.variables.insert(const_name.into(), init_val);
+                self.state
+                    .insert(const_name.into(), (init_val, ElemType::Constant));
                 Ok(TokenData::None)
             }
             Stmt::Print { args } => {
@@ -61,11 +69,11 @@ impl Interpreter {
                 offset,
                 ..
             }) => {
-                if let Some(v) = self.variables.get(ident) {
+                if let Some((v, ElemType::Variable | ElemType::Constant)) = self.state.get(ident) {
                     Ok(v.clone())
                 } else {
                     Err(EvalErr {
-                        message: format!("Variable '{}' doesn't exist", ident),
+                        message: format!("Variable/Constant '{}' doesn't exist", ident),
                         line: line_num,
                         offset: *offset,
                     })
@@ -92,6 +100,35 @@ impl Interpreter {
                         let right_child_data = self.eval_expr(right_child, line_num)?;
                         left_child_data.binary_op(&right_child_data, op, line_num)
                     }
+                }
+            }
+            Expr::AssignOp { dest, value } => {
+                if let Expr::Identifier(Token {
+                    data: TokenData::String(ident),
+                    offset,
+                    ..
+                }) = dest.as_ref()
+                {
+                    if let Some((_, ElemType::Variable)) = self.state.get(ident) {
+                        let expr = self.eval_expr(value, line_num)?;
+                        self.state
+                            .insert(ident.clone(), (expr.clone(), ElemType::Variable));
+                        Ok(expr)
+                    } else {
+                        Err(EvalErr {
+                            message: format!("Variable '{}' doesn't exist", ident),
+                            line: line_num,
+                            offset: *offset,
+                        })
+                    }
+                } else if let Expr::Object { chain: _ } = dest.as_ref() {
+                    todo!("Implement object assignment")
+                } else {
+                    Err(EvalErr {
+                        message: format!("Assignment destination must be a variable or an object"),
+                        line: line_num,
+                        offset: 0,
+                    })
                 }
             }
             Expr::Empty => Ok(TokenData::None),

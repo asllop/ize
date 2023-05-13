@@ -34,6 +34,10 @@ pub enum Expr {
         left_child: Box<Expr>,
         right_child: Box<Expr>,
     },
+    AssignOp {
+        dest: Box<Expr>,
+        value: Box<Expr>,
+    },
     Object {
         chain: Vec<Expr>,
     },
@@ -51,6 +55,7 @@ impl Display for Expr {
             Expr::Identifier(t) => write!(f, "{}{}", t.token_type, t.data),
             Expr::Group { expr } => write!(f, "[{}]", expr),
             Expr::UnaryOp { op, child } => write!(f, "({} {})", op.token_type, child),
+            Expr::AssignOp { dest, value } => write!(f, "({} := {})", dest, value),
             Expr::BinaryOp {
                 op,
                 left_child,
@@ -213,25 +218,22 @@ impl LineParser {
 
     /// Any expression.
     fn expression(&mut self) -> Result<Expr, ParserError> {
-        self.equality()
+        self.assign()
     }
 
-    //TODO: assignments are statements, not expressions
     // (IDENTIFIER | OBJECT_CHAIN) "=" EXPRESSION
     /// Assignment.
-    // fn assign(&mut self) -> Result<Expr, ParserError> {
-    //     let mut expr: Expr = self.equality()?;
-    //     //TODO: check if "expr" is either an identifier or an object
-    //     while let Some(operator) = self.match_token(&[TokenType::Equal]) {
-    //         let right = self.equality()?;
-    //         expr = Expr::BinaryOp {
-    //             op: operator,
-    //             left_child: Box::new(expr),
-    //             right_child: Box::new(right),
-    //         };
-    //     }
-    //     Ok(expr)
-    // }
+    fn assign(&mut self) -> Result<Expr, ParserError> {
+        let mut expr: Expr = self.equality()?;
+        if let Some(_) = self.match_token(&[TokenType::Equal]) {
+            let right = self.equality()?;
+            expr = Expr::AssignOp {
+                dest: Box::new(expr),
+                value: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
 
     /// Equal and not equal.
     fn equality(&mut self) -> Result<Expr, ParserError> {
