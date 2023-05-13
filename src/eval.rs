@@ -40,9 +40,13 @@ impl Interpreter {
                 self.variables.insert(const_name.into(), init_val);
                 Ok(TokenData::None)
             }
-            Stmt::Print(expr) => {
-                let res = self.eval_expr(expr, line_num)?;
-                (self.console_log)(format!("{}", res).as_str());
+            Stmt::Print { args } => {
+                let mut res_str = String::from("");
+                for arg in args {
+                    let res = self.eval_expr(arg, line_num)?;
+                    res_str = res_str + format!(" {}", res).as_str();
+                }
+                (self.console_log)(format!("{}", res_str).as_str());
                 Ok(TokenData::None)
             }
             Stmt::Expr(expr) => self.eval_expr(expr, line_num),

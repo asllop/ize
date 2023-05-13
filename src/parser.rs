@@ -79,7 +79,7 @@ impl Display for Expr {
 pub enum Stmt {
     VarDef { var_name: String, init: Expr },
     ConstDef { const_name: String, init: Expr },
-    Print(Expr),
+    Print { args: Vec<Expr> },
     Expr(Expr),
 }
 
@@ -193,7 +193,16 @@ impl LineParser {
     /// Print statement.
     fn print_statement(&mut self) -> Result<Stmt, ParserError> {
         let expr = self.expression()?;
-        Ok(Stmt::Print(expr))
+        let mut args = vec![expr];
+        loop {
+            if let Some(_) = self.match_token(&[TokenType::Comma]) {
+                let expr = self.expression()?;
+                args.push(expr);
+            } else {
+                break;
+            }
+        }
+        Ok(Stmt::Print { args })
     }
 
     /// Expression statement.
