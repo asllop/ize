@@ -82,7 +82,6 @@ impl Display for Expr {
 #[derive(Debug)]
 /// Statement.
 pub enum Stmt {
-    VarDef { var_name: String, init: Expr },
     ConstDef { const_name: String, init: Expr },
     Print { args: Vec<Expr> },
     Expr(Expr),
@@ -127,43 +126,13 @@ impl LineParser {
 
     /// Statement.
     fn statement(&mut self) -> Result<Stmt, ParserError> {
-        if let Some(_) = self.match_token(&[TokenType::VarDefinition]) {
-            self.var_def_statement()
-        } else if let Some(_) = self.match_token(&[TokenType::ConstDefinition]) {
+        if let Some(_) = self.match_token(&[TokenType::ConstDefinition]) {
             self.const_def_statement()
         } else if let Some(_) = self.match_token(&[TokenType::Print]) {
             self.print_statement()
         } else {
             // Otherwise, expression statement
             self.expression_statement()
-        }
-    }
-
-    /// Var def statement.
-    fn var_def_statement(&mut self) -> Result<Stmt, ParserError> {
-        if let Some(Token {
-            data: TokenData::String(ident),
-            offset,
-            ..
-        }) = self.match_token(&[TokenType::Identifier])
-        {
-            if let Some(_) = self.match_token(&[TokenType::Equal]) {
-                let expr = self.expression()?;
-                Ok(Stmt::VarDef {
-                    var_name: ident,
-                    init: expr,
-                })
-            } else {
-                return Err(ParserError {
-                    message: "Expected '=' after variable name".into(),
-                    offset,
-                });
-            }
-        } else {
-            return Err(ParserError {
-                message: "Expected variable name after 'var'".into(),
-                offset: 0,
-            });
         }
     }
 

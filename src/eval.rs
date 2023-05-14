@@ -36,12 +36,6 @@ impl Interpreter {
 impl Interpreter {
     pub fn eval_stmt(&mut self, stmt: &Stmt, line_num: usize) -> Result<TokenData, EvalErr> {
         match stmt {
-            Stmt::VarDef { var_name, init } => {
-                let init_val = self.eval_expr(init, line_num)?;
-                self.state
-                    .insert(var_name.into(), (init_val, ElemType::Variable));
-                Ok(TokenData::None)
-            }
             Stmt::ConstDef { const_name, init } => {
                 let init_val = self.eval_expr(init, line_num)?;
                 self.state
@@ -109,17 +103,18 @@ impl Interpreter {
                     ..
                 }) = dest.as_ref()
                 {
-                    if let Some((_, ElemType::Variable)) = self.state.get(ident) {
-                        let expr = self.eval_expr(value, line_num)?;
-                        self.state
-                            .insert(ident.clone(), (expr.clone(), ElemType::Variable));
-                        Ok(expr)
-                    } else {
-                        Err(EvalErr {
-                            message: format!("Variable '{}' doesn't exist", ident),
+                    match self.state.get(ident) {
+                        Some((_, ElemType::Variable)) | None => {
+                            let expr = self.eval_expr(value, line_num)?;
+                            self.state
+                                .insert(ident.clone(), (expr.clone(), ElemType::Variable));
+                            Ok(expr)
+                        }
+                        _ => Err(EvalErr {
+                            message: format!("Identifier '{}' is not a variable", ident),
                             line: line_num,
                             offset: *offset,
-                        })
+                        }),
                     }
                 } else if let Expr::Object { chain: _ } = dest.as_ref() {
                     todo!("Implement object assignment")

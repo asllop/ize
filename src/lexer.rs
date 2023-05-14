@@ -153,8 +153,6 @@ pub enum TokenType {
     PipelineDefinition,
     #[token("const")]
     ConstDefinition,
-    #[token("var")]
-    VarDefinition,
 
     // Comment
     #[token("//")]
@@ -228,7 +226,6 @@ impl Display for TokenType {
             TokenType::TransferDefinition => write!(f, "transfer"),
             TokenType::BufferDefinition => write!(f, "buffer"),
             TokenType::PipelineDefinition => write!(f, "pipeline"),
-            TokenType::VarDefinition => write!(f, "var"),
             TokenType::ConstDefinition => write!(f, "const"),
             TokenType::Comment => write!(f, "//"),
             TokenType::Macro => write!(f, "#\\"),

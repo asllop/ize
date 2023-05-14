@@ -12,10 +12,10 @@ print "Hello, " + "world"
 print 10
 print
 
-var num = 10 / 3 * (8 - 4)
+num = 10 / 3 * (8 - 4)
 print "Num is = ", num
 
-var num2 = num * 4
+num2 = num * 4
 print "Num 2 is = ", num2
 
 const bar = "Hello" + " " + "Andreu!"
