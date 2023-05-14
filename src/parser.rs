@@ -295,6 +295,8 @@ impl LineParser {
         return self.object();
     }
 
+    //TODO: what has higher precedence, objects or calls?
+
     //TODO: improve errors, things like "obj.String.foo()" or "obj.+.foo()" produces a generic "Couldn't parse a valid expression".
     /// Objects.
     fn object(&mut self) -> Result<Expr, ParserError> {
@@ -353,7 +355,8 @@ impl LineParser {
                 }
                 Ok(Expr::Call { func, args })
             } else {
-                Ok(Expr::Identifier(func))
+                self.return_token(func);
+                self.primary()
             }
         } else {
             self.primary()
@@ -371,6 +374,9 @@ impl LineParser {
         ]) {
             let expr = Expr::Literal(token);
             return Ok(expr);
+        }
+        if let Some(token) = self.match_token(&[TokenType::Identifier]) {
+            return Ok(Expr::Identifier(token));
         }
         if let Some(token) = self.match_token(&[TokenType::OpenParenth]) {
             let expr = self.expression()?;
@@ -407,6 +413,10 @@ impl LineParser {
             }
         }
         None
+    }
+
+    fn return_token(&mut self, token: Token) {
+        self.tokens.push_front(token);
     }
 
     fn is_at_end(&self) -> bool {
