@@ -55,7 +55,7 @@ impl Display for Expr {
             Expr::Identifier(t) => write!(f, "{}{}", t.token_type, t.data),
             Expr::Group { expr } => write!(f, "[{}]", expr),
             Expr::UnaryOp { op, child } => write!(f, "({} {})", op.token_type, child),
-            Expr::AssignOp { dest, value } => write!(f, "({} := {})", dest, value),
+            Expr::AssignOp { dest, value } => write!(f, "{} := {}", dest, value),
             Expr::BinaryOp {
                 op,
                 left_child,
@@ -85,6 +85,22 @@ pub enum Stmt {
     ConstDef { const_name: String, init: Expr },
     Print { args: Vec<Expr> },
     Expr(Expr),
+}
+
+impl Display for Stmt {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Stmt::ConstDef { const_name, init } => write!(f, "const {} = {}", const_name, init),
+            Stmt::Print { args } => {
+                write!(f, "print ").ok();
+                for arg in args {
+                    write!(f, "{} ; ", arg).ok();
+                }
+                write!(f, "")
+            },
+            Stmt::Expr(expr) => write!(f, "{}", expr),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -196,6 +212,7 @@ impl LineParser {
         let mut expr: Expr = self.equality()?;
         while let Some(_) = self.match_token(&[TokenType::Equal]) {
             let right = self.assign()?;
+            //TODO: check that expr is either an object or an identifier
             expr = Expr::AssignOp {
                 dest: Box::new(expr),
                 value: Box::new(right),

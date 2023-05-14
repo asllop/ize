@@ -22,6 +22,7 @@ impl Environment {
     pub fn assign_var(&mut self, name: &String, val: TokenData) -> Result<(), EnvErr> {
         match self.values.get(name) {
             Some((_, ValType::Variable)) | None => {
+                //TODO: if already defined, check type and return error if type mismatch
                 self.values.insert(name.clone(), (val, ValType::Variable));
                 Ok(())
             }
