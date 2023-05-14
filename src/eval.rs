@@ -1,7 +1,7 @@
 use crate::{
+    env::Environment,
     lexer::{Token, TokenData, TokenType},
     parser::{Expr, Stmt},
-    env::Environment,
 };
 use alloc::{borrow::ToOwned, string::String};
 use regex::Regex;
@@ -103,8 +103,7 @@ impl Interpreter {
                             line: line_num,
                             offset: *offset,
                         })
-                    }
-                    else {
+                    } else {
                         Ok(expr)
                     }
                 } else if let Expr::Object { chain: _ } = dest.as_ref() {

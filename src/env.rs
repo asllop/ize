@@ -6,7 +6,7 @@ pub struct EnvErr {
     pub message: String,
 }
 
-pub enum ElemType {
+enum ValType {
     Variable,
     Constant,
     //TODO: other types: structs, transfers, etc
@@ -15,28 +15,30 @@ pub enum ElemType {
 #[derive(Default)]
 pub struct Environment {
     //TODO: distinguish variables, contants and other things. Scope.
-    variables: FxHashMap<String, (TokenData, ElemType)>,
+    values: FxHashMap<String, (TokenData, ValType)>,
 }
 
 impl Environment {
     pub fn assign_var(&mut self, name: &String, val: TokenData) -> Result<(), EnvErr> {
-        match self.variables.get(name) {
-            Some((_, ElemType::Variable)) | None => {
-                self.variables.insert(name.clone(), (val, ElemType::Variable));
+        match self.values.get(name) {
+            Some((_, ValType::Variable)) | None => {
+                self.values.insert(name.clone(), (val, ValType::Variable));
                 Ok(())
             }
-            _ => Err(EnvErr { message: format!("Identifier '{}' is not a variable", name) }),
+            _ => Err(EnvErr {
+                message: format!("Identifier '{}' is not a variable", name),
+            }),
         }
     }
 
     pub fn get_val(&mut self, name: &String) -> Option<&TokenData> {
-        match self.variables.get(name) {
-            Some((v, ElemType::Variable | ElemType::Constant)) => Some(v),
+        match self.values.get(name) {
+            Some((v, ValType::Variable | ValType::Constant)) => Some(v),
             _ => None,
         }
     }
 
     pub fn def_const(&mut self, name: &String, val: TokenData) {
-        self.variables.insert(name.clone(), (val, ElemType::Constant));
+        self.values.insert(name.clone(), (val, ValType::Constant));
     }
 }
