@@ -1,10 +1,10 @@
 use crate::{
     lexer::{Token, TokenData, TokenType},
     parser::{Expr, Stmt},
+    env::Environment,
 };
 use alloc::{borrow::ToOwned, string::String};
 use regex::Regex;
-use rustc_hash::FxHashMap;
 
 pub struct EvalErr {
     pub message: String,
@@ -12,22 +12,16 @@ pub struct EvalErr {
     pub offset: usize,
 }
 
-enum ElemType {
-    Variable,
-    Constant,
-    //TODO: other types: structs, transfers, etc
-}
-
 pub struct Interpreter {
     //TODO: distinguish variables, contants and other things. Scope.
-    state: FxHashMap<String, (TokenData, ElemType)>,
+    env: Environment,
     console_log: fn(&str),
 }
 
 impl Interpreter {
     pub fn new(console_log: fn(&str)) -> Self {
         Self {
-            state: Default::default(),
+            env: Default::default(),
             console_log,
         }
     }
@@ -38,8 +32,7 @@ impl Interpreter {
         match stmt {
             Stmt::ConstDef { const_name, init } => {
                 let init_val = self.eval_expr(init, line_num)?;
-                self.state
-                    .insert(const_name.into(), (init_val, ElemType::Constant));
+                self.env.def_const(const_name.into(), init_val);
                 Ok(TokenData::None)
             }
             Stmt::Print { args } => {
@@ -63,7 +56,7 @@ impl Interpreter {
                 offset,
                 ..
             }) => {
-                if let Some((v, ElemType::Variable | ElemType::Constant)) = self.state.get(ident) {
+                if let Some(v) = self.env.get_val(ident) {
                     Ok(v.clone())
                 } else {
                     Err(EvalErr {
@@ -103,18 +96,16 @@ impl Interpreter {
                     ..
                 }) = dest.as_ref()
                 {
-                    match self.state.get(ident) {
-                        Some((_, ElemType::Variable)) | None => {
-                            let expr = self.eval_expr(value, line_num)?;
-                            self.state
-                                .insert(ident.clone(), (expr.clone(), ElemType::Variable));
-                            Ok(expr)
-                        }
-                        _ => Err(EvalErr {
-                            message: format!("Identifier '{}' is not a variable", ident),
+                    let expr = self.eval_expr(value, line_num)?;
+                    if let Err(e) = self.env.assign_var(ident, expr.clone()) {
+                        Err(EvalErr {
+                            message: e.message,
                             line: line_num,
                             offset: *offset,
-                        }),
+                        })
+                    }
+                    else {
+                        Ok(expr)
                     }
                 } else if let Expr::Object { chain: _ } = dest.as_ref() {
                     todo!("Implement object assignment")

@@ -31,3 +31,4 @@ print "Now num2 = ", num2
 // foo(5+8) * 10
 // forest.tree(10).apple(num).color
 // "HeLlO".to_lower()
+// "hello".split().0.call()

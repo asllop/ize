@@ -17,6 +17,8 @@
 #[macro_use]
 extern crate alloc;
 
+mod env;
+
 /// First strage: Lexical analyzer.
 pub mod lexer;
 

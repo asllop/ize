@@ -295,8 +295,6 @@ impl LineParser {
         return self.object();
     }
 
-    //TODO: what has higher precedence, objects or calls?
-
     //TODO: improve errors, things like "obj.String.foo()" or "obj.+.foo()" produces a generic "Couldn't parse a valid expression".
     /// Objects.
     fn object(&mut self) -> Result<Expr, ParserError> {
