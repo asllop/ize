@@ -87,15 +87,15 @@ pub enum Stmt {
     Expr(Expr),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 /// Abstract Syntax Tree.
 pub struct Ast {
     pub statements: Vec<(usize, Stmt)>,
 }
 
 impl Ast {
-    pub fn push(&mut self, line_num: usize, stmt: Stmt) {
-        self.statements.push((line_num, stmt));
+    pub fn new(statements: Vec<(usize, Stmt)>) -> Self {
+        Self { statements }
     }
 }
 

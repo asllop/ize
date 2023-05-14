@@ -53,26 +53,30 @@ fn main() {
 
     println!("------- PARSER\n");
 
-    let mut ast = Ast::default();
+    let statements = lines
+        .into_iter()
+        .map(|l| {
+            let line_num = l.position.line_num;
+            match LineParser::parse(l) {
+                Ok(stmt) => {
+                    println!("STMT => {:?}", stmt);
+                    (line_num, stmt)
+                }
+                Err(err) => {
+                    println!(
+                        "Parser Error: \"{}\" at line {} offset {}",
+                        err.message,
+                        line_num + 1,
+                        err.offset + 1
+                    );
+                    exit(2);
+                }
+            }
+        })
+        .collect();
 
-    for l in lines {
-        let line_num = l.position.line_num;
-        match LineParser::parse(l) {
-            Ok(stmt) => {
-                println!("STMT => {:?}", stmt);
-                ast.push(line_num, stmt);
-            }
-            Err(err) => {
-                println!(
-                    "Parser Error: \"{}\" at line {} offset {}",
-                    err.message,
-                    line_num + 1,
-                    err.offset + 1
-                );
-                exit(2);
-            }
-        }
-    }
+    let ast = Ast::new(statements);
+
     println!("");
 
     println!("------- INTERPRETER\n");
