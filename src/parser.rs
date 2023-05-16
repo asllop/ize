@@ -90,15 +90,15 @@ pub enum Stmt {
 impl Display for Stmt {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Stmt::ConstDef { const_name, init } => write!(f, "const {} = {}", const_name, init),
+            Stmt::ConstDef { const_name, init } => write!(f, "CONST {} = {}", const_name, init),
             Stmt::Print { args } => {
-                write!(f, "print ").ok();
+                write!(f, "PRINT ").ok();
                 for arg in args {
                     write!(f, "{} ; ", arg).ok();
                 }
                 write!(f, "")
-            },
-            Stmt::Expr(expr) => write!(f, "{}", expr),
+            }
+            Stmt::Expr(expr) => write!(f, "EXPR {}", expr),
         }
     }
 }

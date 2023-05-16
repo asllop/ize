@@ -59,7 +59,7 @@ fn main() {
             let line_num = l.position.line_num;
             match LineParser::parse(l) {
                 Ok(stmt) => {
-                    println!("STMT => {}", stmt);
+                    println!("{}", stmt);
                     (line_num, stmt)
                 }
                 Err(err) => {
