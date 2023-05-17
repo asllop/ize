@@ -497,13 +497,43 @@ mod test {
     use crate::lexer::Line;
 
     #[test]
-    fn no_forbidden_chars() {
+    fn valid_lines() {
+        assert!(Line::scan_tokens("", 0).is_ok());
+        assert!(Line::scan_tokens("_my_var", 0).is_ok());
+        assert!(Line::scan_tokens("   // this is a comment", 0).is_ok());
+        assert!(Line::scan_tokens("my_var", 0).is_ok());
         assert!(Line::scan_tokens("const ME = \"IZE Language\"", 0).is_ok());
-        assert!(Line::scan_tokens("const ME =\t\"IZE Language\"", 0).is_ok());
+        assert!(Line::scan_tokens("\tconst ME =\t\"IZE Language\"", 0).is_ok());
+        assert!(Line::scan_tokens("   transfer valid_password(input: String) -> Boolean:", 0).is_ok());
+        assert!(Line::scan_tokens("timestamp as \"time.ms\": Integer", 0).is_ok());
+        assert!(Line::scan_tokens("struct MyStruct:", 0).is_ok());
+        assert!(Line::scan_tokens(r#"const MY_STR = "This is \t \t\h\x\s\\\n\a an \"escaped\" \ \r \0 \w \xAB string unicode: üçí 'yeha' \\backslash\\\n""#, 0).is_ok());
+        assert!(Line::scan_tokens("10 6.09 -5 -7.99 \"hello world\" true false (9*7)/199", 0).is_ok());
+        assert!(Line::scan_tokens("#import(\"models/metric.iz\")", 0).is_ok());
+    }
 
+    #[test]
+    fn forbidden_chars() {
+        assert!(Line::scan_tokens("   \t  const ME =\t\"IZE Language\"", 0).is_err());
         assert!(Line::scan_tokens("const ME =\n\"IZE Language\"", 0).is_err());
         assert!(Line::scan_tokens("const ME =\r\"IZE Language\"", 0).is_err());
         assert!(Line::scan_tokens("const ME =\0\"IZE Language\"", 0).is_err());
         assert!(Line::scan_tokens("const ME =\x07\"IZE Language\"", 0).is_err());
+    }
+
+    #[test]
+    fn unknown_tokens() {
+        assert!(Line::scan_tokens("# my_var", 0).is_err());
+        assert!(Line::scan_tokens("my$var", 0).is_err());
+        assert!(Line::scan_tokens("my?var", 0).is_err());
+        assert!(Line::scan_tokens("my¿var", 0).is_err());
+        assert!(Line::scan_tokens("my·var", 0).is_err());
+        assert!(Line::scan_tokens("my^var", 0).is_err());
+        assert!(Line::scan_tokens("my\\var", 0).is_err());
+    }
+
+    #[test]
+    fn unclosed_string() {
+        assert!(Line::scan_tokens("const ME = \"IZE Language", 0).is_err());
     }
 }
