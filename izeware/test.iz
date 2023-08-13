@@ -1,39 +1,70 @@
-print !false
-!!true
--(10)
-!10
-!!10
-!!(-(!10))
-10 / 3 * (8 - 4) == 12
-(10.0 / 4.0 * (8.0 - 4.0) == 10.0) && (1 & 2 == 0)
-10 >= 11
-"hello" == "hello"
-print "Hello, " + "world"
-print 10
-print
+// Model de sortida
+model MyEvent (
+	eventType: String,
+	timestamp as "timestamp.ms": Integer,
+	attributes: Map[String,String]
+)
 
-num = 10 / 3 * (8 - 4)
-print "Num is = ", num
+// Model Alias
+model MyInputA Map[String,String]
+model MyInputB Integer
 
-num2 = num * 4
-print "Num 2 is = ", num2
+// Transferència
+transfer LogToEvent MyLog -> MyEvent (
+	attributes: in.attr.Append("message", in.msg),
+	eventType: in.type,
+    timestamp: in.ts*1000
+)
 
-const bar = "Hello" + " " + "Andreu!"
-print bar + " :-)"
+transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
+	Tuple(in.first, in.second.ToStr())
+)
 
-print num = num2 = "this is the new" + " value"
-print "Now num = ", num
-print "Now num2 = ", num2
+transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
+	in.action.Match("^CONTENT_") if? in else? none
+)
 
-num = 5.0
-a = b = c = num / 2.0
-print num,a,b,c
+transfer MyTrans Input -> Output (
+	attr: in.val == "ZERO" if? 0 else? -1,
+	other: in.other
+)
 
-// var + 10 * 6
-// this.is.a + 10 * 6
-// my.func(10 * 4 + 1, var, !19)
-// foo(5+8) * 10
-// forest.tree(10).apple(num).color
-// "HeLlO".to_lower()
-// "hello".split().0.call()
-// this.is.an.object = (10 + num) / 2
+transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
+	name: in.first,
+    value: select in.first (
+        "CPU" -> in.second.Median("value"),
+        "RespTime" -> in.second.Mode("value"),
+        _ -> in.second.Mean("value")
+    ),
+    count: in.second.Len()
+)
+
+transfer Whatever Mux[Integer,String,None] -> String (
+	unwrap in (
+		Integer -> in.ToStr(),
+		String -> in,
+		None -> ""
+	)
+)
+
+transfer Whatever Any -> String (
+	unwrap in (
+		Integer -> in.ToStr(),
+		Float -> in.Format(".2"),
+		String -> in,
+		_ -> ""
+	)
+)
+
+run pipe MyPipe (
+	ReadHttpPost (
+		url: ".....",
+		body: "......"
+	),
+	FromJson,
+	Buffer (
+		time: 30,
+		size: 500
+	),
+	AggrMyModel
+)
