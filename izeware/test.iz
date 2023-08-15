@@ -13,7 +13,9 @@ model MyInputB Integer
 transfer LogToEvent MyLog -> MyEvent (
 	attributes: in.attr.Append("message", in.msg),
 	eventType: in.type,
-    timestamp: in.ts*1000
+    timestamp: in.ts*1000,
+    is_true: true,
+    is_false: false
 )
 
 transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (

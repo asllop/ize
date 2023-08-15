@@ -29,15 +29,14 @@
 #[macro_use]
 extern crate alloc;
 
-//mod env;
-
 mod common;
+pub use common::{IzeErr, Pos};
 
-/// First strage: Lexical analyzer.
+/// Lexical analyzer.
 pub mod lexer;
 
-// /// Second stage: Parser.
-// pub mod parser;
+/// Abstract Syntax Tree.
+pub mod ast;
 
-// /// Third stage: Interpreter.
-// pub mod eval;
+/// Parser.
+pub mod parser;

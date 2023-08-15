@@ -1,7 +1,6 @@
 //! # IZE Lexer
 //!
 //! This module contains all the types and methods necessary to convert raw source code into tokens.
-//!
 
 use crate::common::{IzeErr, Pos};
 use alloc::string::String;
@@ -235,11 +234,7 @@ impl<'a> Lexer<'a> {
                         Ok(token)
                     }
                     TokenKind::BooleanLiteral => {
-                        let token = if fragment == "true" {
-                            Token::new(Lexeme::Bool(true), next_pos.clone())
-                        } else {
-                            Token::new(Lexeme::Bool(false), next_pos.clone())
-                        };
+                        let token = Token::new(Lexeme::Bool(fragment == "true"), next_pos.clone());
                         next_pos.col += lex_offs.end - lex_offs.start;
                         self.last_pos = next_pos;
                         Ok(token)
