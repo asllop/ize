@@ -2,20 +2,46 @@
 //!
 //! This module contains all the types and methods necessary to generate an AST.
 
+use crate::{
+    common::Pos,
+    lexer::{Lexeme, Lexer},
+    IzeErr,
+};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use rustc_hash::FxHashMap;
-use crate::common::Pos;
+
+#[derive(Debug)]
+/// Abstract Syntax Tree.
+pub struct Ast {
+    pub commands: Vec<Command>,
+}
+
+impl<'a> Ast {
+    pub fn build(code: &'a str) -> Result<Self, IzeErr> {
+        let mut lexer = Lexer::new(code);
+        let mut tokens = Vec::new();
+        loop {
+            let token = lexer.scan_token()?;
+            match token.lexeme {
+                Lexeme::EOF => break,
+                Lexeme::Nothing => {}
+                _ => tokens.push(token),
+            }
+        }
+        todo!("Parse and build AST")
+    }
+}
 
 #[derive(Debug)]
 /// Unary operation set.
-pub enum UnaryOp {
+pub enum Unary {
     Negate,
     Minus,
 }
 
 #[derive(Debug)]
 /// Binary operation set.
-pub enum BinaryOp {
+pub enum Binary {
     Add,
     Sub,
     Mul,
@@ -39,22 +65,17 @@ pub enum BinaryOp {
 #[derive(Debug)]
 /// Expression set.
 pub enum ExprSet {
-    //TODO: chain
-    //TODO: let
-    //TODO: select
-    //TODO: unwrap
-    //TODO: dot
     Literal(Literal),
     Identifier(String),
     Group {
         expr: Box<Expr>,
     },
     UnaryOp {
-        op: UnaryOp,
+        op: Unary,
         expr: Box<Expr>,
     },
     BinaryOp {
-        op: BinaryOp,
+        op: Binary,
         left_expr: Box<Expr>,
         right_expr: Box<Expr>,
     },
@@ -64,9 +85,35 @@ pub enum ExprSet {
         else_expr: Box<Expr>,
     },
     Call {
-        func: String,
+        name: String,
         args: Vec<Expr>,
     },
+    Chain {
+        chain: Vec<Expr>,
+    },
+    Let {
+        name: String,
+        value: Box<Expr>,
+    },
+    Dot {
+        compos: Vec<Expr>,
+    },
+    Select {
+        expr: Box<Expr>,
+        arms: Vec<Arm>,
+    },
+    Unwrap {
+        expr: Box<Expr>,
+        alias: String,
+        arms: Vec<Arm>,
+    },
+}
+
+#[derive(Debug)]
+/// Select or Unwrap arm.
+pub struct Arm {
+    pub value: Box<Expr>,
+    pub action: Box<Expr>,
 }
 
 #[derive(Debug)]
@@ -81,7 +128,7 @@ pub enum Literal {
 }
 
 #[derive(Debug)]
-/// Expression.
+/// Language expression.
 pub struct Expr {
     pub expr: ExprSet,
     pub pos: Pos,
@@ -96,7 +143,7 @@ impl Expr {
 type FieldName = String;
 
 #[derive(Debug)]
-/// Command.
+/// Language command (Import, Model, Transfer and Pipe).
 pub struct Command {
     pub command: CommandSet,
     pub pos: Pos,
@@ -112,7 +159,7 @@ pub enum CommandSet {
 }
 
 #[derive(Debug)]
-/// Import.
+/// Import command.
 pub struct Import {
     pub packages: Vec<Package>,
 }
@@ -128,20 +175,20 @@ pub struct Package {
 /// Import path.
 pub enum ImportPath {
     Dot(DotPath),
-    File(String)
+    File(String),
 }
 
 #[derive(Debug)]
 /// Dot path.
 pub struct DotPath {
-    pub path: Vec<String>
+    pub path: Vec<String>,
 }
 
 #[derive(Debug)]
-/// Model.
+/// Model command.
 pub enum Model {
     Struct(StructModel),
-    Alias(Type)
+    Alias(Type),
 }
 
 #[derive(Debug)]
@@ -160,7 +207,7 @@ pub struct ModelField {
 }
 
 #[derive(Debug)]
-/// Transfer.
+/// Transfer command.
 pub struct Transfer {
     pub name: String,
     pub input_type: Type,
@@ -182,7 +229,7 @@ pub struct TransferFields {
 }
 
 #[derive(Debug)]
-/// Pipe.
+/// Pipe command.
 pub struct Pipe {
     pub run: bool,
     pub name: String,
@@ -193,7 +240,7 @@ pub struct Pipe {
 /// Pipe item.
 pub struct PipeItem {
     pub name: String,
-    pub pipe_struct: Option<PipeStruct>
+    pub pipe_struct: Option<PipeStruct>,
 }
 
 #[derive(Debug)]
@@ -207,12 +254,12 @@ pub struct PipeStruct {
 pub enum PipeVal {
     Literal(Literal),
     Identifier(String),
-    Struct(PipeStruct)
+    Struct(PipeStruct),
 }
 
 #[derive(Debug)]
 /// Type.
 pub struct Type {
     pub name: String,
-    pub content: Vec<Type>
+    pub inner: Vec<Type>,
 }

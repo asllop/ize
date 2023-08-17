@@ -16,13 +16,22 @@ fn main() {
         Ok(v) => v,
         Err(e) => panic!("Invalid UTF-8 string: {}", e),
     };
+
+    println!("\n------ LEXER\n");
+
+    let mut tokens = Vec::new();
     let mut lexer = Lexer::new(code);
     loop {
         let token = lexer.scan_token().expect("Error scanning tokens");
         match token.lexeme {
             Lexeme::EOF => break,
             Lexeme::Nothing => {}
-            _ => println!("{:?}", token),
+            _ => {
+                println!("{:?}", token);
+                tokens.push(token);
+            }
         }
     }
+
+    println!("\n------ PARSER\n");
 }
