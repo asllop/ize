@@ -1,3 +1,8 @@
+import (
+    ize.models.newrelic,
+    "my/custom/module.iz" as mymod
+)
+
 // Model de sortida
 model MyEvent (
 	eventType: String,

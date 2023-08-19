@@ -2,46 +2,37 @@
 //!
 //! This module contains all the types and methods necessary to generate an AST.
 
-use crate::{
-    common::Pos,
-    lexer::{Lexeme, Lexer},
-    IzeErr,
-};
+use crate::{IzeErr, Pos};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
-/// Abstract Syntax Tree.
+/// Abstract Syntax Tree. Represents a parsed IZE file.
 pub struct Ast {
+    /// Module name, result of an import.
+    pub symbol: String,
+    /// List of commands.
     pub commands: Vec<Command>,
+    /// File name.
+    pub file: String,
 }
 
 impl<'a> Ast {
-    pub fn build(code: &'a str) -> Result<Self, IzeErr> {
-        let mut lexer = Lexer::new(code);
-        let mut tokens = Vec::new();
-        loop {
-            let token = lexer.scan_token()?;
-            match token.lexeme {
-                Lexeme::EOF => break,
-                Lexeme::Nothing => {}
-                _ => tokens.push(token),
-            }
-        }
+    pub fn build(_code: &'a str) -> Result<Self, IzeErr> {
         todo!("Parse and build AST")
     }
 }
 
 #[derive(Debug)]
 /// Unary operation set.
-pub enum Unary {
+pub enum UnaryOp {
     Negate,
     Minus,
 }
 
 #[derive(Debug)]
 /// Binary operation set.
-pub enum Binary {
+pub enum BinaryOp {
     Add,
     Sub,
     Mul,
@@ -70,12 +61,12 @@ pub enum ExprSet {
     Group {
         expr: Box<Expr>,
     },
-    UnaryOp {
-        op: Unary,
+    Unary {
+        op: UnaryOp,
         expr: Box<Expr>,
     },
-    BinaryOp {
-        op: Binary,
+    Binary {
+        op: BinaryOp,
         left_expr: Box<Expr>,
         right_expr: Box<Expr>,
     },
@@ -186,7 +177,14 @@ pub struct DotPath {
 
 #[derive(Debug)]
 /// Model command.
-pub enum Model {
+pub struct Model {
+    pub name: String,
+    pub model_type: ModelType,
+}
+
+#[derive(Debug)]
+/// Model type.
+pub enum ModelType {
     Struct(StructModel),
     Alias(Type),
 }
@@ -260,6 +258,23 @@ pub enum PipeVal {
 #[derive(Debug)]
 /// Type.
 pub struct Type {
-    pub name: String,
+    pub id: TypeId,
     pub inner: Vec<Type>,
+}
+
+#[derive(Debug)]
+/// Type Id.
+pub enum TypeId {
+    Custom(String),
+    String,
+    Integer,
+    Float,
+    Boolean,
+    List,
+    Map,
+    Mux,
+    Tuple,
+    None,
+    Null,
+    Any,
 }

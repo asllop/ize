@@ -1,4 +1,7 @@
-use ize::lexer::{Lexeme, Lexer};
+use ize::{
+    lexer::{Lexeme, Lexer},
+    parser::Parser,
+};
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
@@ -34,4 +37,7 @@ fn main() {
     }
 
     println!("\n------ PARSER\n");
+
+    let mut parser = Parser::new(tokens);
+    let _commands = parser.parse().expect("Error parsing");
 }

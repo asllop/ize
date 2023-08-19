@@ -2,7 +2,7 @@
 //!
 //! This module contains all the types and methods necessary to convert raw source code into tokens.
 
-use crate::common::{IzeErr, Pos};
+use crate::{IzeErr, Pos};
 use alloc::string::String;
 use logos::Logos;
 
