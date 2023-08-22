@@ -1,77 +1,8 @@
-import (
-    ize.models.newrelic,
-    "my/custom/module.iz" as mymod
-)
-
-// Model de sortida
-model MyEvent (
-	eventType: String,
-	timestamp as "timestamp.ms": Integer,
-	attributes: Map[String,String]
-)
-
-// Model Alias
-model MyInputA Map[String,String]
-model MyInputB Integer
-
-// Transferència
-transfer LogToEvent MyLog -> MyEvent (
-	attributes: in.attr.Append("message", in.msg),
-	eventType: in.type,
-    timestamp: in.ts*1000,
-    is_true: true,
-    is_false: false
-)
-
-transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
-	Tuple(in.first, in.second.ToStr())
-)
-
-transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
-	in.action.Match("^CONTENT_") if? in else? none
-)
-
-transfer MyTrans Input -> Output (
-	attr: in.val == "ZERO" if? 0 else? -1,
-	other: in.other
-)
-
-transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
-	name: in.first,
-    value: select in.first (
-        "CPU" -> in.second.Median("value"),
-        "RespTime" -> in.second.Mode("value"),
-        _ -> in.second.Mean("value")
-    ),
-    count: in.second.Len()
-)
-
-transfer Whatever Mux[Integer,String,None] -> String (
-	unwrap in (
-		Integer -> in.ToStr(),
-		String -> in,
-		None -> ""
-	)
-)
-
-transfer Whatever Any -> String (
-	unwrap in (
-		Integer -> in.ToStr(),
-		Float -> in.Format(".2"),
-		String -> in,
-		_ -> ""
-	)
-)
-
-run pipe MyPipe (
-	ReadHttpPost (
-		url: ".....",
-		body: "......"
-	),
-	FromJson,
-	Buffer (
-		time: 30,
-		size: 500
-	),
-	AggrMyModel
-)
+//10 != 3 > true == my_var
+100
+-5
+99.4
+"hello"
+true
+my_var
+null none

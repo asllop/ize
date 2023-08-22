@@ -39,5 +39,9 @@ fn main() {
     println!("\n------ PARSER\n");
 
     let mut parser = Parser::new(tokens);
-    let _commands = parser.parse().expect("Error parsing");
+    //let _commands = parser.parse().expect("Error parsing");
+    while !parser.ended() {
+        let expr = parser.expression().expect("Error parsing expression");
+        println!("{:?}", expr);
+    }
 }

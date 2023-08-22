@@ -5,20 +5,215 @@
 //TODO: create a struct for expression precedence, so we can parse asking to recursively parse a higher precedence thing without
 // having to hardcode the precedence in the parser.
 
-use crate::{ast::Command, lexer::Token, IzeErr};
-use alloc::vec::Vec;
+use crate::{
+    ast::{Command, Expr, ExprSet, Literal},
+    lexer::{Lexeme, Token, TokenKind},
+    IzeErr, Pos,
+};
+use alloc::string::String;
+use alloc::{collections::VecDeque, vec::Vec};
+
+trait FromToken {
+    fn into_parts(self) -> Result<(Lexeme, Pos), IzeErr>;
+    fn into_particle(self) -> Result<(TokenKind, Pos), IzeErr>;
+    fn into_ident(self) -> Result<(String, Pos), IzeErr>;
+    fn into_literal(self) -> Result<(Literal, Pos), IzeErr>;
+}
+
+impl FromToken for Option<Token> {
+    fn into_parts(self) -> Result<(Lexeme, Pos), IzeErr> {
+        if let Some(token) = self {
+            Ok((token.lexeme, token.pos))
+        } else {
+            Err(IzeErr {
+                message: "Token is None".into(),
+                pos: Pos::default(),
+            })
+        }
+    }
+
+    fn into_particle(self) -> Result<(TokenKind, Pos), IzeErr> {
+        let (lexeme, pos) = self.into_parts()?;
+        if let Lexeme::Particle(t) = lexeme {
+            Ok((t, pos))
+        } else {
+            Err(IzeErr {
+                message: "Expected a particle".into(),
+                pos: Pos::default(),
+            })
+        }
+    }
+
+    fn into_ident(self) -> Result<(String, Pos), IzeErr> {
+        let (lexeme, pos) = self.into_parts()?;
+        if let Lexeme::Ident(s) = lexeme {
+            Ok((s, pos))
+        } else {
+            Err(IzeErr {
+                message: "Expected an identifier".into(),
+                pos: Pos::default(),
+            })
+        }
+    }
+
+    fn into_literal(self) -> Result<(Literal, Pos), IzeErr> {
+        let (lexeme, pos) = self.into_parts()?;
+        match lexeme {
+            Lexeme::Float(f) => Ok((Literal::Float(f), pos)),
+            Lexeme::Int(i) => Ok((Literal::Integer(i), pos)),
+            Lexeme::Bool(b) => Ok((Literal::Boolean(b), pos)),
+            Lexeme::String(s) => Ok((Literal::String(s), pos)),
+            Lexeme::Particle(TokenKind::NullLiteral) => Ok((Literal::Null, pos)),
+            Lexeme::Particle(TokenKind::NoneLiteral) => Ok((Literal::None, pos)),
+            _ => Err(IzeErr {
+                message: "Expected a literal".into(),
+                pos: Pos::default(),
+            }),
+        }
+    }
+}
+
+enum ExprType {
+    Expr,
+    Select,
+    Unwrap,
+    IfElse,
+    Chain,
+    Equality,
+    Comparison,
+    Logic,
+    Term,
+    Factor,
+    Unary,
+    Dot,
+    Call,
+    Let,
+    Group,
+    Primary,
+}
 
 pub struct Parser {
-    pub tokens: Vec<Token>,
+    pub tokens: VecDeque<Token>,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens }
+        Self {
+            tokens: VecDeque::from(tokens),
+        }
     }
 
     pub fn parse(&mut self) -> Result<Vec<Command>, IzeErr> {
-        //TODO
+        //TODO: parse all commands and return a vector
         todo!()
+    }
+
+    pub fn ended(&self) -> bool {
+        self.tokens.len() == 0
+    }
+
+    //TODO: privatize method
+    pub fn expression(&mut self) -> Result<Expr, IzeErr> {
+        Self::next_expr(ExprType::Expr)(self)
+    }
+
+    fn equality_expr(&mut self) -> Result<Expr, IzeErr> {
+        //TODO
+        Self::next_expr(ExprType::Equality)(self)
+    }
+
+    fn primary(&mut self) -> Result<Expr, IzeErr> {
+        // Number literal
+        if self.is_literal(0)? {
+            let (lit, pos) = self.token().into_literal()?;
+            let expr = Expr::new(ExprSet::Literal(lit), pos);
+            return Ok(expr);
+        }
+        // Identifier
+        if self.is_token(TokenKind::Ident, 0)? {
+            let (id, pos) = self.token().into_ident()?;
+            let expr = Expr::new(ExprSet::Identifier(id), pos);
+            return Ok(expr);
+        }
+
+        //TODO: parse group
+
+        // If we are here, something is badly formed
+        if let Some(next_token) = self.token() {
+            //TODO: check the next token and see if we can provide a more specific error message
+            Err(IzeErr {
+                message: "Couldn't parse a valid expression".into(),
+                pos: next_token.pos,
+            })
+        } else {
+            //TODO: we should store the pos of each token we get and use it here
+            Err(IzeErr {
+                message: "Couldn't parse a valid expression at unknown pos".into(),
+                pos: Pos { row: 0, col: 0 },
+            })
+        }
+    }
+
+    /// Return the next expression parser in precedence order
+    fn next_expr(curr_expr: ExprType) -> fn(&mut Parser) -> Result<Expr, IzeErr> {
+        // From lower precedence (Expr) to higher precedence (Primary).
+        match curr_expr {
+            ExprType::Expr => Self::equality_expr,
+            ExprType::Select => todo!(),
+            ExprType::Unwrap => todo!(),
+            ExprType::IfElse => todo!(),
+            ExprType::Chain => todo!(),
+            ExprType::Equality => Self::primary,
+            ExprType::Comparison => todo!(),
+            ExprType::Logic => todo!(),
+            ExprType::Term => todo!(),
+            ExprType::Factor => todo!(),
+            ExprType::Unary => todo!(),
+            ExprType::Dot => todo!(),
+            ExprType::Call => todo!(),
+            ExprType::Let => todo!(),
+            ExprType::Group => todo!(),
+            ExprType::Primary => panic!("Primary parser has the highest precedence"),
+        }
+    }
+
+    fn token(&mut self) -> Option<Token> {
+        self.tokens.pop_front()
+    }
+
+    /// Check for a particular token.
+    fn is_token(&mut self, token_type: TokenKind, offset: usize) -> Result<bool, IzeErr> {
+        // Check if token exist at the specified offset
+        if let Some(token) = self.tokens.get(offset) {
+            Ok(match token.lexeme {
+                Lexeme::Float(_) => token_type == TokenKind::FloatLiteral,
+                Lexeme::Int(_) => token_type == TokenKind::IntegerLiteral,
+                Lexeme::Bool(_) => token_type == TokenKind::BooleanLiteral,
+                Lexeme::String(_) => token_type == TokenKind::StringLiteral,
+                Lexeme::Ident(_) => token_type == TokenKind::Ident,
+                Lexeme::Particle(tt) => token_type == tt,
+                _ => false,
+            })
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Check if token is a literal.
+    fn is_literal(&mut self, offset: usize) -> Result<bool, IzeErr> {
+        // Check if token exist at the specified offset
+        if let Some(token) = self.tokens.get(offset) {
+            Ok(match token.lexeme {
+                Lexeme::Float(_)
+                | Lexeme::Int(_)
+                | Lexeme::Bool(_)
+                | Lexeme::String(_)
+                | Lexeme::Particle(TokenKind::NullLiteral)
+                | Lexeme::Particle(TokenKind::NoneLiteral) => true,
+                _ => false,
+            })
+        } else {
+            Ok(false)
+        }
     }
 }
