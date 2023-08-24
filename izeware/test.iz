@@ -17,3 +17,9 @@ true < 9.99
 5 >= 19
 5 <= 19
 num > 10 == true
+num == 10 && num < 20
+num1 == 10 && num2 == 20
+
+// Math & Logic expressions
+10 + num * 100
+num & 255

@@ -140,6 +140,21 @@ impl Parser {
         )
     }
 
+    fn logic_expr(&mut self) -> Result<Expr, IzeErr> {
+        self.binary_expr(&[TokenKind::And, TokenKind::Or], ExprType::Logic)
+    }
+
+    fn term_expr(&mut self) -> Result<Expr, IzeErr> {
+        self.binary_expr(&[TokenKind::Plus, TokenKind::Minus], ExprType::Term)
+    }
+
+    fn factor_expr(&mut self) -> Result<Expr, IzeErr> {
+        self.binary_expr(
+            &[TokenKind::Star, TokenKind::Slash, TokenKind::Percent],
+            ExprType::Factor,
+        )
+    }
+
     fn primary(&mut self) -> Result<Expr, IzeErr> {
         // Number literal
         if self.is_literal(0)? {
@@ -185,10 +200,10 @@ impl Parser {
             ExprType::IfElse => todo!(),
             ExprType::Chain => todo!(),
             ExprType::Equality => Self::comparison_expr,
-            ExprType::Comparison => Self::primary,
-            ExprType::Logic => todo!(),
-            ExprType::Term => todo!(),
-            ExprType::Factor => todo!(),
+            ExprType::Comparison => Self::logic_expr,
+            ExprType::Logic => Self::term_expr,
+            ExprType::Term => Self::factor_expr,
+            ExprType::Factor => Self::primary,
             ExprType::Unary => todo!(),
             ExprType::Dot => todo!(),
             ExprType::Call => todo!(),
