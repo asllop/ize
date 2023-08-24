@@ -23,3 +23,7 @@ num1 == 10 && num2 == 20
 // Math & Logic expressions
 10 + num * 100
 num & 255
+// The parse can't figure out this is a "minus num", and not part of the previous expression.
+//-num + 10
+10 * -num
+!num + 10

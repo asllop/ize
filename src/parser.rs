@@ -2,16 +2,12 @@
 //!
 //! This module contains all the types and methods necessary to parse commands and expressions and generate an AST.
 
-//TODO: create a struct for expression precedence, so we can parse asking to recursively parse a higher precedence thing without
-// having to hardcode the precedence in the parser.
-
 use crate::{
-    ast::{BinaryOp, Command, Expr, ExprSet, Literal},
+    ast::{BinaryOp, Command, Expr, ExprSet, Literal, UnaryOp},
     lexer::{Lexeme, Token, TokenKind},
     IzeErr, Pos,
 };
-use alloc::{boxed::Box, string::String};
-use alloc::{collections::VecDeque, vec::Vec};
+use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
 
 trait FromToken {
     fn into_parts(self) -> Result<(Lexeme, Pos), IzeErr>;
@@ -155,6 +151,27 @@ impl Parser {
         )
     }
 
+    fn unary_expr(&mut self) -> Result<Expr, IzeErr> {
+        if self.is_token(TokenKind::Not, 0)? || self.is_token(TokenKind::Minus, 0)? {
+            let (op, op_pos) = self.token().into_particle()?;
+            let op = match op {
+                TokenKind::Not => Ok(UnaryOp::Negate),
+                TokenKind::Minus => Ok(UnaryOp::Minus),
+                _ => Err(IzeErr {
+                    message: "Token is not a unary operator".into(),
+                    pos: op_pos,
+                }),
+            }?;
+            let right = self.unary_expr()?;
+            let pos = right.pos.clone();
+            return Ok(Expr::new(
+                ExprSet::Unary { op, expr: Box::new(right) },
+                pos,
+            ));
+        }
+        Self::next_expr(ExprType::Unary)(self)
+    }
+
     fn primary(&mut self) -> Result<Expr, IzeErr> {
         // Number literal
         if self.is_literal(0)? {
@@ -203,8 +220,8 @@ impl Parser {
             ExprType::Comparison => Self::logic_expr,
             ExprType::Logic => Self::term_expr,
             ExprType::Term => Self::factor_expr,
-            ExprType::Factor => Self::primary,
-            ExprType::Unary => todo!(),
+            ExprType::Factor => Self::unary_expr,
+            ExprType::Unary => Self::primary,
             ExprType::Dot => todo!(),
             ExprType::Call => todo!(),
             ExprType::Let => todo!(),
