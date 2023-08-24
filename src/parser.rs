@@ -152,7 +152,7 @@ impl Parser {
     }
 
     fn unary_expr(&mut self) -> Result<Expr, IzeErr> {
-        if self.is_token(TokenKind::Not, 0)? || self.is_token(TokenKind::Minus, 0)? {
+        if self.is_token(TokenKind::Not, 0) || self.is_token(TokenKind::Minus, 0) {
             let (op, op_pos) = self.token().into_particle()?;
             let op = match op {
                 TokenKind::Not => Ok(UnaryOp::Negate),
@@ -165,11 +165,37 @@ impl Parser {
             let right = self.unary_expr()?;
             let pos = right.pos.clone();
             return Ok(Expr::new(
-                ExprSet::Unary { op, expr: Box::new(right) },
+                ExprSet::Unary {
+                    op,
+                    expr: Box::new(right),
+                },
                 pos,
             ));
         }
         Self::next_expr(ExprType::Unary)(self)
+    }
+
+    fn group_expr(&mut self) -> Result<Expr, IzeErr> {
+        if self.is_token(TokenKind::OpenParenth, 0) {
+            self.token().into_particle()?; // consume "("
+            let expr = self.expression()?;
+            if !self.is_token(TokenKind::ClosingParenth, 0) {
+                return Err(IzeErr {
+                    message: "Group without closing parenthesis".into(),
+                    pos: expr.pos,
+                });
+            }
+            self.token().into_particle()?; // consume ")"
+            let pos = expr.pos.clone();
+            return Ok(Expr::new(
+                ExprSet::Group {
+                    expr: Box::new(expr),
+                },
+                pos,
+            ));
+        } else {
+            Self::next_expr(ExprType::Group)(self)
+        }
     }
 
     fn primary(&mut self) -> Result<Expr, IzeErr> {
@@ -180,13 +206,11 @@ impl Parser {
             return Ok(expr);
         }
         // Identifier
-        if self.is_token(TokenKind::Ident, 0)? {
+        if self.is_token(TokenKind::Ident, 0) {
             let (id, pos) = self.token().into_ident()?;
             let expr = Expr::new(ExprSet::Identifier(id), pos);
             return Ok(expr);
         }
-
-        //TODO: parse group
 
         // If we are here, something is badly formed
         if let Some(next_token) = self.token() {
@@ -221,11 +245,11 @@ impl Parser {
             ExprType::Logic => Self::term_expr,
             ExprType::Term => Self::factor_expr,
             ExprType::Factor => Self::unary_expr,
-            ExprType::Unary => Self::primary,
+            ExprType::Unary => Self::group_expr,
             ExprType::Dot => todo!(),
             ExprType::Call => todo!(),
             ExprType::Let => todo!(),
-            ExprType::Group => todo!(),
+            ExprType::Group => Self::primary,
             ExprType::Primary => panic!("Primary parser has the highest precedence"),
         }
     }
@@ -278,10 +302,10 @@ impl Parser {
     }
 
     /// Check for a particular token.
-    fn is_token(&mut self, token_type: TokenKind, offset: usize) -> Result<bool, IzeErr> {
+    fn is_token(&mut self, token_type: TokenKind, offset: usize) -> bool {
         // Check if token exist at the specified offset
         if let Some(token) = self.tokens.get(offset) {
-            Ok(match token.lexeme {
+            match token.lexeme {
                 Lexeme::Float(_) => token_type == TokenKind::FloatLiteral,
                 Lexeme::Int(_) => token_type == TokenKind::IntegerLiteral,
                 Lexeme::Bool(_) => token_type == TokenKind::BooleanLiteral,
@@ -289,9 +313,9 @@ impl Parser {
                 Lexeme::Ident(_) => token_type == TokenKind::Ident,
                 Lexeme::Particle(tt) => token_type == tt,
                 _ => false,
-            })
+            }
         } else {
-            Ok(false)
+            false
         }
     }
 
@@ -299,7 +323,7 @@ impl Parser {
     fn check_tokens(&mut self, token_types: &[TokenKind], offset: usize) -> Result<bool, IzeErr> {
         // Check if token exist at the specified offset
         for t in token_types {
-            if self.is_token(t.clone(), offset)? {
+            if self.is_token(t.clone(), offset) {
                 return Ok(true);
             }
         }
