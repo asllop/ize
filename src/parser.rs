@@ -6,11 +6,11 @@
 // having to hardcode the precedence in the parser.
 
 use crate::{
-    ast::{Command, Expr, ExprSet, Literal},
+    ast::{BinaryOp, Command, Expr, ExprSet, Literal},
     lexer::{Lexeme, Token, TokenKind},
     IzeErr, Pos,
 };
-use alloc::string::String;
+use alloc::{boxed::Box, string::String};
 use alloc::{collections::VecDeque, vec::Vec};
 
 trait FromToken {
@@ -73,6 +73,7 @@ impl FromToken for Option<Token> {
     }
 }
 
+#[derive(Clone, Copy)]
 enum ExprType {
     Expr,
     Select,
@@ -118,8 +119,10 @@ impl Parser {
     }
 
     fn equality_expr(&mut self) -> Result<Expr, IzeErr> {
-        //TODO
-        Self::next_expr(ExprType::Equality)(self)
+        self.binary_expr(
+            &[TokenKind::TwoEquals, TokenKind::NotEqual],
+            ExprType::Equality,
+        )
     }
 
     fn primary(&mut self) -> Result<Expr, IzeErr> {
@@ -142,13 +145,16 @@ impl Parser {
         if let Some(next_token) = self.token() {
             //TODO: check the next token and see if we can provide a more specific error message
             Err(IzeErr {
-                message: "Couldn't parse a valid expression".into(),
+                message: format!(
+                    "Couldn't parse a valid expression. Last token: {:?}",
+                    next_token.lexeme
+                )
+                .into(),
                 pos: next_token.pos,
             })
         } else {
-            //TODO: we should store the pos of each token we get and use it here
             Err(IzeErr {
-                message: "Couldn't parse a valid expression at unknown pos".into(),
+                message: "Couldn't parse a valid expression at end".into(),
                 pos: Pos { row: 0, col: 0 },
             })
         }
@@ -177,6 +183,49 @@ impl Parser {
         }
     }
 
+    fn binary_expr(
+        &mut self,
+        op_tokens: &[TokenKind],
+        curr_expr: ExprType,
+    ) -> Result<Expr, IzeErr> {
+        let mut expr = Self::next_expr(curr_expr)(self)?;
+        while self.check_tokens(op_tokens, 0)? {
+            let (op, op_pos) = self.token().into_particle()?;
+            let op = match op {
+                TokenKind::Plus => Ok(BinaryOp::Add),
+                TokenKind::Minus => Ok(BinaryOp::Sub),
+                TokenKind::Star => Ok(BinaryOp::Mul),
+                TokenKind::Slash => Ok(BinaryOp::Div),
+                TokenKind::Percent => Ok(BinaryOp::Mod),
+                TokenKind::LesserThan => Ok(BinaryOp::LesserThan),
+                TokenKind::GreaterThan => Ok(BinaryOp::GreaterThan),
+                TokenKind::GtEqual => Ok(BinaryOp::GtEqual),
+                TokenKind::LtEqual => Ok(BinaryOp::LtEqual),
+                TokenKind::And => Ok(BinaryOp::And),
+                TokenKind::TwoAnds => Ok(BinaryOp::LazyAnd),
+                TokenKind::Or => Ok(BinaryOp::Or),
+                TokenKind::TwoOrs => Ok(BinaryOp::LazyOr),
+                TokenKind::TwoEquals => Ok(BinaryOp::Equal),
+                TokenKind::NotEqual => Ok(BinaryOp::NotEqual),
+                _ => Err(IzeErr {
+                    message: "Token is not a binary operator".into(),
+                    pos: op_pos,
+                }),
+            }?;
+            let right = Self::next_expr(curr_expr)(self)?;
+            let pos = expr.pos.clone();
+            expr = Expr::new(
+                ExprSet::Binary {
+                    op,
+                    left_expr: Box::new(expr),
+                    right_expr: Box::new(right),
+                },
+                pos,
+            )
+        }
+        Ok(expr)
+    }
+
     fn token(&mut self) -> Option<Token> {
         self.tokens.pop_front()
     }
@@ -197,6 +246,17 @@ impl Parser {
         } else {
             Ok(false)
         }
+    }
+
+    /// Check for a list of tokens.
+    fn check_tokens(&mut self, token_types: &[TokenKind], offset: usize) -> Result<bool, IzeErr> {
+        // Check if token exist at the specified offset
+        for t in token_types {
+            if self.is_token(t.clone(), offset)? {
+                return Ok(true);
+            }
+        }
+        return Ok(false);
     }
 
     /// Check if token is a literal.

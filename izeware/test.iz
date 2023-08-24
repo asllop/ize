@@ -1,4 +1,4 @@
-//10 != 3 > true == my_var
+// Primary expression
 100
 -5
 99.4
@@ -6,3 +6,7 @@
 true
 my_var
 null none
+
+// Equality expression
+ten != 10
+num == true
