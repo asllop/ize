@@ -10,3 +10,10 @@ null none
 // Equality expression
 ten != 10
 num == true
+
+// Comparison expression
+10 > "hola"
+true < 9.99
+5 >= 19
+5 <= 19
+num > 10 == true

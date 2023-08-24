@@ -104,6 +104,7 @@ impl Parser {
         }
     }
 
+    /// Parse program.
     pub fn parse(&mut self) -> Result<Vec<Command>, IzeErr> {
         //TODO: parse all commands and return a vector
         todo!()
@@ -113,7 +114,7 @@ impl Parser {
         self.tokens.len() == 0
     }
 
-    //TODO: privatize method
+    /// Parse a single expression.
     pub fn expression(&mut self) -> Result<Expr, IzeErr> {
         Self::next_expr(ExprType::Expr)(self)
     }
@@ -122,6 +123,20 @@ impl Parser {
         self.binary_expr(
             &[TokenKind::TwoEquals, TokenKind::NotEqual],
             ExprType::Equality,
+        )
+    }
+
+    fn comparison_expr(&mut self) -> Result<Expr, IzeErr> {
+        self.binary_expr(
+            &[
+                TokenKind::GreaterThan,
+                TokenKind::LesserThan,
+                TokenKind::GtEqual,
+                TokenKind::LtEqual,
+                TokenKind::TwoAnds,
+                TokenKind::TwoOrs,
+            ],
+            ExprType::Comparison,
         )
     }
 
@@ -169,8 +184,8 @@ impl Parser {
             ExprType::Unwrap => todo!(),
             ExprType::IfElse => todo!(),
             ExprType::Chain => todo!(),
-            ExprType::Equality => Self::primary,
-            ExprType::Comparison => todo!(),
+            ExprType::Equality => Self::comparison_expr,
+            ExprType::Comparison => Self::primary,
             ExprType::Logic => todo!(),
             ExprType::Term => todo!(),
             ExprType::Factor => todo!(),
