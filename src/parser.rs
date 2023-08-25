@@ -86,7 +86,6 @@ enum ExprType {
     Call,
     Let,
     Group,
-    Primary,
 }
 
 pub struct Parser {
@@ -113,6 +112,33 @@ impl Parser {
     /// Parse a single expression.
     pub fn expression(&mut self) -> Result<Expr, IzeErr> {
         Self::next_expr(ExprType::Expr)(self)
+    }
+
+    fn ifelse_expr(&mut self) -> Result<Expr, IzeErr> {
+        let expr = Self::next_expr(ExprType::IfElse)(self)?;
+        if self.is_token(TokenKind::If, 0) {
+            let (_, if_pos) = self.consume_token().into_particle()?; // consume "if?"
+            let then_expr = self.ifelse_expr()?;
+            if self.is_token(TokenKind::Else, 0) {
+                self.consume_token().into_particle()?; // consume "else?"
+                let else_expr = self.ifelse_expr()?;
+                Ok(Expr::new(
+                    ExprSet::IfElse {
+                        condition: Box::new(expr),
+                        then_expr: Box::new(then_expr),
+                        else_expr: Box::new(else_expr),
+                    },
+                    if_pos,
+                ))
+            } else {
+                Err(IzeErr {
+                    message: "If without else".into(),
+                    pos: if_pos,
+                })
+            }
+        } else {
+            Ok(expr)
+        }
     }
 
     fn equality_expr(&mut self) -> Result<Expr, IzeErr> {
@@ -153,7 +179,7 @@ impl Parser {
 
     fn unary_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::Not, 0) || self.is_token(TokenKind::Minus, 0) {
-            let (op, op_pos) = self.token().into_particle()?;
+            let (op, op_pos) = self.consume_token().into_particle()?;
             let op = match op {
                 TokenKind::Not => Ok(UnaryOp::Negate),
                 TokenKind::Minus => Ok(UnaryOp::Minus),
@@ -177,7 +203,7 @@ impl Parser {
 
     fn group_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::OpenParenth, 0) {
-            self.token().into_particle()?; // consume "("
+            self.consume_token().into_particle()?; // consume "("
             let expr = self.expression()?;
             if !self.is_token(TokenKind::ClosingParenth, 0) {
                 return Err(IzeErr {
@@ -185,7 +211,7 @@ impl Parser {
                     pos: expr.pos,
                 });
             }
-            self.token().into_particle()?; // consume ")"
+            self.consume_token().into_particle()?; // consume ")"
             let pos = expr.pos.clone();
             return Ok(Expr::new(
                 ExprSet::Group {
@@ -198,22 +224,22 @@ impl Parser {
         }
     }
 
-    fn primary(&mut self) -> Result<Expr, IzeErr> {
-        // Number literal
+    fn primary_expr(&mut self) -> Result<Expr, IzeErr> {
+        // Literal
         if self.is_literal(0)? {
-            let (lit, pos) = self.token().into_literal()?;
+            let (lit, pos) = self.consume_token().into_literal()?;
             let expr = Expr::new(ExprSet::Literal(lit), pos);
             return Ok(expr);
         }
         // Identifier
         if self.is_token(TokenKind::Ident, 0) {
-            let (id, pos) = self.token().into_ident()?;
+            let (id, pos) = self.consume_token().into_ident()?;
             let expr = Expr::new(ExprSet::Identifier(id), pos);
             return Ok(expr);
         }
 
         // If we are here, something is badly formed
-        if let Some(next_token) = self.token() {
+        if let Some(next_token) = self.consume_token() {
             //TODO: check the next token and see if we can provide a more specific error message
             Err(IzeErr {
                 message: format!(
@@ -235,10 +261,10 @@ impl Parser {
     fn next_expr(curr_expr: ExprType) -> fn(&mut Parser) -> Result<Expr, IzeErr> {
         // From lower precedence (Expr) to higher precedence (Primary).
         match curr_expr {
-            ExprType::Expr => Self::equality_expr,
+            ExprType::Expr => Self::ifelse_expr,
             ExprType::Select => todo!(),
             ExprType::Unwrap => todo!(),
-            ExprType::IfElse => todo!(),
+            ExprType::IfElse => Self::equality_expr,
             ExprType::Chain => todo!(),
             ExprType::Equality => Self::comparison_expr,
             ExprType::Comparison => Self::logic_expr,
@@ -249,8 +275,7 @@ impl Parser {
             ExprType::Dot => todo!(),
             ExprType::Call => todo!(),
             ExprType::Let => todo!(),
-            ExprType::Group => Self::primary,
-            ExprType::Primary => panic!("Primary parser has the highest precedence"),
+            ExprType::Group => Self::primary_expr,
         }
     }
 
@@ -261,7 +286,7 @@ impl Parser {
     ) -> Result<Expr, IzeErr> {
         let mut expr = Self::next_expr(curr_expr)(self)?;
         while self.check_tokens(op_tokens, 0)? {
-            let (op, op_pos) = self.token().into_particle()?;
+            let (op, op_pos) = self.consume_token().into_particle()?;
             let op = match op {
                 TokenKind::Plus => Ok(BinaryOp::Add),
                 TokenKind::Minus => Ok(BinaryOp::Sub),
@@ -297,7 +322,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn token(&mut self) -> Option<Token> {
+    fn consume_token(&mut self) -> Option<Token> {
         self.tokens.pop_front()
     }
 

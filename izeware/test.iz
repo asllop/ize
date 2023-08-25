@@ -30,3 +30,21 @@ num & 255
 
 // Groups
 (num > 10) && (num < 20)
+
+// Conditions
+num > 10 if?
+    "big"
+else?
+    "small"
+
+(num > 10) && (num < 20) if?
+    num * 10
+else?
+    (num + var) / 10
+
+value < 10 if?
+	"low"
+else? value < 50 if?
+	"medium"
+else?
+	"high"
