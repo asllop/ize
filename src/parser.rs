@@ -111,11 +111,11 @@ impl Parser {
 
     /// Parse a single expression.
     pub fn expression(&mut self) -> Result<Expr, IzeErr> {
-        Self::next_expr(ExprType::Expr)(self)
+        self.next_expr(ExprType::Expr)
     }
 
     fn ifelse_expr(&mut self) -> Result<Expr, IzeErr> {
-        let expr = Self::next_expr(ExprType::IfElse)(self)?;
+        let expr = self.next_expr(ExprType::IfElse)?;
         if self.is_token(TokenKind::If, 0) {
             let (_, if_pos) = self.consume_token().into_particle()?; // consume "if?"
             let then_expr = self.expression()?;
@@ -198,7 +198,51 @@ impl Parser {
                 pos,
             ));
         }
-        Self::next_expr(ExprType::Unary)(self)
+        self.next_expr(ExprType::Unary)
+    }
+
+    fn call_expr(&mut self) -> Result<Expr, IzeErr> {
+        if self.is_token(TokenKind::Ident, 0) && self.is_token(TokenKind::OpenParenth, 1) {
+            let (call_name, call_pos) = self.consume_token().into_ident()?;
+            self.consume_token().into_particle()?; // consume "("
+            if !self.is_token(TokenKind::ClosingParenth, 0) {
+                let mut args: Vec<Expr> = Vec::new();
+                loop {
+                    let arg = self.expression()?;
+                    let arg_pos = arg.pos.clone();
+                    args.push(arg);
+                    if self.is_token(TokenKind::ClosingParenth, 0) {
+                        self.consume_token().into_particle()?; // consume ")"
+                        break;
+                    }
+                    if !self.is_token(TokenKind::Comma, 0) {
+                        return Err(IzeErr {
+                            message: "Expected a comma after function argument".into(),
+                            pos: arg_pos,
+                        });
+                    }
+                    self.consume_token().into_particle()?; // consume ","
+                }
+                Ok(Expr::new(
+                    ExprSet::Call {
+                        name: call_name,
+                        args,
+                    },
+                    call_pos,
+                ))
+            } else {
+                self.consume_token().into_particle()?; // consume ")"
+                Ok(Expr::new(
+                    ExprSet::Call {
+                        name: call_name,
+                        args: Default::default(),
+                    },
+                    call_pos,
+                ))
+            }
+        } else {
+            self.next_expr(ExprType::Call)
+        }
     }
 
     fn let_expr(&mut self) -> Result<Expr, IzeErr> {
@@ -221,7 +265,7 @@ impl Parser {
                 })
             }
         } else {
-            Self::next_expr(ExprType::Let)(self)
+            self.next_expr(ExprType::Let)
         }
     }
 
@@ -244,7 +288,7 @@ impl Parser {
                 pos,
             ));
         } else {
-            Self::next_expr(ExprType::Group)(self)
+            self.next_expr(ExprType::Group)
         }
     }
 
@@ -281,25 +325,25 @@ impl Parser {
         }
     }
 
-    /// Return the next expression parser in precedence order
-    fn next_expr(curr_expr: ExprType) -> fn(&mut Parser) -> Result<Expr, IzeErr> {
+    /// Call the next expression parser in precedence order
+    fn next_expr(&mut self, curr_expr: ExprType) -> Result<Expr, IzeErr> {
         // From lower precedence (Expr) to higher precedence (Primary).
         match curr_expr {
-            ExprType::Expr => Self::ifelse_expr,
+            ExprType::Expr => self.ifelse_expr(),
             ExprType::Select => todo!(),
             ExprType::Unwrap => todo!(),
-            ExprType::IfElse => Self::equality_expr,
+            ExprType::IfElse => self.equality_expr(),
             ExprType::Chain => todo!(),
-            ExprType::Equality => Self::comparison_expr,
-            ExprType::Comparison => Self::logic_expr,
-            ExprType::Logic => Self::term_expr,
-            ExprType::Term => Self::factor_expr,
-            ExprType::Factor => Self::unary_expr,
-            ExprType::Unary => Self::let_expr,
+            ExprType::Equality => self.comparison_expr(),
+            ExprType::Comparison => self.logic_expr(),
+            ExprType::Logic => self.term_expr(),
+            ExprType::Term => self.factor_expr(),
+            ExprType::Factor => self.unary_expr(),
+            ExprType::Unary => self.call_expr(),
             ExprType::Dot => todo!(),
-            ExprType::Call => todo!(),
-            ExprType::Let => Self::group_expr,
-            ExprType::Group => Self::primary_expr,
+            ExprType::Call => self.let_expr(),
+            ExprType::Let => self.group_expr(),
+            ExprType::Group => self.primary_expr(),
         }
     }
 
@@ -308,7 +352,7 @@ impl Parser {
         op_tokens: &[TokenKind],
         curr_expr: ExprType,
     ) -> Result<Expr, IzeErr> {
-        let mut expr = Self::next_expr(curr_expr)(self)?;
+        let mut expr = self.next_expr(curr_expr)?;
         while self.check_tokens(op_tokens, 0) {
             let (op, op_pos) = self.consume_token().into_particle()?;
             let op = match op {
@@ -332,7 +376,7 @@ impl Parser {
                     pos: op_pos,
                 }),
             }?;
-            let right = Self::next_expr(curr_expr)(self)?;
+            let right = self.next_expr(curr_expr)?;
             let pos = expr.pos.clone();
             expr = Expr::new(
                 ExprSet::Binary {

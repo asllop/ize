@@ -59,3 +59,9 @@ else?
     num
 
 let x let y let z 100
+
+// Function calls
+foo() * 10
+foo(1000)
+foo(1,2,3)
+bar(num * 3,var + 1) + 10
