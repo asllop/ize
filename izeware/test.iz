@@ -57,3 +57,5 @@ num > 10 if?
     let num 10
 else?
     num
+
+let x let y let z 100
