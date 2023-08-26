@@ -118,10 +118,10 @@ impl Parser {
         let expr = Self::next_expr(ExprType::IfElse)(self)?;
         if self.is_token(TokenKind::If, 0) {
             let (_, if_pos) = self.consume_token().into_particle()?; // consume "if?"
-            let then_expr = self.ifelse_expr()?;
+            let then_expr = self.expression()?;
             if self.is_token(TokenKind::Else, 0) {
                 self.consume_token().into_particle()?; // consume "else?"
-                let else_expr = self.ifelse_expr()?;
+                let else_expr = self.expression()?;
                 Ok(Expr::new(
                     ExprSet::IfElse {
                         condition: Box::new(expr),
@@ -201,6 +201,30 @@ impl Parser {
         Self::next_expr(ExprType::Unary)(self)
     }
 
+    fn let_expr(&mut self) -> Result<Expr, IzeErr> {
+        if self.is_token(TokenKind::Let, 0) {
+            let (_, let_pos) = self.consume_token().into_particle()?; // consume "let"
+            if self.is_ident(0) {
+                let (var_name, _) = self.consume_token().into_ident()?;
+                let expr = self.expression()?;
+                Ok(Expr::new(
+                    ExprSet::Let {
+                        name: var_name,
+                        value: Box::new(expr),
+                    },
+                    let_pos,
+                ))
+            } else {
+                Err(IzeErr {
+                    message: "Let must be followed by an identifier".into(),
+                    pos: let_pos,
+                })
+            }
+        } else {
+            Self::next_expr(ExprType::Let)(self)
+        }
+    }
+
     fn group_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::OpenParenth, 0) {
             self.consume_token().into_particle()?; // consume "("
@@ -226,7 +250,7 @@ impl Parser {
 
     fn primary_expr(&mut self) -> Result<Expr, IzeErr> {
         // Literal
-        if self.is_literal(0)? {
+        if self.is_literal(0) {
             let (lit, pos) = self.consume_token().into_literal()?;
             let expr = Expr::new(ExprSet::Literal(lit), pos);
             return Ok(expr);
@@ -271,10 +295,10 @@ impl Parser {
             ExprType::Logic => Self::term_expr,
             ExprType::Term => Self::factor_expr,
             ExprType::Factor => Self::unary_expr,
-            ExprType::Unary => Self::group_expr,
+            ExprType::Unary => Self::let_expr,
             ExprType::Dot => todo!(),
             ExprType::Call => todo!(),
-            ExprType::Let => todo!(),
+            ExprType::Let => Self::group_expr,
             ExprType::Group => Self::primary_expr,
         }
     }
@@ -285,7 +309,7 @@ impl Parser {
         curr_expr: ExprType,
     ) -> Result<Expr, IzeErr> {
         let mut expr = Self::next_expr(curr_expr)(self)?;
-        while self.check_tokens(op_tokens, 0)? {
+        while self.check_tokens(op_tokens, 0) {
             let (op, op_pos) = self.consume_token().into_particle()?;
             let op = match op {
                 TokenKind::Plus => Ok(BinaryOp::Add),
@@ -345,21 +369,21 @@ impl Parser {
     }
 
     /// Check for a list of tokens.
-    fn check_tokens(&mut self, token_types: &[TokenKind], offset: usize) -> Result<bool, IzeErr> {
+    fn check_tokens(&mut self, token_types: &[TokenKind], offset: usize) -> bool {
         // Check if token exist at the specified offset
         for t in token_types {
             if self.is_token(t.clone(), offset) {
-                return Ok(true);
+                return true;
             }
         }
-        return Ok(false);
+        return false;
     }
 
     /// Check if token is a literal.
-    fn is_literal(&mut self, offset: usize) -> Result<bool, IzeErr> {
+    fn is_literal(&mut self, offset: usize) -> bool {
         // Check if token exist at the specified offset
         if let Some(token) = self.tokens.get(offset) {
-            Ok(match token.lexeme {
+            match token.lexeme {
                 Lexeme::Float(_)
                 | Lexeme::Int(_)
                 | Lexeme::Bool(_)
@@ -367,9 +391,23 @@ impl Parser {
                 | Lexeme::Particle(TokenKind::NullLiteral)
                 | Lexeme::Particle(TokenKind::NoneLiteral) => true,
                 _ => false,
-            })
+            }
         } else {
-            Ok(false)
+            false
+        }
+    }
+
+    /// Check if token is an identifier.
+    fn is_ident(&mut self, offset: usize) -> bool {
+        // Check if token exist at the specified offset
+        if let Some(token) = self.tokens.get(offset) {
+            if let Lexeme::Ident(_) = token.lexeme {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
         }
     }
 }

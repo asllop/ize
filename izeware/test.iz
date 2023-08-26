@@ -48,3 +48,12 @@ else? value < 50 if?
 	"medium"
 else?
 	"high"
+
+// Let
+let num -100.67
+let op (num + 100) / 10
+
+num > 10 if?
+    let num 10
+else?
+    num
