@@ -72,10 +72,10 @@ impl FromToken for Option<Token> {
 #[derive(Clone, Copy)]
 enum ExprType {
     Expr,
+    Chain,
     Select,
     Unwrap,
     IfElse,
-    Chain,
     Equality,
     Comparison,
     Logic,
@@ -112,6 +112,25 @@ impl Parser {
     /// Parse a single expression.
     pub fn expression(&mut self) -> Result<Expr, IzeErr> {
         self.next_expr(ExprType::Expr)
+    }
+
+    fn chain_expr(&mut self) -> Result<Expr, IzeErr> {
+        let mut expr = vec![self.next_expr(ExprType::Chain)?];
+
+        while self.is_token(TokenKind::Semicolon, 0) {
+            self.consume_token().into_particle()?; // consume ";"
+            expr.push(self.next_expr(ExprType::Chain)?);
+        }
+
+        if expr.len() > 1 {
+            let pos = expr[0].pos;
+            Ok(Expr {
+                expr: ExprSet::Chain { chain: expr },
+                pos,
+            })
+        } else {
+            Ok(expr.pop().unwrap())
+        }
     }
 
     fn ifelse_expr(&mut self) -> Result<Expr, IzeErr> {
@@ -269,7 +288,8 @@ impl Parser {
             let (_, let_pos) = self.consume_token().into_particle()?; // consume "let"
             if self.is_ident(0) {
                 let (var_name, _) = self.consume_token().into_ident()?;
-                let expr = self.expression()?;
+                // NOTE: we don't want let value to use chain expressions
+                let expr = self.next_expr(ExprType::Chain)?;
                 Ok(Expr::new(
                     ExprSet::Let {
                         name: var_name,
@@ -348,11 +368,11 @@ impl Parser {
     fn next_expr(&mut self, curr_expr: ExprType) -> Result<Expr, IzeErr> {
         // From lower precedence (Expr) to higher precedence (Primary).
         match curr_expr {
-            ExprType::Expr => self.ifelse_expr(),
+            ExprType::Expr => self.chain_expr(),
+            ExprType::Chain => self.ifelse_expr(),
             ExprType::Select => todo!(),
             ExprType::Unwrap => todo!(),
             ExprType::IfElse => self.equality_expr(),
-            ExprType::Chain => todo!(),
             ExprType::Equality => self.comparison_expr(),
             ExprType::Comparison => self.logic_expr(),
             ExprType::Logic => self.term_expr(),

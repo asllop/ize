@@ -70,3 +70,6 @@ bar(num * 3,var + 1) + 10
 this.is.an.expression
 str.Foo().bar
 str.Foo().bar.Doo(num * 3,var + 1)
+
+// Chain expressions
+let num -100.67; 10*foo(1+2); str.Foo().bar
