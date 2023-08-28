@@ -189,7 +189,7 @@ impl Parser {
                 }),
             }?;
             let right = self.unary_expr()?;
-            let pos = right.pos.clone();
+            let pos = right.pos;
             return Ok(Expr::new(
                 ExprSet::Unary {
                     op,
@@ -201,6 +201,25 @@ impl Parser {
         self.next_expr(ExprType::Unary)
     }
 
+    fn dot_expr(&mut self) -> Result<Expr, IzeErr> {
+        let mut expr = vec![self.next_expr(ExprType::Dot)?];
+
+        while self.is_token(TokenKind::Dot, 0) {
+            self.consume_token().into_particle()?; // consume "."
+            expr.push(self.next_expr(ExprType::Dot)?);
+        }
+
+        if expr.len() > 1 {
+            let pos = expr[0].pos;
+            Ok(Expr {
+                expr: ExprSet::Dot { compos: expr },
+                pos,
+            })
+        } else {
+            Ok(expr.pop().unwrap())
+        }
+    }
+
     fn call_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::Ident, 0) && self.is_token(TokenKind::OpenParenth, 1) {
             let (call_name, call_pos) = self.consume_token().into_ident()?;
@@ -209,7 +228,7 @@ impl Parser {
                 let mut args: Vec<Expr> = Vec::new();
                 loop {
                     let arg = self.expression()?;
-                    let arg_pos = arg.pos.clone();
+                    let arg_pos = arg.pos;
                     args.push(arg);
                     if self.is_token(TokenKind::ClosingParenth, 0) {
                         self.consume_token().into_particle()?; // consume ")"
@@ -280,7 +299,7 @@ impl Parser {
                 });
             }
             self.consume_token().into_particle()?; // consume ")"
-            let pos = expr.pos.clone();
+            let pos = expr.pos;
             return Ok(Expr::new(
                 ExprSet::Group {
                     expr: Box::new(expr),
@@ -339,8 +358,8 @@ impl Parser {
             ExprType::Logic => self.term_expr(),
             ExprType::Term => self.factor_expr(),
             ExprType::Factor => self.unary_expr(),
-            ExprType::Unary => self.call_expr(),
-            ExprType::Dot => todo!(),
+            ExprType::Unary => self.dot_expr(),
+            ExprType::Dot => self.call_expr(),
             ExprType::Call => self.let_expr(),
             ExprType::Let => self.group_expr(),
             ExprType::Group => self.primary_expr(),
@@ -377,7 +396,7 @@ impl Parser {
                 }),
             }?;
             let right = self.next_expr(curr_expr)?;
-            let pos = expr.pos.clone();
+            let pos = expr.pos;
             expr = Expr::new(
                 ExprSet::Binary {
                     op,
@@ -416,7 +435,7 @@ impl Parser {
     fn check_tokens(&mut self, token_types: &[TokenKind], offset: usize) -> bool {
         // Check if token exist at the specified offset
         for t in token_types {
-            if self.is_token(t.clone(), offset) {
+            if self.is_token(*t, offset) {
                 return true;
             }
         }

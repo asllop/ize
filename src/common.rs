@@ -9,7 +9,7 @@ pub struct IzeErr {
     pub pos: Pos,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 /// Position of language element in the code.
 pub struct Pos {
     pub row: usize,

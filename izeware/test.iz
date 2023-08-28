@@ -65,3 +65,8 @@ foo() * 10
 foo(1000)
 foo(1,2,3)
 bar(num * 3,var + 1) + 10
+
+// Dot expressions
+this.is.an.expression
+str.Foo().bar
+str.Foo().bar.Doo(num * 3,var + 1)

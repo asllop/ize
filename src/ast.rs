@@ -19,6 +19,7 @@ pub struct Ast {
 
 impl<'a> Ast {
     pub fn build(_code: &'a str) -> Result<Self, IzeErr> {
+        //TODO: call the lexer, parser, semantic checker and code generator
         todo!("Parse and build AST")
     }
 }
@@ -122,7 +123,9 @@ pub enum Literal {
 /// Language expression.
 pub struct Expr {
     pub expr: ExprSet,
+    //TODO: rename to "start"
     pub pos: Pos,
+    //TODO: add end position
 }
 
 impl Expr {
@@ -137,7 +140,9 @@ type FieldName = String;
 /// Language command (Import, Model, Transfer and Pipe).
 pub struct Command {
     pub command: CommandSet,
+    //TODO: rename to "start"
     pub pos: Pos,
+    //TODO: add end position
 }
 
 #[derive(Debug)]

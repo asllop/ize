@@ -1,6 +1,6 @@
 //! # IZE Lexer
 //!
-//! This module contains all the types and methods necessary to convert raw source code into tokens.
+//! The lexer reads raw source code and converts it into a vector of [Token](crate::lexer::Token)s.
 
 use crate::{IzeErr, Pos};
 use alloc::string::String;
@@ -8,7 +8,7 @@ use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
 #[logos(skip r"[ \t]+")]
-/// Token types.
+/// List of recognized tokens, requiered by [logos].
 pub enum TokenKind {
     #[regex("//.*")]
     Comment,
@@ -140,6 +140,7 @@ pub enum TokenKind {
 }
 
 #[derive(Debug, PartialEq)]
+/// A lexical element, the actual token. [Token] is just a wrapper that contains this and a position.
 pub enum Lexeme {
     Int(i64),
     Float(f64),
@@ -152,23 +153,29 @@ pub enum Lexeme {
 }
 
 #[derive(Debug)]
+/// A token is a lexical element and its position in the source code.
 pub struct Token {
     pub lexeme: Lexeme,
+    //TODO: rename to "start"
     pub pos: Pos,
+    //TODO: add end position
 }
 
 impl Token {
+    /// Create a new token.
     pub fn new(lexeme: Lexeme, pos: Pos) -> Self {
         Self { lexeme, pos }
     }
 }
 
+/// Lexer.
 pub struct Lexer<'a> {
     current_code: &'a str,
     last_pos: Pos,
 }
 
 impl<'a> Lexer<'a> {
+    /// Create a new lexer with source code.
     pub fn new(code: &'a str) -> Self {
         Self {
             current_code: code,
@@ -176,10 +183,12 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// Position of last read token.
     pub fn pos(&self) -> Pos {
-        self.last_pos.clone()
+        self.last_pos
     }
 
+    /// Scan next token from the source code.
     pub fn scan_token(&mut self) -> Result<Token, IzeErr> {
         if let Some((lexeme, lex_offs)) = TokenKind::lexer(self.current_code).spanned().next() {
             let fragment = &self.current_code[lex_offs.start..lex_offs.end];
@@ -191,13 +200,13 @@ impl<'a> Lexer<'a> {
             if let Ok(lexeme) = lexeme {
                 match lexeme {
                     TokenKind::Comment => {
-                        let token = Token::new(Lexeme::Nothing, next_pos.clone());
+                        let token = Token::new(Lexeme::Nothing, next_pos);
                         next_pos.col += lex_offs.end - lex_offs.start;
                         self.last_pos = next_pos;
                         Ok(token)
                     }
                     TokenKind::EOL => {
-                        let token = Token::new(Lexeme::Nothing, next_pos.clone());
+                        let token = Token::new(Lexeme::Nothing, next_pos);
                         next_pos.row += 1;
                         next_pos.col = 0;
                         self.last_pos = next_pos;
@@ -205,7 +214,7 @@ impl<'a> Lexer<'a> {
                     }
                     TokenKind::IntegerLiteral => match str::parse(fragment) {
                         Ok(n) => {
-                            let token = Token::new(Lexeme::Int(n), next_pos.clone());
+                            let token = Token::new(Lexeme::Int(n), next_pos);
                             next_pos.col += lex_offs.end - lex_offs.start;
                             self.last_pos = next_pos;
                             Ok(token)
@@ -217,7 +226,7 @@ impl<'a> Lexer<'a> {
                     },
                     TokenKind::FloatLiteral => match str::parse(fragment) {
                         Ok(n) => {
-                            let token = Token::new(Lexeme::Float(n), next_pos.clone());
+                            let token = Token::new(Lexeme::Float(n), next_pos);
                             next_pos.col += lex_offs.end - lex_offs.start;
                             self.last_pos = next_pos;
                             Ok(token)
@@ -228,25 +237,25 @@ impl<'a> Lexer<'a> {
                         }),
                     },
                     TokenKind::StringLiteral => {
-                        let token = Token::new(Lexeme::String(fragment.into()), next_pos.clone());
+                        let token = Token::new(Lexeme::String(fragment.into()), next_pos);
                         next_pos.col += lex_offs.end - lex_offs.start;
                         self.last_pos = next_pos;
                         Ok(token)
                     }
                     TokenKind::BooleanLiteral => {
-                        let token = Token::new(Lexeme::Bool(fragment == "true"), next_pos.clone());
+                        let token = Token::new(Lexeme::Bool(fragment == "true"), next_pos);
                         next_pos.col += lex_offs.end - lex_offs.start;
                         self.last_pos = next_pos;
                         Ok(token)
                     }
                     TokenKind::Ident => {
-                        let token = Token::new(Lexeme::Ident(fragment.into()), next_pos.clone());
+                        let token = Token::new(Lexeme::Ident(fragment.into()), next_pos);
                         next_pos.col += lex_offs.end - lex_offs.start;
                         self.last_pos = next_pos;
                         Ok(token)
                     }
                     _ => {
-                        let token = Token::new(Lexeme::Particle(lexeme), next_pos.clone());
+                        let token = Token::new(Lexeme::Particle(lexeme), next_pos);
                         next_pos.col += lex_offs.end - lex_offs.start;
                         self.last_pos = next_pos;
                         Ok(token)
@@ -260,7 +269,7 @@ impl<'a> Lexer<'a> {
             }
         } else {
             // EOF
-            let token = Token::new(Lexeme::EOF, self.last_pos.clone());
+            let token = Token::new(Lexeme::EOF, self.last_pos);
             Ok(token)
         }
     }

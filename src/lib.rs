@@ -1,13 +1,14 @@
 //! # IZE Language
 //!
 //! IZE is a domain-specific programming language specialized in data pipelines and ETL processes, designed to accomplish the following data related tasks:
-//! - Convert
 //! - Aggregate
+//! - Buffer
+//! - Combine
+//! - Convert
+//! - Expand
 //! - Filter
 //! - Route
-//! - Expand
-//! - Buffer
-//! - Pack
+//! - Wrap
 //!
 //! It transpiles into Rust and can run in multiple environments:
 //! - System service (deamon) for Unix-like systems and Windows.
@@ -16,13 +17,12 @@
 //!
 //! Is statically typed, async oriented, and declarative, with a minimalistic and expressive syntax, influenced by:
 //! - Protobuf
-//! - Rust
-//! - Serde
-//! - Go
-//! - TypeScript
+//! - Rust / Serde
 //! - Vector VRL
 //! - New Relic Flex
 //! - SQL
+//! - Go
+//! - TypeScript
 
 #![no_std]
 
@@ -40,3 +40,5 @@ pub mod ast;
 
 /// Parser.
 pub mod parser;
+
+//TODO: tests
