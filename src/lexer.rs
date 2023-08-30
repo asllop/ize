@@ -66,8 +66,6 @@ pub enum TokenKind {
     Dot,
     #[token("...")]
     ThreeDots,
-    #[token("_")]
-    Underscore,
     #[token("as")]
     As,
     #[token("->")]

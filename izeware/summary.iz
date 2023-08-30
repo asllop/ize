@@ -38,7 +38,7 @@ transfer MyTrans Input -> Output (
 
 transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
 	name: in.first,
-    value: select in.first (
+    value: select in.first as _ (
         "CPU" -> in.second.Median("value"),
         "RespTime" -> in.second.Mode("value"),
         _ -> in.second.Mean("value")
@@ -47,7 +47,7 @@ transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
 )
 
 transfer Whatever Mux[Integer,String,None] -> String (
-	unwrap in (
+	unwrap in as _ (
 		Integer -> in.ToStr(),
 		String -> in,
 		None -> ""
@@ -55,7 +55,7 @@ transfer Whatever Mux[Integer,String,None] -> String (
 )
 
 transfer Whatever Any -> String (
-	unwrap in (
+	unwrap in as _ (
 		Integer -> in.ToStr(),
 		Float -> in.Format(".2"),
 		String -> in,

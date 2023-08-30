@@ -92,6 +92,7 @@ pub enum ExprSet {
     },
     Select {
         expr: Box<Expr>,
+        alias: String,
         arms: Vec<Arm>,
     },
     Unwrap {

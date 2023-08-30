@@ -3,7 +3,7 @@
 //! This module contains all the types and methods necessary to parse commands and expressions and generate an AST.
 
 use crate::{
-    ast::{BinaryOp, Command, Expr, ExprSet, Literal, UnaryOp},
+    ast::{Arm, BinaryOp, Command, Expr, ExprSet, Literal, UnaryOp},
     lexer::{Lexeme, Token, TokenKind},
     IzeErr, Pos,
 };
@@ -82,29 +82,32 @@ enum ExprType {
     Term,
     Factor,
     Unary,
+    Let,
     Dot,
     Call,
-    Let,
     Group,
 }
 
+/// Code parser.
 pub struct Parser {
     pub tokens: VecDeque<Token>,
 }
 
 impl Parser {
+    /// Create new parser from a vector of tokens.
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens: VecDeque::from(tokens),
         }
     }
 
-    /// Parse program.
+    /// Parse the entire program.
     pub fn parse(&mut self) -> Result<Vec<Command>, IzeErr> {
         //TODO: parse all commands and return a vector
         todo!()
     }
 
+    /// Check if parser ended processing tokens.
     pub fn ended(&self) -> bool {
         self.tokens.len() == 0
     }
@@ -112,6 +115,60 @@ impl Parser {
     /// Parse a single expression.
     pub fn expression(&mut self) -> Result<Expr, IzeErr> {
         self.next_expr(ExprType::Expr)
+    }
+
+    fn select_expr(&mut self) -> Result<Expr, IzeErr> {
+        if self.is_token(TokenKind::Select, 0) {
+            let (_, select_pos) = self.consume_token().into_particle()?; // consume "select"
+            let expr = self.expression()?;
+
+            if !(self.is_token(TokenKind::As, 0) && self.is_token(TokenKind::Ident, 1)) {
+                return Err(IzeErr {
+                    message: "Expected keyword 'as' and an identifier".into(),
+                    pos: select_pos,
+                });
+            }
+
+            self.consume_token().into_particle()?; // consume "as"
+            let (alias, _) = self.consume_token().into_ident()?;
+
+            if !self.is_token(TokenKind::OpenParenth, 0) {
+                return Err(IzeErr {
+                    message: "Select is missing open parenthesis".into(),
+                    pos: select_pos,
+                });
+            }
+            self.consume_token().into_particle()?; // consume "("
+
+            let mut arms = Vec::new();
+            while let Some(arm) = self.arm_expr()? {
+                arms.push(arm);
+            }
+
+            if !self.is_token(TokenKind::ClosingParenth, 0) {
+                return Err(IzeErr {
+                    message: "Select is missing closing parenthesis".into(),
+                    pos: select_pos,
+                });
+            }
+            self.consume_token().into_particle()?; // consume ")"
+
+            Ok(Expr {
+                expr: ExprSet::Select {
+                    expr: Box::new(expr),
+                    alias,
+                    arms,
+                },
+                pos: select_pos,
+            })
+        } else {
+            self.next_expr(ExprType::Select)
+        }
+    }
+
+    fn unwrap_expr(&mut self) -> Result<Expr, IzeErr> {
+        //TODO
+        self.next_expr(ExprType::Unwrap)
     }
 
     fn chain_expr(&mut self) -> Result<Expr, IzeErr> {
@@ -220,6 +277,31 @@ impl Parser {
         self.next_expr(ExprType::Unary)
     }
 
+    fn let_expr(&mut self) -> Result<Expr, IzeErr> {
+        if self.is_token(TokenKind::Let, 0) {
+            let (_, let_pos) = self.consume_token().into_particle()?; // consume "let"
+            if self.is_ident(0) {
+                let (var_name, _) = self.consume_token().into_ident()?;
+                // NOTE: we don't want let value to use chain expressions
+                let expr = self.next_expr(ExprType::Chain)?;
+                Ok(Expr::new(
+                    ExprSet::Let {
+                        name: var_name,
+                        value: Box::new(expr),
+                    },
+                    let_pos,
+                ))
+            } else {
+                Err(IzeErr {
+                    message: "Let must be followed by an identifier".into(),
+                    pos: let_pos,
+                })
+            }
+        } else {
+            self.next_expr(ExprType::Let)
+        }
+    }
+
     fn dot_expr(&mut self) -> Result<Expr, IzeErr> {
         let mut expr = vec![self.next_expr(ExprType::Dot)?];
 
@@ -283,31 +365,6 @@ impl Parser {
         }
     }
 
-    fn let_expr(&mut self) -> Result<Expr, IzeErr> {
-        if self.is_token(TokenKind::Let, 0) {
-            let (_, let_pos) = self.consume_token().into_particle()?; // consume "let"
-            if self.is_ident(0) {
-                let (var_name, _) = self.consume_token().into_ident()?;
-                // NOTE: we don't want let value to use chain expressions
-                let expr = self.next_expr(ExprType::Chain)?;
-                Ok(Expr::new(
-                    ExprSet::Let {
-                        name: var_name,
-                        value: Box::new(expr),
-                    },
-                    let_pos,
-                ))
-            } else {
-                Err(IzeErr {
-                    message: "Let must be followed by an identifier".into(),
-                    pos: let_pos,
-                })
-            }
-        } else {
-            self.next_expr(ExprType::Let)
-        }
-    }
-
     fn group_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::OpenParenth, 0) {
             self.consume_token().into_particle()?; // consume "("
@@ -344,6 +401,7 @@ impl Parser {
             let expr = Expr::new(ExprSet::Identifier(id), pos);
             return Ok(expr);
         }
+        //TODO: parse a type, is also a primary expression
 
         // If we are here, something is badly formed
         if let Some(next_token) = self.consume_token() {
@@ -369,23 +427,24 @@ impl Parser {
         // From lower precedence (Expr) to higher precedence (Primary).
         match curr_expr {
             ExprType::Expr => self.chain_expr(),
-            ExprType::Chain => self.ifelse_expr(),
-            ExprType::Select => todo!(),
-            ExprType::Unwrap => todo!(),
+            ExprType::Chain => self.select_expr(),
+            ExprType::Select => self.unwrap_expr(),
+            ExprType::Unwrap => self.ifelse_expr(),
             ExprType::IfElse => self.equality_expr(),
             ExprType::Equality => self.comparison_expr(),
             ExprType::Comparison => self.logic_expr(),
             ExprType::Logic => self.term_expr(),
             ExprType::Term => self.factor_expr(),
             ExprType::Factor => self.unary_expr(),
-            ExprType::Unary => self.dot_expr(),
+            ExprType::Unary => self.let_expr(),
+            ExprType::Let => self.dot_expr(),
             ExprType::Dot => self.call_expr(),
-            ExprType::Call => self.let_expr(),
-            ExprType::Let => self.group_expr(),
+            ExprType::Call => self.group_expr(),
             ExprType::Group => self.primary_expr(),
         }
     }
 
+    /// Parse any binary expression.
     fn binary_expr(
         &mut self,
         op_tokens: &[TokenKind],
@@ -427,6 +486,33 @@ impl Parser {
             )
         }
         Ok(expr)
+    }
+
+    /// Parse Unwrap or Select arms.
+    fn arm_expr(&mut self) -> Result<Option<Arm>, IzeErr> {
+        if self.is_token(TokenKind::ClosingParenth, 0) {
+            return Ok(None);
+        }
+
+        let value = self.expression()?;
+        if !self.is_token(TokenKind::Arrow, 0) {
+            return Err(IzeErr {
+                message: "Expected an arrow to structure the arm".into(),
+                pos: value.pos,
+            });
+        }
+
+        self.consume_token().into_particle()?; // Consume "->"
+
+        let action = self.expression()?;
+        if self.is_token(TokenKind::Comma, 0) {
+            self.consume_token().into_particle()?; // Consume ","
+        }
+
+        Ok(Some(Arm {
+            value: Box::new(value),
+            action: Box::new(action),
+        }))
     }
 
     fn consume_token(&mut self) -> Option<Token> {

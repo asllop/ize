@@ -5,7 +5,8 @@
 "hello"
 true
 my_var
-null none
+null
+none
 
 // Equality expression
 ten != 10
@@ -71,8 +72,18 @@ bar(num * 3,var + 1) + 10
 this.is.an.expression
 str.Foo().bar
 str.Foo().bar.Doo(num * 3,var + 1)
+10.ToStr()
+
 
 // Chain expressions
 let num -100.67; 10*foo(1+2); str.Foo().bar
 // NOTE: The parser can't figure out this is not a bar(x+y) function call
 // (x + y) * 10
+
+// Select
+
+select metric.name as _ (
+    "CPU" -> in.second.Median("value"),
+    "RespTime" -> in.second.Mode("value"),
+    _ -> in.second.Mean("value")
+)
