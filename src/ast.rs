@@ -1,6 +1,6 @@
 //! # IZE Abstract Syntax Tree
 //!
-//! This module contains all the types and methods necessary to generate an AST.
+//! The AST models the code structure. This crate contains a collection of types to build and represent an AST.
 
 use crate::{IzeErr, Pos};
 use alloc::{boxed::Box, string::String, vec::Vec};
@@ -58,6 +58,7 @@ pub enum BinaryOp {
 /// Expression set.
 pub enum ExprSet {
     Literal(Literal),
+    Type(Type),
     Identifier(String),
     Group {
         expr: Box<Expr>,

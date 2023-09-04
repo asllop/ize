@@ -3,7 +3,7 @@
 //! This module contains all the types and methods necessary to parse commands and expressions and generate an AST.
 
 use crate::{
-    ast::{Arm, BinaryOp, Command, Expr, ExprSet, Literal, UnaryOp},
+    ast::{Arm, BinaryOp, Command, Expr, ExprSet, Literal, Type, TypeId, UnaryOp},
     lexer::{Lexeme, Token, TokenKind},
     IzeErr, Pos,
 };
@@ -119,47 +119,14 @@ impl Parser {
 
     fn select_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::Select, 0) {
-            let (_, select_pos) = self.consume_token().into_particle()?; // consume "select"
-            let expr = self.expression()?;
-
-            if !(self.is_token(TokenKind::As, 0) && self.is_token(TokenKind::Ident, 1)) {
-                return Err(IzeErr {
-                    message: "Expected keyword 'as' and an identifier".into(),
-                    pos: select_pos,
-                });
-            }
-
-            self.consume_token().into_particle()?; // consume "as"
-            let (alias, _) = self.consume_token().into_ident()?;
-
-            if !self.is_token(TokenKind::OpenParenth, 0) {
-                return Err(IzeErr {
-                    message: "Select is missing open parenthesis".into(),
-                    pos: select_pos,
-                });
-            }
-            self.consume_token().into_particle()?; // consume "("
-
-            let mut arms = Vec::new();
-            while let Some(arm) = self.arm_expr()? {
-                arms.push(arm);
-            }
-
-            if !self.is_token(TokenKind::ClosingParenth, 0) {
-                return Err(IzeErr {
-                    message: "Select is missing closing parenthesis".into(),
-                    pos: select_pos,
-                });
-            }
-            self.consume_token().into_particle()?; // consume ")"
-
+            let (pos, expr, alias, arms) = self.select_or_unwrap_expr()?;
             Ok(Expr {
                 expr: ExprSet::Select {
                     expr: Box::new(expr),
                     alias,
                     arms,
                 },
-                pos: select_pos,
+                pos,
             })
         } else {
             self.next_expr(ExprType::Select)
@@ -167,8 +134,19 @@ impl Parser {
     }
 
     fn unwrap_expr(&mut self) -> Result<Expr, IzeErr> {
-        //TODO
-        self.next_expr(ExprType::Unwrap)
+        if self.is_token(TokenKind::Unwrap, 0) {
+            let (pos, expr, alias, arms) = self.select_or_unwrap_expr()?;
+            Ok(Expr {
+                expr: ExprSet::Unwrap {
+                    expr: Box::new(expr),
+                    alias,
+                    arms,
+                },
+                pos,
+            })
+        } else {
+            self.next_expr(ExprType::Unwrap)
+        }
     }
 
     fn chain_expr(&mut self) -> Result<Expr, IzeErr> {
@@ -401,7 +379,10 @@ impl Parser {
             let expr = Expr::new(ExprSet::Identifier(id), pos);
             return Ok(expr);
         }
-        //TODO: parse a type, is also a primary expression
+        // Type
+        if let Some(expr) = self.type_expr()? {
+            return Ok(expr);
+        }
 
         // If we are here, something is badly formed
         if let Some(next_token) = self.consume_token() {
@@ -513,6 +494,98 @@ impl Parser {
             value: Box::new(value),
             action: Box::new(action),
         }))
+    }
+
+    /// Parse Unwrap or Select block.
+    fn select_or_unwrap_expr(&mut self) -> Result<(Pos, Expr, String, Vec<Arm>), IzeErr> {
+        let (_, block_pos) = self.consume_token().into_particle()?; // consume keyword "select" or "unwrap"
+        let expr = self.expression()?;
+
+        if !(self.is_token(TokenKind::As, 0) && self.is_token(TokenKind::Ident, 1)) {
+            return Err(IzeErr {
+                message: "Expected keyword 'as' and an identifier".into(),
+                pos: block_pos,
+            });
+        }
+
+        self.consume_token().into_particle()?; // consume "as"
+        let (alias, _) = self.consume_token().into_ident()?;
+
+        if !self.is_token(TokenKind::OpenParenth, 0) {
+            return Err(IzeErr {
+                message: "Missing open parenthesis".into(),
+                pos: block_pos,
+            });
+        }
+        self.consume_token().into_particle()?; // consume "("
+
+        let mut arms = Vec::new();
+        while let Some(arm) = self.arm_expr()? {
+            arms.push(arm);
+        }
+
+        if !self.is_token(TokenKind::ClosingParenth, 0) {
+            return Err(IzeErr {
+                message: "Missing closing parenthesis".into(),
+                pos: block_pos,
+            });
+        }
+        self.consume_token().into_particle()?; // consume ")"
+
+        Ok((block_pos, expr, alias, arms))
+    }
+
+    /// Parse type.
+    fn type_expr(&mut self) -> Result<Option<Expr>, IzeErr> {
+        // Simple types
+        if self.check_tokens(
+            &[
+                TokenKind::StringType,
+                TokenKind::IntegerType,
+                TokenKind::FloatType,
+                TokenKind::BooleanType,
+                TokenKind::NullType,
+                TokenKind::NoneType,
+            ],
+            0,
+        ) {
+            // Parse a base type (String, Integer, Float, Boolean, None and Null)
+            let (type_token, pos) = self.consume_token().into_particle()?;
+            let ize_type: Type = match type_token {
+                TokenKind::IntegerType => Type {
+                    id: TypeId::Integer,
+                    inner: Default::default(),
+                },
+                TokenKind::FloatType => Type {
+                    id: TypeId::Float,
+                    inner: Default::default(),
+                },
+                TokenKind::BooleanType => Type {
+                    id: TypeId::Boolean,
+                    inner: Default::default(),
+                },
+                TokenKind::StringType => Type {
+                    id: TypeId::String,
+                    inner: Default::default(),
+                },
+                TokenKind::NullType => Type {
+                    id: TypeId::Null,
+                    inner: Default::default(),
+                },
+                TokenKind::NoneType => Type {
+                    id: TypeId::None,
+                    inner: Default::default(),
+                },
+                _ => Err(IzeErr {
+                    message: "Unexpected token, expecting a base type".into(),
+                    pos,
+                })?,
+            };
+            return Ok(Some(Expr::new(ExprSet::Type(ize_type), pos)));
+        }
+        //TODO: Parse a composed type (Map, List, Tuple, and Mux)
+        //TODO: Parse a custom type (any identifier)
+        todo!("Parse a type")
     }
 
     fn consume_token(&mut self) -> Option<Token> {
