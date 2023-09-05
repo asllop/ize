@@ -260,7 +260,7 @@ impl Parser {
             let (_, let_pos) = self.consume_token().into_particle()?; // consume "let"
             if self.is_ident(0) {
                 let (var_name, _) = self.consume_token().into_ident()?;
-                // NOTE: we don't want let value to use chain expressions
+                // NOTE: we don't want let value to use chain or lesser prevalence expressions. Use groups for these cases.
                 let expr = self.next_expr(ExprType::Chain)?;
                 Ok(Expr::new(
                     ExprSet::Let {
@@ -380,8 +380,8 @@ impl Parser {
             return Ok(expr);
         }
         // Type
-        if let Some(expr) = self.type_expr()? {
-            return Ok(expr);
+        if let Some((ize_type, pos)) = self.type_expr()? {
+            return Ok(Expr::new(ExprSet::Type(ize_type), pos));
         }
 
         // If we are here, something is badly formed
@@ -536,7 +536,7 @@ impl Parser {
     }
 
     /// Parse type.
-    fn type_expr(&mut self) -> Result<Option<Expr>, IzeErr> {
+    fn type_expr(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
         // Simple types
         if self.check_tokens(
             &[
@@ -581,11 +581,63 @@ impl Parser {
                     pos,
                 })?,
             };
-            return Ok(Some(Expr::new(ExprSet::Type(ize_type), pos)));
+            Ok(Some((ize_type, pos)))
+        } else if self.check_tokens(
+            &[
+                TokenKind::MapType,
+                TokenKind::ListType,
+                TokenKind::TupleType,
+                TokenKind::MuxType,
+            ],
+            0,
+        ) {
+            // Parse a compound type (Map, List, Tuple, and Mux)
+            let (type_token, pos) = self.consume_token().into_particle()?;
+            if !self.is_token(TokenKind::OpenClause, 0) {
+                return Err(IzeErr {
+                    message: "Expected open clause on a compound type (Map, List, Tuple, and Mux)"
+                        .into(),
+                    pos: self.last_pos(),
+                });
+            }
+            self.consume_token().into_particle()?; // Consume "["
+            let mut inner_types = Vec::new();
+            loop {
+                if let Some((inner_type, _)) = self.type_expr()? {
+                    inner_types.push(inner_type);
+
+                    if self.is_token(TokenKind::Comma, 0) {
+                        self.consume_token().into_particle()?; // Consume ","
+                    } else if self.is_token(TokenKind::ClosingClause, 0) {
+                        self.consume_token().into_particle()?; // Consume "]"
+                        break;
+                    } else {
+                        return Err(IzeErr {
+                            message: "Expected comma or closing clause".into(),
+                            pos: self.last_pos(),
+                        });
+                    }
+                } else {
+                    return Err(IzeErr {
+                        message: "Expecting an inner type".into(),
+                        pos: self.last_pos(),
+                    });
+                }
+            }
+            let ize_type = Type {
+                id: TypeId::try_from(type_token)?,
+                inner: inner_types,
+            };
+            Ok(Some((ize_type, pos)))
+        } else {
+            // Parse a custom type (any identifier)
+            let (custom_type, pos) = self.consume_token().into_ident()?;
+            let ize_type = Type {
+                id: TypeId::Custom(custom_type),
+                inner: Default::default(),
+            };
+            Ok(Some((ize_type, pos)))
         }
-        //TODO: Parse a composed type (Map, List, Tuple, and Mux)
-        //TODO: Parse a custom type (any identifier)
-        todo!("Parse a type")
     }
 
     fn consume_token(&mut self) -> Option<Token> {
@@ -650,6 +702,15 @@ impl Parser {
             }
         } else {
             false
+        }
+    }
+
+    /// Last pos
+    fn last_pos(&mut self) -> Pos {
+        if !self.ended() {
+            self.tokens[0].pos
+        } else {
+            Default::default()
         }
     }
 }

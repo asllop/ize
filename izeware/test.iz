@@ -108,5 +108,6 @@ unwrap var.Get("user") as usr (
     Integer -> usr.ToStr(),
     String -> usr,
     None -> "",
-    CustomType -> ""
+    CustomType -> "",
+    Tuple[List[String], Map[String, Map[Integer, Float]]] -> "",
 )

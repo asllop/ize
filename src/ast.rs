@@ -2,7 +2,7 @@
 //!
 //! The AST models the code structure. This crate contains a collection of types to build and represent an AST.
 
-use crate::{IzeErr, Pos};
+use crate::{lexer::TokenKind, IzeErr, Pos};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use rustc_hash::FxHashMap;
 
@@ -284,4 +284,27 @@ pub enum TypeId {
     None,
     Null,
     Any,
+}
+
+impl TryFrom<TokenKind> for TypeId {
+    type Error = IzeErr;
+
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        match value {
+            TokenKind::IntegerType => Ok(Self::Integer),
+            TokenKind::FloatType => Ok(Self::Float),
+            TokenKind::BooleanType => Ok(Self::Boolean),
+            TokenKind::StringType => Ok(Self::String),
+            TokenKind::NullType => Ok(Self::Null),
+            TokenKind::NoneType => Ok(Self::None),
+            TokenKind::MapType => Ok(Self::Map),
+            TokenKind::ListType => Ok(Self::List),
+            TokenKind::MuxType => Ok(Self::Mux),
+            TokenKind::TupleType => Ok(Self::Tuple),
+            _ => Err(IzeErr {
+                message: "Invalid TokenKind to TypeId conversion".into(),
+                pos: Default::default(),
+            }),
+        }
+    }
 }
