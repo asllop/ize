@@ -9,7 +9,7 @@ use std::{
 };
 
 fn main() {
-    let file = File::open("izeware/test_expr.iz").expect("Error opening file");
+    let file = File::open("izeware/test_stmt.iz").expect("Error opening file");
     let mut reader = BufReader::new(file);
     let mut buf = Vec::<u8>::new();
     reader
@@ -41,7 +41,7 @@ fn main() {
     let mut parser = Parser::new(tokens);
     //let _commands = parser.parse().expect("Error parsing");
     while !parser.ended() {
-        let expr = parser.expression().expect("Error parsing expression");
-        println!("-------------------\n{:#?}", expr);
+        let cmd = parser.command().expect("Error parsing expression");
+        println!("-------------------\n{:#?}", cmd);
     }
 }

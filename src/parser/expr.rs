@@ -56,7 +56,7 @@ impl Parser {
 
     fn select_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::Select, 0) {
-            let (pos, expr, alias, arms) = self.select_or_unwrap_expr()?;
+            let (pos, expr, alias, arms) = self.parse_select_or_unwrap()?;
             Ok(Expr {
                 expr: ExprSet::Select {
                     expr: Box::new(expr),
@@ -72,7 +72,7 @@ impl Parser {
 
     fn unwrap_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::Unwrap, 0) {
-            let (pos, expr, alias, arms) = self.select_or_unwrap_expr()?;
+            let (pos, expr, alias, arms) = self.parse_select_or_unwrap()?;
             Ok(Expr {
                 expr: ExprSet::Unwrap {
                     expr: Box::new(expr),
@@ -367,7 +367,7 @@ impl Parser {
     }
 
     /// Parse Unwrap or Select arms.
-    fn arm_expr(&mut self) -> Result<Option<Arm>, IzeErr> {
+    fn parse_arm(&mut self) -> Result<Option<Arm>, IzeErr> {
         if self.is_token(TokenKind::ClosingParenth, 0) {
             return Ok(None);
         }
@@ -394,7 +394,7 @@ impl Parser {
     }
 
     /// Parse Unwrap or Select block.
-    fn select_or_unwrap_expr(&mut self) -> Result<(Pos, Expr, String, Vec<Arm>), IzeErr> {
+    fn parse_select_or_unwrap(&mut self) -> Result<(Pos, Expr, String, Vec<Arm>), IzeErr> {
         let (_, block_pos) = self.consume_token().into_particle()?; // consume keyword "select" or "unwrap"
         let expr = self.expression()?;
 
@@ -417,7 +417,7 @@ impl Parser {
         self.consume_token().into_particle()?; // consume "("
 
         let mut arms = Vec::new();
-        while let Some(arm) = self.arm_expr()? {
+        while let Some(arm) = self.parse_arm()? {
             arms.push(arm);
         }
 
