@@ -51,6 +51,34 @@ pub enum BinaryOp {
     LtEqual,
 }
 
+impl TryFrom<TokenKind> for BinaryOp {
+    type Error = IzeErr;
+
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        match value {
+            TokenKind::Plus => Ok(BinaryOp::Add),
+            TokenKind::Minus => Ok(BinaryOp::Sub),
+            TokenKind::Star => Ok(BinaryOp::Mul),
+            TokenKind::Slash => Ok(BinaryOp::Div),
+            TokenKind::Percent => Ok(BinaryOp::Mod),
+            TokenKind::LesserThan => Ok(BinaryOp::LesserThan),
+            TokenKind::GreaterThan => Ok(BinaryOp::GreaterThan),
+            TokenKind::GtEqual => Ok(BinaryOp::GtEqual),
+            TokenKind::LtEqual => Ok(BinaryOp::LtEqual),
+            TokenKind::And => Ok(BinaryOp::And),
+            TokenKind::TwoAnds => Ok(BinaryOp::LazyAnd),
+            TokenKind::Or => Ok(BinaryOp::Or),
+            TokenKind::TwoOrs => Ok(BinaryOp::LazyOr),
+            TokenKind::TwoEquals => Ok(BinaryOp::Equal),
+            TokenKind::NotEqual => Ok(BinaryOp::NotEqual),
+            _ => Err(IzeErr {
+                message: "Invalid TokenKind to BinaryOp conversion".into(),
+                pos: Default::default(),
+            }),
+        }
+    }
+}
+
 //TODO: create a Vec<Expr>, and use indexes to this vec instead of Box<Expr> to reduce allocations.
 //TODO: maybe an alternative allocator could improve this.
 

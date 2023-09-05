@@ -1,73 +1,14 @@
-//! # IZE Parser
+//! # Parser / Expressions
 //!
-//! This module contains all the types and methods necessary to parse commands and expressions and generate an AST.
+//! Methods and types for parsing expressions.
 
 use crate::{
-    ast::{Arm, BinaryOp, Command, Expr, ExprSet, Literal, Type, TypeId, UnaryOp},
-    lexer::{Lexeme, Token, TokenKind},
+    ast::{Arm, BinaryOp, Expr, ExprSet, Type, TypeId, UnaryOp},
+    lexer::TokenKind,
+    parser::common::{FromToken, Parser},
     IzeErr, Pos,
 };
-use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
-
-trait FromToken {
-    fn into_parts(self) -> Result<(Lexeme, Pos), IzeErr>;
-    fn into_particle(self) -> Result<(TokenKind, Pos), IzeErr>;
-    fn into_ident(self) -> Result<(String, Pos), IzeErr>;
-    fn into_literal(self) -> Result<(Literal, Pos), IzeErr>;
-}
-
-impl FromToken for Option<Token> {
-    fn into_parts(self) -> Result<(Lexeme, Pos), IzeErr> {
-        if let Some(token) = self {
-            Ok((token.lexeme, token.pos))
-        } else {
-            Err(IzeErr {
-                message: "Token is None".into(),
-                pos: Pos::default(),
-            })
-        }
-    }
-
-    fn into_particle(self) -> Result<(TokenKind, Pos), IzeErr> {
-        let (lexeme, pos) = self.into_parts()?;
-        if let Lexeme::Particle(t) = lexeme {
-            Ok((t, pos))
-        } else {
-            Err(IzeErr {
-                message: "Expected a particle".into(),
-                pos: Pos::default(),
-            })
-        }
-    }
-
-    fn into_ident(self) -> Result<(String, Pos), IzeErr> {
-        let (lexeme, pos) = self.into_parts()?;
-        if let Lexeme::Ident(s) = lexeme {
-            Ok((s, pos))
-        } else {
-            Err(IzeErr {
-                message: "Expected an identifier".into(),
-                pos: Pos::default(),
-            })
-        }
-    }
-
-    fn into_literal(self) -> Result<(Literal, Pos), IzeErr> {
-        let (lexeme, pos) = self.into_parts()?;
-        match lexeme {
-            Lexeme::Float(f) => Ok((Literal::Float(f), pos)),
-            Lexeme::Int(i) => Ok((Literal::Integer(i), pos)),
-            Lexeme::Bool(b) => Ok((Literal::Boolean(b), pos)),
-            Lexeme::String(s) => Ok((Literal::String(s), pos)),
-            Lexeme::Particle(TokenKind::NullLiteral) => Ok((Literal::Null, pos)),
-            Lexeme::Particle(TokenKind::NoneLiteral) => Ok((Literal::None, pos)),
-            _ => Err(IzeErr {
-                message: "Expected a literal".into(),
-                pos: Pos::default(),
-            }),
-        }
-    }
-}
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 #[derive(Clone, Copy)]
 enum ExprType {
@@ -88,33 +29,29 @@ enum ExprType {
     Group,
 }
 
-/// Code parser.
-pub struct Parser {
-    pub tokens: VecDeque<Token>,
-}
-
 impl Parser {
-    /// Create new parser from a vector of tokens.
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            tokens: VecDeque::from(tokens),
-        }
-    }
-
-    /// Parse the entire program.
-    pub fn parse(&mut self) -> Result<Vec<Command>, IzeErr> {
-        //TODO: parse all commands and return a vector
-        todo!()
-    }
-
-    /// Check if parser ended processing tokens.
-    pub fn ended(&self) -> bool {
-        self.tokens.len() == 0
-    }
-
     /// Parse a single expression.
     pub fn expression(&mut self) -> Result<Expr, IzeErr> {
         self.next_expr(ExprType::Expr)
+    }
+
+    fn chain_expr(&mut self) -> Result<Expr, IzeErr> {
+        let mut expr = vec![self.next_expr(ExprType::Chain)?];
+
+        while self.is_token(TokenKind::Semicolon, 0) {
+            self.consume_token().into_particle()?; // consume ";"
+            expr.push(self.next_expr(ExprType::Chain)?);
+        }
+
+        if expr.len() > 1 {
+            let pos = expr[0].pos;
+            Ok(Expr {
+                expr: ExprSet::Chain { chain: expr },
+                pos,
+            })
+        } else {
+            Ok(expr.pop().unwrap())
+        }
     }
 
     fn select_expr(&mut self) -> Result<Expr, IzeErr> {
@@ -146,25 +83,6 @@ impl Parser {
             })
         } else {
             self.next_expr(ExprType::Unwrap)
-        }
-    }
-
-    fn chain_expr(&mut self) -> Result<Expr, IzeErr> {
-        let mut expr = vec![self.next_expr(ExprType::Chain)?];
-
-        while self.is_token(TokenKind::Semicolon, 0) {
-            self.consume_token().into_particle()?; // consume ";"
-            expr.push(self.next_expr(ExprType::Chain)?);
-        }
-
-        if expr.len() > 1 {
-            let pos = expr[0].pos;
-            Ok(Expr {
-                expr: ExprSet::Chain { chain: expr },
-                pos,
-            })
-        } else {
-            Ok(expr.pop().unwrap())
         }
     }
 
@@ -355,12 +273,12 @@ impl Parser {
             }
             self.consume_token().into_particle()?; // consume ")"
             let pos = expr.pos;
-            return Ok(Expr::new(
+            Ok(Expr::new(
                 ExprSet::Group {
                     expr: Box::new(expr),
                 },
                 pos,
-            ));
+            ))
         } else {
             self.next_expr(ExprType::Group)
         }
@@ -391,8 +309,7 @@ impl Parser {
                 message: format!(
                     "Couldn't parse a valid expression. Last token: {:?}",
                     next_token.lexeme
-                )
-                .into(),
+                ),
                 pos: next_token.pos,
             })
         } else {
@@ -433,28 +350,8 @@ impl Parser {
     ) -> Result<Expr, IzeErr> {
         let mut expr = self.next_expr(curr_expr)?;
         while self.check_tokens(op_tokens, 0) {
-            let (op, op_pos) = self.consume_token().into_particle()?;
-            let op = match op {
-                TokenKind::Plus => Ok(BinaryOp::Add),
-                TokenKind::Minus => Ok(BinaryOp::Sub),
-                TokenKind::Star => Ok(BinaryOp::Mul),
-                TokenKind::Slash => Ok(BinaryOp::Div),
-                TokenKind::Percent => Ok(BinaryOp::Mod),
-                TokenKind::LesserThan => Ok(BinaryOp::LesserThan),
-                TokenKind::GreaterThan => Ok(BinaryOp::GreaterThan),
-                TokenKind::GtEqual => Ok(BinaryOp::GtEqual),
-                TokenKind::LtEqual => Ok(BinaryOp::LtEqual),
-                TokenKind::And => Ok(BinaryOp::And),
-                TokenKind::TwoAnds => Ok(BinaryOp::LazyAnd),
-                TokenKind::Or => Ok(BinaryOp::Or),
-                TokenKind::TwoOrs => Ok(BinaryOp::LazyOr),
-                TokenKind::TwoEquals => Ok(BinaryOp::Equal),
-                TokenKind::NotEqual => Ok(BinaryOp::NotEqual),
-                _ => Err(IzeErr {
-                    message: "Token is not a binary operator".into(),
-                    pos: op_pos,
-                }),
-            }?;
+            let (op, _) = self.consume_token().into_particle()?;
+            let op = BinaryOp::try_from(op)?;
             let right = self.next_expr(curr_expr)?;
             let pos = expr.pos;
             expr = Expr::new(
@@ -637,80 +534,6 @@ impl Parser {
                 inner: Default::default(),
             };
             Ok(Some((ize_type, pos)))
-        }
-    }
-
-    fn consume_token(&mut self) -> Option<Token> {
-        self.tokens.pop_front()
-    }
-
-    /// Check for a particular token.
-    fn is_token(&mut self, token_type: TokenKind, offset: usize) -> bool {
-        // Check if token exist at the specified offset
-        if let Some(token) = self.tokens.get(offset) {
-            match token.lexeme {
-                Lexeme::Float(_) => token_type == TokenKind::FloatLiteral,
-                Lexeme::Int(_) => token_type == TokenKind::IntegerLiteral,
-                Lexeme::Bool(_) => token_type == TokenKind::BooleanLiteral,
-                Lexeme::String(_) => token_type == TokenKind::StringLiteral,
-                Lexeme::Ident(_) => token_type == TokenKind::Ident,
-                Lexeme::Particle(tt) => token_type == tt,
-                _ => false,
-            }
-        } else {
-            false
-        }
-    }
-
-    /// Check for a list of tokens.
-    fn check_tokens(&mut self, token_types: &[TokenKind], offset: usize) -> bool {
-        // Check if token exist at the specified offset
-        for t in token_types {
-            if self.is_token(*t, offset) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// Check if token is a literal.
-    fn is_literal(&mut self, offset: usize) -> bool {
-        // Check if token exist at the specified offset
-        if let Some(token) = self.tokens.get(offset) {
-            match token.lexeme {
-                Lexeme::Float(_)
-                | Lexeme::Int(_)
-                | Lexeme::Bool(_)
-                | Lexeme::String(_)
-                | Lexeme::Particle(TokenKind::NullLiteral)
-                | Lexeme::Particle(TokenKind::NoneLiteral) => true,
-                _ => false,
-            }
-        } else {
-            false
-        }
-    }
-
-    /// Check if token is an identifier.
-    fn is_ident(&mut self, offset: usize) -> bool {
-        // Check if token exist at the specified offset
-        if let Some(token) = self.tokens.get(offset) {
-            if let Lexeme::Ident(_) = token.lexeme {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    }
-
-    /// Last pos
-    fn last_pos(&mut self) -> Pos {
-        if !self.ended() {
-            self.tokens[0].pos
-        } else {
-            Default::default()
         }
     }
 }
