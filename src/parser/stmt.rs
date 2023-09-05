@@ -5,10 +5,10 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::{Command, CommandSet, Package, Import, Literal, ImportPath},
+    ast::{Command, CommandSet, DotPath, Import, ImportPath, Literal, Package},
     lexer::TokenKind,
-    parser::{Parser, common::FromToken},
-    IzeErr, Pos,
+    parser::{common::FromToken, Parser},
+    IzeErr,
 };
 
 impl Parser {
@@ -33,7 +33,10 @@ impl Parser {
     fn import_command(&mut self) -> Result<Command, IzeErr> {
         let (_, pos) = self.consume_token().into_particle()?; // Consume "import"
         if !self.is_token(TokenKind::OpenParenth, 0) {
-            return Err(IzeErr { message: "Expecting an open parenthesis after import command".into(), pos: self.last_pos() })
+            return Err(IzeErr {
+                message: "Expecting an open parenthesis after import command".into(),
+                pos: self.last_pos(),
+            });
         }
         self.consume_token().into_particle()?; // Consume "("
         let mut packages = Vec::new();
@@ -43,9 +46,7 @@ impl Parser {
             }
         }
         self.consume_token().into_particle()?; // Consume ")"
-        let import = Import {
-            packages
-        };
+        let import = Import { packages };
         Ok(Command::new(CommandSet::Import(import), pos))
     }
 
@@ -79,16 +80,56 @@ impl Parser {
                         alias,
                     }))
                 } else {
-                    Err(IzeErr { message: "Expecting 'as' after path".into(), pos: self.last_pos() })
+                    Err(IzeErr {
+                        message: "Expecting 'as' after path".into(),
+                        pos: self.last_pos(),
+                    })
                 }
             } else {
-                Err(IzeErr { message: "Expecting a string literal".into(), pos: self.last_pos() })
+                Err(IzeErr {
+                    message: "Expecting a string literal".into(),
+                    pos: self.last_pos(),
+                })
             }
         } else if self.is_token(TokenKind::Ident, 0) {
-            //TODO: parse dot line
-            todo!("Dot path line")
+            let dot_path = self.parse_dot_path()?;
+            let alias = if self.is_token(TokenKind::As, 0) {
+                self.consume_token().into_particle()?; // Consume "as"
+                let (alias, _) = self.consume_token().into_ident()?;
+                alias
+            } else {
+                if let Some(last_dot) = dot_path.path.last() {
+                    last_dot.clone()
+                } else {
+                    Err(IzeErr {
+                        message: "Dot path is empty".into(),
+                        pos: self.last_pos(),
+                    })?
+                }
+            };
+            Ok(Some(Package {
+                path: ImportPath::Dot(dot_path),
+                alias,
+            }))
         } else {
-            Err(IzeErr { message: "Unrecognized import line format".into(), pos: self.last_pos() })
+            Err(IzeErr {
+                message: "Unrecognized import line format".into(),
+                pos: self.last_pos(),
+            })
         }
+    }
+
+    fn parse_dot_path(&mut self) -> Result<DotPath, IzeErr> {
+        let mut components = Vec::new();
+        loop {
+            let (component, _) = self.consume_token().into_ident()?;
+            components.push(component);
+            if self.is_token(TokenKind::Dot, 0) {
+                self.consume_token().into_particle()?; // Consume "."
+            } else {
+                break;
+            }
+        }
+        Ok(DotPath { path: components })
     }
 }
