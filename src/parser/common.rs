@@ -3,11 +3,12 @@
 //! Common types and methods for the parser module.
 
 use crate::{
-    ast::{Command, Literal},
+    ast::Literal,
     lexer::{Lexeme, Token, TokenKind},
+    parser::Parser,
     IzeErr, Pos,
 };
-use alloc::{collections::VecDeque, string::String, vec::Vec};
+use alloc::string::String;
 
 pub(crate) trait FromToken {
     fn into_parts(self) -> Result<(Lexeme, Pos), IzeErr>;
@@ -69,25 +70,7 @@ impl FromToken for Option<Token> {
     }
 }
 
-/// Code parser.
-pub struct Parser {
-    tokens: VecDeque<Token>,
-}
-
 impl Parser {
-    /// Create new parser from a vector of tokens.
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            tokens: VecDeque::from(tokens),
-        }
-    }
-
-    /// Parse the entire program.
-    pub fn parse(&mut self) -> Result<Vec<Command>, IzeErr> {
-        //TODO: parse all commands and return a vector
-        todo!()
-    }
-
     /// Check if parser ended processing tokens.
     pub fn ended(&self) -> bool {
         self.tokens.is_empty()

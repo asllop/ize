@@ -9,7 +9,7 @@ use std::{
 };
 
 fn main() {
-    let file = File::open("izeware/test.iz").expect("Error opening file");
+    let file = File::open("izeware/test_expr.iz").expect("Error opening file");
     let mut reader = BufReader::new(file);
     let mut buf = Vec::<u8>::new();
     reader

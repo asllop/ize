@@ -5,7 +5,7 @@
 use crate::{
     ast::{Arm, BinaryOp, Expr, ExprSet, Type, TypeId, UnaryOp},
     lexer::TokenKind,
-    parser::common::{FromToken, Parser},
+    parser::{common::FromToken, Parser},
     IzeErr, Pos,
 };
 use alloc::{boxed::Box, string::String, vec::Vec};
@@ -298,7 +298,7 @@ impl Parser {
             return Ok(expr);
         }
         // Type
-        if let Some((ize_type, pos)) = self.type_expr()? {
+        if let Some((ize_type, pos)) = self.parse_type()? {
             return Ok(Expr::new(ExprSet::Type(ize_type), pos));
         }
 
@@ -433,8 +433,7 @@ impl Parser {
     }
 
     /// Parse type.
-    fn type_expr(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
-        // Simple types
+    fn parse_type(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
         if self.check_tokens(
             &[
                 TokenKind::StringType,
@@ -446,39 +445,7 @@ impl Parser {
             ],
             0,
         ) {
-            // Parse a base type (String, Integer, Float, Boolean, None and Null)
-            let (type_token, pos) = self.consume_token().into_particle()?;
-            let ize_type: Type = match type_token {
-                TokenKind::IntegerType => Type {
-                    id: TypeId::Integer,
-                    inner: Default::default(),
-                },
-                TokenKind::FloatType => Type {
-                    id: TypeId::Float,
-                    inner: Default::default(),
-                },
-                TokenKind::BooleanType => Type {
-                    id: TypeId::Boolean,
-                    inner: Default::default(),
-                },
-                TokenKind::StringType => Type {
-                    id: TypeId::String,
-                    inner: Default::default(),
-                },
-                TokenKind::NullType => Type {
-                    id: TypeId::Null,
-                    inner: Default::default(),
-                },
-                TokenKind::NoneType => Type {
-                    id: TypeId::None,
-                    inner: Default::default(),
-                },
-                _ => Err(IzeErr {
-                    message: "Unexpected token, expecting a base type".into(),
-                    pos,
-                })?,
-            };
-            Ok(Some((ize_type, pos)))
+            self.parse_base_type()
         } else if self.check_tokens(
             &[
                 TokenKind::MapType,
@@ -488,44 +455,7 @@ impl Parser {
             ],
             0,
         ) {
-            // Parse a compound type (Map, List, Tuple, and Mux)
-            let (type_token, pos) = self.consume_token().into_particle()?;
-            if !self.is_token(TokenKind::OpenClause, 0) {
-                return Err(IzeErr {
-                    message: "Expected open clause on a compound type (Map, List, Tuple, and Mux)"
-                        .into(),
-                    pos: self.last_pos(),
-                });
-            }
-            self.consume_token().into_particle()?; // Consume "["
-            let mut inner_types = Vec::new();
-            loop {
-                if let Some((inner_type, _)) = self.type_expr()? {
-                    inner_types.push(inner_type);
-
-                    if self.is_token(TokenKind::Comma, 0) {
-                        self.consume_token().into_particle()?; // Consume ","
-                    } else if self.is_token(TokenKind::ClosingClause, 0) {
-                        self.consume_token().into_particle()?; // Consume "]"
-                        break;
-                    } else {
-                        return Err(IzeErr {
-                            message: "Expected comma or closing clause".into(),
-                            pos: self.last_pos(),
-                        });
-                    }
-                } else {
-                    return Err(IzeErr {
-                        message: "Expecting an inner type".into(),
-                        pos: self.last_pos(),
-                    });
-                }
-            }
-            let ize_type = Type {
-                id: TypeId::try_from(type_token)?,
-                inner: inner_types,
-            };
-            Ok(Some((ize_type, pos)))
+            self.parse_compound_type()
         } else {
             // Parse a custom type (any identifier)
             let (custom_type, pos) = self.consume_token().into_ident()?;
@@ -535,5 +465,82 @@ impl Parser {
             };
             Ok(Some((ize_type, pos)))
         }
+    }
+
+    /// Parse a base type (String, Integer, Float, Boolean, None and Null)
+    fn parse_base_type(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
+        let (type_token, pos) = self.consume_token().into_particle()?;
+        let ize_type: Type = match type_token {
+            TokenKind::IntegerType => Type {
+                id: TypeId::Integer,
+                inner: Default::default(),
+            },
+            TokenKind::FloatType => Type {
+                id: TypeId::Float,
+                inner: Default::default(),
+            },
+            TokenKind::BooleanType => Type {
+                id: TypeId::Boolean,
+                inner: Default::default(),
+            },
+            TokenKind::StringType => Type {
+                id: TypeId::String,
+                inner: Default::default(),
+            },
+            TokenKind::NullType => Type {
+                id: TypeId::Null,
+                inner: Default::default(),
+            },
+            TokenKind::NoneType => Type {
+                id: TypeId::None,
+                inner: Default::default(),
+            },
+            _ => Err(IzeErr {
+                message: "Unexpected token, expecting a base type".into(),
+                pos,
+            })?,
+        };
+        Ok(Some((ize_type, pos)))
+    }
+
+    /// Parse a compound type (Map, List, Tuple, and Mux)
+    fn parse_compound_type(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
+        let (type_token, pos) = self.consume_token().into_particle()?;
+        if !self.is_token(TokenKind::OpenClause, 0) {
+            return Err(IzeErr {
+                message: "Expected open clause on a compound type (Map, List, Tuple, and Mux)"
+                    .into(),
+                pos: self.last_pos(),
+            });
+        }
+        self.consume_token().into_particle()?; // Consume "["
+        let mut inner_types = Vec::new();
+        loop {
+            if let Some((inner_type, _)) = self.parse_type()? {
+                inner_types.push(inner_type);
+
+                if self.is_token(TokenKind::Comma, 0) {
+                    self.consume_token().into_particle()?; // Consume ","
+                } else if self.is_token(TokenKind::ClosingClause, 0) {
+                    self.consume_token().into_particle()?; // Consume "]"
+                    break;
+                } else {
+                    return Err(IzeErr {
+                        message: "Expected comma or closing clause".into(),
+                        pos: self.last_pos(),
+                    });
+                }
+            } else {
+                return Err(IzeErr {
+                    message: "Expecting an inner type".into(),
+                    pos: self.last_pos(),
+                });
+            }
+        }
+        let ize_type = Type {
+            id: TypeId::try_from(type_token)?,
+            inner: inner_types,
+        };
+        Ok(Some((ize_type, pos)))
     }
 }

@@ -1,0 +1,10 @@
+// Import commands
+
+import (ize.models.newrelic)
+import (ize.models.newrelic as nr)
+import ("my/custom/module.iz" as mymod)
+import (
+    ize.models.newrelic,
+    ize.models.newrelic as nr,
+    "my/custom/module.iz" as mymod
+)

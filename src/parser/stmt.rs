@@ -5,7 +5,7 @@
 use crate::{
     ast::{Command, CommandSet},
     lexer::TokenKind,
-    parser::common::Parser,
+    parser::Parser,
     IzeErr, Pos,
 };
 
@@ -21,7 +21,10 @@ impl Parser {
         } else if self.check_tokens(&[TokenKind::Run, TokenKind::Pipe], 0) {
             self.pipe_command()
         } else {
-            Err(IzeErr { message: "Unknown command".into(), pos: self.last_pos() })
+            Err(IzeErr {
+                message: "Unknown command".into(),
+                pos: self.last_pos(),
+            })
         }
     }
 

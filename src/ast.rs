@@ -175,6 +175,12 @@ pub struct Command {
     //TODO: add end position
 }
 
+impl Command {
+    pub fn new(command: CommandSet, pos: Pos) -> Self {
+        Self { command, pos }
+    }
+}
+
 #[derive(Debug)]
 /// Command set.
 pub enum CommandSet {
