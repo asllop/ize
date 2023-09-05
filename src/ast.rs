@@ -200,7 +200,7 @@ pub struct Import {
 /// Import package.
 pub struct Package {
     pub path: ImportPath,
-    pub alias: String,
+    pub alias: Option<String>,
 }
 
 #[derive(Debug)]

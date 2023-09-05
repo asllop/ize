@@ -72,19 +72,17 @@ impl Parser {
             Ok(None)
         } else if self.is_token(TokenKind::StringLiteral, 0) {
             if let (Literal::String(path), _) = self.consume_token().into_literal()? {
-                if self.is_token(TokenKind::As, 0) {
+                let alias = if self.is_token(TokenKind::As, 0) {
                     self.consume_token().into_particle()?; // Consume "as"
                     let (alias, _) = self.consume_token().into_ident()?;
-                    Ok(Some(Package {
-                        path: ImportPath::File(path),
-                        alias,
-                    }))
+                    Some(alias)
                 } else {
-                    Err(IzeErr {
-                        message: "Expecting 'as' after path".into(),
-                        pos: self.last_pos(),
-                    })
-                }
+                    None
+                };
+                Ok(Some(Package {
+                    path: ImportPath::File(path),
+                    alias,
+                }))
             } else {
                 Err(IzeErr {
                     message: "Expecting a string literal".into(),
@@ -96,16 +94,9 @@ impl Parser {
             let alias = if self.is_token(TokenKind::As, 0) {
                 self.consume_token().into_particle()?; // Consume "as"
                 let (alias, _) = self.consume_token().into_ident()?;
-                alias
+                Some(alias)
             } else {
-                if let Some(last_dot) = dot_path.path.last() {
-                    last_dot.clone()
-                } else {
-                    Err(IzeErr {
-                        message: "Dot path is empty".into(),
-                        pos: self.last_pos(),
-                    })?
-                }
+                None
             };
             Ok(Some(Package {
                 path: ImportPath::Dot(dot_path),
