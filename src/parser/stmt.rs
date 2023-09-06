@@ -5,7 +5,7 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::{Command, CommandSet, DotPath, Import, ImportPath, Literal, Package},
+    ast::{Command, CommandSet, DotPath, Import, ImportPath, Literal, Package, Model, ModelType},
     lexer::TokenKind,
     parser::{common::FromToken, Parser},
     IzeErr,
@@ -51,7 +51,26 @@ impl Parser {
     }
 
     fn model_command(&mut self) -> Result<Command, IzeErr> {
-        todo!()
+        let (_, pos) = self.consume_token().into_particle()?; // Consume "model"
+        let (model_name, _) = self.consume_token().into_ident()?;
+        if self.is_token(TokenKind::OpenParenth, 0) {
+            // Struct model
+            todo!("struct model")
+        } else {
+            // Type alias model
+            if let Some((model_type, _)) = self.parse_type()? {
+                let model = Model {
+                    name: model_name,
+                    model_type: ModelType::Alias(model_type),
+                };
+                Ok(Command::new(CommandSet::Model(model), pos))
+            } else {
+                Err(IzeErr {
+                    message: "Expecting a type for model definition".into(),
+                    pos: self.last_pos(),
+                })
+            }
+        }
     }
 
     fn transfer_command(&mut self) -> Result<Command, IzeErr> {

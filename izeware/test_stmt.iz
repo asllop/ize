@@ -12,3 +12,8 @@ import (
     "my/custom/module.iz",
     "my/custom/module.iz" as mymod
 )
+
+// Model commands
+
+model MyList List[String]
+model MyModel Map[String, List[Metrics]]

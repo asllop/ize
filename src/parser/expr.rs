@@ -104,8 +104,8 @@ impl Parser {
                 ))
             } else {
                 Err(IzeErr {
-                    message: "If without else".into(),
-                    pos: if_pos,
+                    message: "Expected 'else?' keyword after 'if?' expression".into(),
+                    pos: self.last_pos(),
                 })
             }
         } else {
@@ -190,7 +190,7 @@ impl Parser {
             } else {
                 Err(IzeErr {
                     message: "Let must be followed by an identifier".into(),
-                    pos: let_pos,
+                    pos: self.last_pos(),
                 })
             }
         } else {
@@ -225,7 +225,6 @@ impl Parser {
                 let mut args: Vec<Expr> = Vec::new();
                 loop {
                     let arg = self.expression()?;
-                    let arg_pos = arg.pos;
                     args.push(arg);
                     if self.is_token(TokenKind::ClosingParenth, 0) {
                         self.consume_token().into_particle()?; // consume ")"
@@ -234,7 +233,7 @@ impl Parser {
                     if !self.is_token(TokenKind::Comma, 0) {
                         return Err(IzeErr {
                             message: "Expected a comma after function argument".into(),
-                            pos: arg_pos,
+                            pos: self.last_pos(),
                         });
                     }
                     self.consume_token().into_particle()?; // consume ","
@@ -268,7 +267,7 @@ impl Parser {
             if !self.is_token(TokenKind::ClosingParenth, 0) {
                 return Err(IzeErr {
                     message: "Group without closing parenthesis".into(),
-                    pos: expr.pos,
+                    pos: self.last_pos(),
                 });
             }
             self.consume_token().into_particle()?; // consume ")"
@@ -376,7 +375,7 @@ impl Parser {
         if !self.is_token(TokenKind::Arrow, 0) {
             return Err(IzeErr {
                 message: "Expected an arrow to structure the arm".into(),
-                pos: value.pos,
+                pos: self.last_pos(),
             });
         }
 
@@ -400,8 +399,8 @@ impl Parser {
 
         if !(self.is_token(TokenKind::As, 0) && self.is_token(TokenKind::Ident, 1)) {
             return Err(IzeErr {
-                message: "Expected keyword 'as' and an identifier".into(),
-                pos: block_pos,
+                message: "Unwrap/Select block expected keyword 'as' and an identifier".into(),
+                pos: self.last_pos(),
             });
         }
 
@@ -410,8 +409,8 @@ impl Parser {
 
         if !self.is_token(TokenKind::OpenParenth, 0) {
             return Err(IzeErr {
-                message: "Missing open parenthesis".into(),
-                pos: block_pos,
+                message: "Unwrap/Select block missing open parenthesis".into(),
+                pos: self.last_pos(),
             });
         }
         self.consume_token().into_particle()?; // consume "("
@@ -423,8 +422,8 @@ impl Parser {
 
         if !self.is_token(TokenKind::ClosingParenth, 0) {
             return Err(IzeErr {
-                message: "Missing closing parenthesis".into(),
-                pos: block_pos,
+                message: "Unwrap/Select block missing closing parenthesis".into(),
+                pos: self.last_pos(),
             });
         }
         self.consume_token().into_particle()?; // consume ")"
@@ -433,7 +432,7 @@ impl Parser {
     }
 
     /// Parse type.
-    fn parse_type(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
+    pub(crate) fn parse_type(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
         if self.check_tokens(
             &[
                 TokenKind::StringType,
