@@ -80,6 +80,26 @@ impl Parser {
         self.tokens.pop_front()
     }
 
+    /// Consume a particle token making sure the type is correct
+    pub(crate) fn discard_particle(&mut self, particle: TokenKind) -> Result<(), IzeErr> {
+        match self.consume_token().into_particle() {
+            Ok((token_kind, _)) => {
+                if token_kind == particle {
+                    Ok(())
+                } else {
+                    Err(IzeErr {
+                        message: "Unexpected particle type".into(),
+                        pos: self.last_pos(),
+                    })
+                }
+            }
+            Err(_) => Err(IzeErr {
+                message: "Unexpected token type".into(),
+                pos: self.last_pos(),
+            }),
+        }
+    }
+
     /// Check for a particular token.
     pub(crate) fn is_token(&mut self, token_type: TokenKind, offset: usize) -> bool {
         // Check if token exist at the specified offset

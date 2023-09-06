@@ -39,7 +39,7 @@ impl Parser {
         let mut expr = vec![self.next_expr(ExprType::Chain)?];
 
         while self.is_token(TokenKind::Semicolon, 0) {
-            self.consume_token().into_particle()?; // consume ";"
+            self.discard_particle(TokenKind::Semicolon)?;
             expr.push(self.next_expr(ExprType::Chain)?);
         }
 
@@ -92,7 +92,7 @@ impl Parser {
             let (_, if_pos) = self.consume_token().into_particle()?; // consume "if?"
             let then_expr = self.expression()?;
             if self.is_token(TokenKind::Else, 0) {
-                self.consume_token().into_particle()?; // consume "else?"
+                self.discard_particle(TokenKind::Else)?;
                 let else_expr = self.expression()?;
                 Ok(Expr::new(
                     ExprSet::IfElse {
@@ -202,7 +202,7 @@ impl Parser {
         let mut expr = vec![self.next_expr(ExprType::Dot)?];
 
         while self.is_token(TokenKind::Dot, 0) {
-            self.consume_token().into_particle()?; // consume "."
+            self.discard_particle(TokenKind::Dot)?;
             expr.push(self.next_expr(ExprType::Dot)?);
         }
 
@@ -220,14 +220,14 @@ impl Parser {
     fn call_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::Ident, 0) && self.is_token(TokenKind::OpenParenth, 1) {
             let (call_name, call_pos) = self.consume_token().into_ident()?;
-            self.consume_token().into_particle()?; // consume "("
+            self.discard_particle(TokenKind::OpenParenth)?;
             if !self.is_token(TokenKind::ClosingParenth, 0) {
                 let mut args: Vec<Expr> = Vec::new();
                 loop {
                     let arg = self.expression()?;
                     args.push(arg);
                     if self.is_token(TokenKind::ClosingParenth, 0) {
-                        self.consume_token().into_particle()?; // consume ")"
+                        self.discard_particle(TokenKind::ClosingParenth)?;
                         break;
                     }
                     if !self.is_token(TokenKind::Comma, 0) {
@@ -236,7 +236,7 @@ impl Parser {
                             pos: self.last_pos(),
                         });
                     }
-                    self.consume_token().into_particle()?; // consume ","
+                    self.discard_particle(TokenKind::Comma)?;
                 }
                 Ok(Expr::new(
                     ExprSet::Call {
@@ -246,7 +246,7 @@ impl Parser {
                     call_pos,
                 ))
             } else {
-                self.consume_token().into_particle()?; // consume ")"
+                self.discard_particle(TokenKind::ClosingParenth)?;
                 Ok(Expr::new(
                     ExprSet::Call {
                         name: call_name,
@@ -262,7 +262,7 @@ impl Parser {
 
     fn group_expr(&mut self) -> Result<Expr, IzeErr> {
         if self.is_token(TokenKind::OpenParenth, 0) {
-            self.consume_token().into_particle()?; // consume "("
+            self.discard_particle(TokenKind::OpenParenth)?;
             let expr = self.expression()?;
             if !self.is_token(TokenKind::ClosingParenth, 0) {
                 return Err(IzeErr {
@@ -270,7 +270,7 @@ impl Parser {
                     pos: self.last_pos(),
                 });
             }
-            self.consume_token().into_particle()?; // consume ")"
+            self.discard_particle(TokenKind::ClosingParenth)?;
             let pos = expr.pos;
             Ok(Expr::new(
                 ExprSet::Group {
@@ -379,11 +379,11 @@ impl Parser {
             });
         }
 
-        self.consume_token().into_particle()?; // Consume "->"
+        self.discard_particle(TokenKind::Arrow)?;
 
         let action = self.expression()?;
         if self.is_token(TokenKind::Comma, 0) {
-            self.consume_token().into_particle()?; // Consume ","
+            self.discard_particle(TokenKind::Comma)?;
         }
 
         Ok(Some(Arm {
@@ -404,7 +404,7 @@ impl Parser {
             });
         }
 
-        self.consume_token().into_particle()?; // consume "as"
+        self.discard_particle(TokenKind::As)?;
         let (alias, _) = self.consume_token().into_ident()?;
 
         if !self.is_token(TokenKind::OpenParenth, 0) {
@@ -413,7 +413,7 @@ impl Parser {
                 pos: self.last_pos(),
             });
         }
-        self.consume_token().into_particle()?; // consume "("
+        self.discard_particle(TokenKind::OpenParenth)?;
 
         let mut arms = Vec::new();
         while let Some(arm) = self.parse_arm()? {
@@ -426,7 +426,7 @@ impl Parser {
                 pos: self.last_pos(),
             });
         }
-        self.consume_token().into_particle()?; // consume ")"
+        self.discard_particle(TokenKind::ClosingParenth)?;
 
         Ok((block_pos, expr, alias, arms))
     }
@@ -512,16 +512,16 @@ impl Parser {
                 pos: self.last_pos(),
             });
         }
-        self.consume_token().into_particle()?; // Consume "["
+        self.discard_particle(TokenKind::OpenClause)?;
         let mut inner_types = Vec::new();
         loop {
             if let Some((inner_type, _)) = self.parse_type()? {
                 inner_types.push(inner_type);
 
                 if self.is_token(TokenKind::Comma, 0) {
-                    self.consume_token().into_particle()?; // Consume ","
+                    self.discard_particle(TokenKind::Comma)?;
                 } else if self.is_token(TokenKind::ClosingClause, 0) {
-                    self.consume_token().into_particle()?; // Consume "]"
+                    self.discard_particle(TokenKind::ClosingClause)?;
                     break;
                 } else {
                     return Err(IzeErr {

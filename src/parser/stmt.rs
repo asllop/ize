@@ -42,14 +42,14 @@ impl Parser {
                 pos: self.last_pos(),
             });
         }
-        self.consume_token().into_particle()?; // Consume "("
+        self.discard_particle(TokenKind::OpenParenth)?;
         let mut packages = Vec::new();
         while !self.is_token(TokenKind::ClosingParenth, 0) {
             if let Some(package) = self.parse_import_line()? {
                 packages.push(package);
             }
         }
-        self.consume_token().into_particle()?; // Consume ")"
+        self.discard_particle(TokenKind::ClosingParenth)?;
         let import = Import { packages };
         Ok(Command::new(CommandSet::Import(import), pos))
     }
@@ -65,7 +65,7 @@ impl Parser {
         let (model_name, _) = self.consume_token().into_ident()?;
         if self.is_token(TokenKind::OpenParenth, 0) {
             // Struct model
-            self.consume_token().into_particle()?; // Consume "("
+            self.discard_particle(TokenKind::OpenParenth)?;
             let mut fields = FxHashMap::default();
             let mut field_order = Vec::new();
             while !self.is_token(TokenKind::ClosingParenth, 0) {
@@ -74,7 +74,7 @@ impl Parser {
                     fields.insert(field_name, model_field);
                 }
             }
-            self.consume_token().into_particle()?; // Consume ")"
+            self.discard_particle(TokenKind::ClosingParenth)?;
             let struct_model = StructModel {
                 fields,
                 field_order,
@@ -124,7 +124,7 @@ impl Parser {
                 pos: self.last_pos(),
             });
         }
-        self.consume_token().into_particle()?; // Consume "->"
+        self.discard_particle(TokenKind::Arrow)?;
         let output_type = if let Some((output_type, _)) = self.parse_type()? {
             output_type
         } else {
@@ -139,7 +139,7 @@ impl Parser {
                 pos: self.last_pos(),
             });
         }
-        self.consume_token().into_particle()?; // Consume "("
+        self.discard_particle(TokenKind::OpenParenth)?;
         let transfer_def =
             if self.is_token(TokenKind::Ident, 0) && self.is_token(TokenKind::Colon, 1) {
                 // Parse attribute-expression pairs
@@ -154,7 +154,7 @@ impl Parser {
                 pos: self.last_pos(),
             });
         }
-        self.consume_token().into_particle()?; // Consume ")"
+        self.discard_particle(TokenKind::ClosingParenth)?;
         let transfer = Transfer {
             name: transfer_name,
             input_type,
@@ -165,13 +165,35 @@ impl Parser {
     }
 
     fn pipe_command(&mut self) -> Result<Command, IzeErr> {
+        let (run, pos) = if self.is_token(TokenKind::Run, 0) {
+            let (_, pos) = self.consume_token().into_particle()?; // Consume "run"
+            self.discard_particle(TokenKind::Pipe)?;
+            (true, pos)
+        } else {
+            let (_, pos) = self.consume_token().into_particle()?; // Consume "pipe"
+            (false, pos)
+        };
+        if !self.is_token(TokenKind::Ident, 0) {
+            return Err(IzeErr {
+                message: "Expecting an identifier as pipe name".into(),
+                pos: self.last_pos(),
+            });
+        }
+        let (pipe_name, _) = self.consume_token().into_ident()?;
+        if !self.is_token(TokenKind::OpenParenth, 0) {
+            return Err(IzeErr {
+                message: "Pipe expecting an open parenthesis after name".into(),
+                pos: self.last_pos(),
+            });
+        }
+        self.discard_particle(TokenKind::OpenParenth)?;
         todo!("parse pipe")
     }
 
     fn parse_import_line(&mut self) -> Result<Option<Package>, IzeErr> {
         if self.is_token(TokenKind::Comma, 0) {
             // End of package line
-            self.consume_token().into_particle()?; // Consume ","
+            self.discard_particle(TokenKind::Comma)?;
             Ok(None)
         } else if self.is_token(TokenKind::ClosingParenth, 0) {
             // End of import command
@@ -179,7 +201,7 @@ impl Parser {
         } else if self.is_token(TokenKind::StringLiteral, 0) {
             if let (Literal::String(path), _) = self.consume_token().into_literal()? {
                 let alias = if self.is_token(TokenKind::As, 0) {
-                    self.consume_token().into_particle()?; // Consume "as"
+                    self.discard_particle(TokenKind::As)?;
                     let (alias, _) = self.consume_token().into_ident()?;
                     Some(alias)
                 } else {
@@ -198,7 +220,7 @@ impl Parser {
         } else if self.is_token(TokenKind::Ident, 0) {
             let dot_path = self.parse_dot_path()?;
             let alias = if self.is_token(TokenKind::As, 0) {
-                self.consume_token().into_particle()?; // Consume "as"
+                self.discard_particle(TokenKind::As)?;
                 let (alias, _) = self.consume_token().into_ident()?;
                 Some(alias)
             } else {
@@ -222,7 +244,7 @@ impl Parser {
             let (component, _) = self.consume_token().into_ident()?;
             components.push(component);
             if self.is_token(TokenKind::Dot, 0) {
-                self.consume_token().into_particle()?; // Consume "."
+                self.discard_particle(TokenKind::Dot)?;
             } else {
                 break;
             }
@@ -233,7 +255,7 @@ impl Parser {
     fn parse_struct_line(&mut self) -> Result<Option<(FieldName, ModelField)>, IzeErr> {
         if self.is_token(TokenKind::Comma, 0) {
             // End of line
-            self.consume_token().into_particle()?; // Consume ","
+            self.discard_particle(TokenKind::Comma)?;
             Ok(None)
         } else if self.is_token(TokenKind::ClosingParenth, 0) {
             // End of command
@@ -242,7 +264,7 @@ impl Parser {
             let (field_name, _) = self.consume_token().into_ident()?;
             if self.is_token(TokenKind::As, 0) {
                 // Field definiton with rename
-                self.consume_token().into_particle()?; // Consume "as"
+                self.discard_particle(TokenKind::As)?;
                 if let (Literal::String(actual_name), _) = self.consume_token().into_literal()? {
                     if !self.is_token(TokenKind::Colon, 0) {
                         return Err(IzeErr {
@@ -250,7 +272,7 @@ impl Parser {
                             pos: self.last_pos(),
                         });
                     }
-                    self.consume_token().into_particle()?; // Consume ":"
+                    self.discard_particle(TokenKind::Colon)?;
                     if let Some((field_type, _)) = self.parse_type()? {
                         let model_field = ModelField {
                             rename: Some(actual_name),
@@ -278,9 +300,9 @@ impl Parser {
                         pos: self.last_pos(),
                     });
                 }
-                self.consume_token().into_particle()?; // Consume ":"
+                self.discard_particle(TokenKind::Colon)?;
                 if self.is_token(TokenKind::ThreeDots, 0) {
-                    self.consume_token().into_particle()?; // Consume "..."
+                    self.discard_particle(TokenKind::ThreeDots)?;
                     let model_field = ModelField {
                         rename: None,
                         field_type: FieldType::Remain,
@@ -322,7 +344,7 @@ impl Parser {
     fn parse_transfer_line(&mut self) -> Result<Option<(FieldName, Expr)>, IzeErr> {
         if self.is_token(TokenKind::Comma, 0) {
             // End of line
-            self.consume_token().into_particle()?; // Consume ","
+            self.discard_particle(TokenKind::Comma)?;
             Ok(None)
         } else if self.is_token(TokenKind::ClosingParenth, 0) {
             // End of command
@@ -330,7 +352,7 @@ impl Parser {
         } else if self.is_token(TokenKind::Ident, 0) {
             let (attr_name, _) = self.consume_token().into_ident()?;
             if self.is_token(TokenKind::Colon, 0) {
-                self.consume_token().into_particle()?; // Consume ":"
+                self.discard_particle(TokenKind::Colon)?;
                 let expr = self.expression()?;
                 Ok(Some((attr_name, expr)))
             } else {
