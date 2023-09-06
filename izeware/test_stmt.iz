@@ -19,8 +19,19 @@ model MyList List[String]
 model MyModel Map[String, List[Metrics]]
 
 model MyEvent (
-	eventType: String,
-	timestamp as "timestamp.ms": Integer,
-	attributes: Map[String,String],
+    eventType: String,
+    timestamp as "timestamp.ms": Integer,
+    attributes: Map[String,String],
     other: ...
+)
+
+// Transfer commands
+
+transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
+    Tuple[String,String].New(in.first, in.second.ToStr())
+    // "New(in.first, in.second.ToStr())" should do the trick as well
+)
+
+transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
+    in.action.Match("^CONTENT_") if? in else? none
 )

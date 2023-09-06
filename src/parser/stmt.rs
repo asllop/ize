@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     ast::{
         Command, CommandSet, DotPath, FieldName, FieldType, Import, ImportPath, Literal, Model,
-        ModelField, ModelType, Package, StructModel,
+        ModelField, ModelType, Package, StructModel, Transfer, TransferDef,
     },
     lexer::TokenKind,
     parser::{common::FromToken, Parser},
@@ -102,11 +102,69 @@ impl Parser {
     }
 
     fn transfer_command(&mut self) -> Result<Command, IzeErr> {
-        todo!()
+        let (_, pos) = self.consume_token().into_particle()?; // Consume "transfer"
+        if !self.is_token(TokenKind::Ident, 0) {
+            return Err(IzeErr {
+                message: "Expecting an identifier as transfer name".into(),
+                pos: self.last_pos(),
+            });
+        }
+        let (transfer_name, _) = self.consume_token().into_ident()?;
+        let input_type = if let Some((input_type, _)) = self.parse_type()? {
+            input_type
+        } else {
+            return Err(IzeErr {
+                message: "Transfer expecting an input type".into(),
+                pos: self.last_pos(),
+            });
+        };
+        if !self.is_token(TokenKind::Arrow, 0) {
+            return Err(IzeErr {
+                message: "Transfer expecting an arrow between input and output types".into(),
+                pos: self.last_pos(),
+            });
+        }
+        self.consume_token().into_particle()?; // Consume "->"
+        let output_type = if let Some((output_type, _)) = self.parse_type()? {
+            output_type
+        } else {
+            return Err(IzeErr {
+                message: "Transfer expecting an output type".into(),
+                pos: self.last_pos(),
+            });
+        };
+        if !self.is_token(TokenKind::OpenParenth, 0) {
+            return Err(IzeErr {
+                message: "Transfer expecting an open parenthesis after output type".into(),
+                pos: self.last_pos(),
+            });
+        }
+        self.consume_token().into_particle()?; // Consume "("
+        let transfer_def =
+            if self.is_token(TokenKind::Ident, 0) && self.is_token(TokenKind::Colon, 1) {
+                todo!("parse multi attribute transfer")
+            } else {
+                // Parse single expression transfer
+                TransferDef::Expr(self.expression()?)
+            };
+        if !self.is_token(TokenKind::ClosingParenth, 0) {
+            return Err(IzeErr {
+                message: "Transfer expecting a closing parenthesis after body definition".into(),
+                pos: self.last_pos(),
+            });
+        }
+        self.consume_token().into_particle()?; // Consume ")"
+        let transfer = Transfer {
+            name: transfer_name,
+            input_type,
+            output_type,
+            def: transfer_def,
+        };
+        Ok(Command::new(CommandSet::Transfer(transfer), pos))
     }
 
     fn pipe_command(&mut self) -> Result<Command, IzeErr> {
-        todo!()
+        todo!("parse pipe")
     }
 
     fn parse_import_line(&mut self) -> Result<Option<Package>, IzeErr> {
@@ -171,7 +229,6 @@ impl Parser {
         Ok(DotPath { path: components })
     }
 
-    //TODO: parse remaining field "..."
     fn parse_struct_line(&mut self) -> Result<Option<(FieldName, ModelField)>, IzeErr> {
         if self.is_token(TokenKind::Comma, 0) {
             // End of line

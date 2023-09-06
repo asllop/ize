@@ -41,7 +41,7 @@ fn main() {
     let mut parser = Parser::new(tokens);
     //let _commands = parser.parse().expect("Error parsing");
     while !parser.ended() {
-        let cmd = parser.command().expect("Error parsing expression");
+        let cmd = parser.command().expect("Error parsing command");
         println!("-------------------\n{:#?}", cmd);
     }
 }
