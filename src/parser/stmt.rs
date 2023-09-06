@@ -7,8 +7,8 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     ast::{
-        Command, CommandSet, DotPath, FieldName, FieldType, Import, ImportPath, Literal, Model,
-        ModelField, ModelType, Package, StructModel, Transfer, TransferDef,
+        Command, CommandSet, DotPath, Expr, FieldName, FieldType, Import, ImportPath, Literal,
+        Model, ModelField, ModelType, Package, StructModel, Transfer, TransferDef, TransferFields,
     },
     lexer::TokenKind,
     parser::{common::FromToken, Parser},
@@ -142,7 +142,8 @@ impl Parser {
         self.consume_token().into_particle()?; // Consume "("
         let transfer_def =
             if self.is_token(TokenKind::Ident, 0) && self.is_token(TokenKind::Colon, 1) {
-                todo!("parse multi attribute transfer")
+                // Parse attribute-expression pairs
+                TransferDef::Fields(self.parse_transfer_body()?)
             } else {
                 // Parse single expression transfer
                 TransferDef::Expr(self.expression()?)
@@ -303,6 +304,44 @@ impl Parser {
         } else {
             Err(IzeErr {
                 message: "Unrecognized model line format".into(),
+                pos: self.last_pos(),
+            })
+        }
+    }
+
+    fn parse_transfer_body(&mut self) -> Result<TransferFields, IzeErr> {
+        let mut fields = FxHashMap::default();
+        while !self.is_token(TokenKind::ClosingParenth, 0) {
+            if let Some((field_name, expr)) = self.parse_transfer_line()? {
+                fields.insert(field_name, expr);
+            }
+        }
+        Ok(TransferFields { fields })
+    }
+
+    fn parse_transfer_line(&mut self) -> Result<Option<(FieldName, Expr)>, IzeErr> {
+        if self.is_token(TokenKind::Comma, 0) {
+            // End of line
+            self.consume_token().into_particle()?; // Consume ","
+            Ok(None)
+        } else if self.is_token(TokenKind::ClosingParenth, 0) {
+            // End of command
+            Ok(None)
+        } else if self.is_token(TokenKind::Ident, 0) {
+            let (attr_name, _) = self.consume_token().into_ident()?;
+            if self.is_token(TokenKind::Colon, 0) {
+                self.consume_token().into_particle()?; // Consume ":"
+                let expr = self.expression()?;
+                Ok(Some((attr_name, expr)))
+            } else {
+                Err(IzeErr {
+                    message: "Transfer line expecting a colon after identifier".into(),
+                    pos: self.last_pos(),
+                })
+            }
+        } else {
+            Err(IzeErr {
+                message: "Transfer line expecting an identifier".into(),
                 pos: self.last_pos(),
             })
         }

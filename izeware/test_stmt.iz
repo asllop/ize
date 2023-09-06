@@ -35,3 +35,19 @@ transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
 transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
     in.action.Match("^CONTENT_") if? in else? none
 )
+
+transfer LogToEvent MyLog -> MyEvent (
+	attributes: in.attr.Append("message", in.msg),
+	eventType: in.type,
+    timestamp: in.ts*1000
+)
+
+transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
+	name: in.first,
+    value: select in.first as _ (
+        "CPU" -> in.second.Median("value"),
+        "RespTime" -> in.second.Mode("value"),
+        _ -> in.second.Mean("value")
+    ),
+    count: in.second.Len()
+)
