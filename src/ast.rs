@@ -164,7 +164,7 @@ impl Expr {
     }
 }
 
-type FieldName = String;
+pub type FieldName = String;
 
 #[derive(Debug)]
 /// Language command (Import, Model, Transfer and Pipe).
@@ -240,9 +240,15 @@ pub struct StructModel {
 #[derive(Debug)]
 /// Model field.
 pub struct ModelField {
-    pub is_remain: bool,
-    pub actual_name: String,
-    pub field_type: Type,
+    pub rename: Option<String>,
+    pub field_type: FieldType,
+}
+
+#[derive(Debug)]
+/// Model field type.
+pub enum FieldType {
+    Remain,
+    Type(Type),
 }
 
 #[derive(Debug)]

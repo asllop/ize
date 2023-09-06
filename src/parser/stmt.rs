@@ -3,9 +3,13 @@
 //! Methods and types for parsing commands (statements).
 
 use alloc::vec::Vec;
+use rustc_hash::FxHashMap;
 
 use crate::{
-    ast::{Command, CommandSet, DotPath, Import, ImportPath, Literal, Package, Model, ModelType},
+    ast::{
+        Command, CommandSet, DotPath, FieldName, FieldType, Import, ImportPath, Literal, Model,
+        ModelField, ModelType, Package, StructModel,
+    },
     lexer::TokenKind,
     parser::{common::FromToken, Parser},
     IzeErr,
@@ -52,10 +56,34 @@ impl Parser {
 
     fn model_command(&mut self) -> Result<Command, IzeErr> {
         let (_, pos) = self.consume_token().into_particle()?; // Consume "model"
+        if !self.is_token(TokenKind::Ident, 0) {
+            return Err(IzeErr {
+                message: "Expecting an identifier as model name".into(),
+                pos: self.last_pos(),
+            });
+        }
         let (model_name, _) = self.consume_token().into_ident()?;
         if self.is_token(TokenKind::OpenParenth, 0) {
             // Struct model
-            todo!("struct model")
+            self.consume_token().into_particle()?; // Consume "("
+            let mut fields = FxHashMap::default();
+            let mut field_order = Vec::new();
+            while !self.is_token(TokenKind::ClosingParenth, 0) {
+                if let Some((field_name, model_field)) = self.parse_struct_line()? {
+                    field_order.push(field_name.clone());
+                    fields.insert(field_name, model_field);
+                }
+            }
+            self.consume_token().into_particle()?; // Consume ")"
+            let struct_model = StructModel {
+                fields,
+                field_order,
+            };
+            let model = Model {
+                name: model_name,
+                model_type: ModelType::Struct(struct_model),
+            };
+            Ok(Command::new(CommandSet::Model(model), pos))
         } else {
             // Type alias model
             if let Some((model_type, _)) = self.parse_type()? {
@@ -141,5 +169,85 @@ impl Parser {
             }
         }
         Ok(DotPath { path: components })
+    }
+
+    //TODO: parse remaining field "..."
+    fn parse_struct_line(&mut self) -> Result<Option<(FieldName, ModelField)>, IzeErr> {
+        if self.is_token(TokenKind::Comma, 0) {
+            // End of line
+            self.consume_token().into_particle()?; // Consume ","
+            Ok(None)
+        } else if self.is_token(TokenKind::ClosingParenth, 0) {
+            // End of command
+            Ok(None)
+        } else if self.is_token(TokenKind::Ident, 0) {
+            let (field_name, _) = self.consume_token().into_ident()?;
+            if self.is_token(TokenKind::As, 0) {
+                // Field definiton with rename
+                self.consume_token().into_particle()?; // Consume "as"
+                if let (Literal::String(actual_name), _) = self.consume_token().into_literal()? {
+                    if !self.is_token(TokenKind::Colon, 0) {
+                        return Err(IzeErr {
+                            message: "Model definition expecting a colon after field name".into(),
+                            pos: self.last_pos(),
+                        });
+                    }
+                    self.consume_token().into_particle()?; // Consume ":"
+                    if let Some((field_type, _)) = self.parse_type()? {
+                        let model_field = ModelField {
+                            rename: Some(actual_name),
+                            field_type: FieldType::Type(field_type),
+                        };
+                        Ok(Some((field_name, model_field)))
+                    } else {
+                        Err(IzeErr {
+                            message: "Expecting a type for model field definition".into(),
+                            pos: self.last_pos(),
+                        })
+                    }
+                } else {
+                    Err(IzeErr {
+                        message: "Model definition expecting a string literal as field alias"
+                            .into(),
+                        pos: self.last_pos(),
+                    })
+                }
+            } else {
+                // Field definition without rename
+                if !self.is_token(TokenKind::Colon, 0) {
+                    return Err(IzeErr {
+                        message: "Model definition expecting a colon after field name".into(),
+                        pos: self.last_pos(),
+                    });
+                }
+                self.consume_token().into_particle()?; // Consume ":"
+                if self.is_token(TokenKind::ThreeDots, 0) {
+                    self.consume_token().into_particle()?; // Consume "..."
+                    let model_field = ModelField {
+                        rename: None,
+                        field_type: FieldType::Remain,
+                    };
+                    Ok(Some((field_name, model_field)))
+                } else {
+                    if let Some((field_type, _)) = self.parse_type()? {
+                        let model_field = ModelField {
+                            rename: None,
+                            field_type: FieldType::Type(field_type),
+                        };
+                        Ok(Some((field_name, model_field)))
+                    } else {
+                        Err(IzeErr {
+                            message: "Expecting a type for model field definition".into(),
+                            pos: self.last_pos(),
+                        })
+                    }
+                }
+            }
+        } else {
+            Err(IzeErr {
+                message: "Unrecognized model line format".into(),
+                pos: self.last_pos(),
+            })
+        }
     }
 }

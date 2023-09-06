@@ -525,7 +525,7 @@ impl Parser {
                     break;
                 } else {
                     return Err(IzeErr {
-                        message: "Expected comma or closing clause".into(),
+                        message: "Type expected comma or closing clause".into(),
                         pos: self.last_pos(),
                     });
                 }

@@ -17,3 +17,10 @@ import (
 
 model MyList List[String]
 model MyModel Map[String, List[Metrics]]
+
+model MyEvent (
+	eventType: String,
+	timestamp as "timestamp.ms": Integer,
+	attributes: Map[String,String],
+    other: ...
+)
