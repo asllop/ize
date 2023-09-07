@@ -8,8 +8,8 @@ use rustc_hash::FxHashMap;
 use crate::{
     ast::{
         Command, CommandSet, DotPath, Expr, FieldName, FieldType, Import, ImportPath, Literal,
-        Model, ModelField, ModelType, Package, Pipe, PipeItem, StructModel, Transfer, TransferDef,
-        TransferFields, PipeStruct,
+        Model, ModelField, ModelType, Package, Pipe, PipeItem, PipeStruct, PipeVal, StructModel,
+        Transfer, TransferDef, TransferFields,
     },
     lexer::TokenKind,
     parser::{common::FromToken, Parser},
@@ -324,19 +324,17 @@ impl Parser {
                         field_type: FieldType::Remain,
                     };
                     Ok(Some((field_name, model_field)))
+                } else if let Some((field_type, _)) = self.parse_type()? {
+                    let model_field = ModelField {
+                        rename: None,
+                        field_type: FieldType::Type(field_type),
+                    };
+                    Ok(Some((field_name, model_field)))
                 } else {
-                    if let Some((field_type, _)) = self.parse_type()? {
-                        let model_field = ModelField {
-                            rename: None,
-                            field_type: FieldType::Type(field_type),
-                        };
-                        Ok(Some((field_name, model_field)))
-                    } else {
-                        Err(IzeErr {
-                            message: "Expecting a type for model field definition".into(),
-                            pos: self.last_pos(),
-                        })
-                    }
+                    Err(IzeErr {
+                        message: "Expecting a type for model field definition".into(),
+                        pos: self.last_pos(),
+                    })
                 }
             }
         } else {
@@ -405,14 +403,9 @@ impl Parser {
             Ok(None)
         } else if self.is_token(TokenKind::Ident, 0) {
             let (id, _) = self.consume_token().into_ident()?;
-            let pipe_struct = if let Some(pipe_struct) = self.parse_pipe_struct()? {
-                Some(pipe_struct)
-            } else {
-                None
-            };
             let pipe_item = PipeItem {
                 name: id,
-                pipe_struct,
+                pipe_struct: self.parse_pipe_struct()?,
             };
             Ok(Some(pipe_item))
         } else {
@@ -426,9 +419,78 @@ impl Parser {
     fn parse_pipe_struct(&mut self) -> Result<Option<PipeStruct>, IzeErr> {
         if self.is_token(TokenKind::OpenParenth, 0) {
             self.discard_particle(TokenKind::OpenParenth)?;
-            todo!("Parse Pipe struct")
+            let mut fields = FxHashMap::default();
+            while !self.is_token(TokenKind::ClosingParenth, 0) {
+                if let Some((id, pipe_val)) = self.parse_pipe_struct_line()? {
+                    fields.insert(id, pipe_val);
+                }
+            }
+            self.discard_particle(TokenKind::ClosingParenth)?;
+            Ok(Some(PipeStruct { fields }))
         } else {
             Ok(None)
+        }
+    }
+
+    fn parse_pipe_struct_line(&mut self) -> Result<Option<(FieldName, PipeVal)>, IzeErr> {
+        if self.is_token(TokenKind::Ident, 0) {
+            let (id, _) = self.consume_token().into_ident()?;
+            if !self.is_token(TokenKind::Colon, 0) {
+                return Err(IzeErr {
+                    message: "Pipe struct line expecting a colon after identifier".into(),
+                    pos: self.last_pos(),
+                });
+            }
+            self.discard_particle(TokenKind::Colon)?;
+            let pipe_val = if self.is_token(TokenKind::Ident, 0) {
+                let (ident, _) = self.consume_token().into_ident()?;
+                PipeVal::Identifier(ident)
+            } else if self.check_tokens(
+                &[
+                    TokenKind::IntegerLiteral,
+                    TokenKind::FloatLiteral,
+                    TokenKind::BooleanLiteral,
+                    TokenKind::StringLiteral,
+                    TokenKind::NoneLiteral,
+                    TokenKind::NullLiteral,
+                ],
+                0,
+            ) {
+                let (literal, _) = self.consume_token().into_literal()?;
+                PipeVal::Literal(literal)
+            } else if self.is_token(TokenKind::OpenParenth, 0) {
+                if let Some(pipe_struct) = self.parse_pipe_struct()? {
+                    PipeVal::Struct(pipe_struct)
+                } else {
+                    Err(IzeErr {
+                        message: "Pipe struct line expecting a struct as value.".into(),
+                        pos: self.last_pos(),
+                    })?
+                }
+            } else {
+                Err(IzeErr {
+                    message:
+                        "Pipe struct line expecting a valid value: identifier, literal or struct."
+                            .into(),
+                    pos: self.last_pos(),
+                })?
+            };
+            if self.is_token(TokenKind::Comma, 0) {
+                self.discard_particle(TokenKind::Comma)?;
+            } else if !self.is_token(TokenKind::ClosingParenth, 0) {
+                Err(IzeErr {
+                    message:
+                        "Pipe struct expecting either comma or closing parenthesis after pasing a line."
+                            .into(),
+                    pos: self.last_pos(),
+                })?
+            }
+            Ok(Some((id, pipe_val)))
+        } else {
+            Err(IzeErr {
+                message: "Pipe struct line expecting an identifier".into(),
+                pos: self.last_pos(),
+            })
         }
     }
 }
