@@ -1,0 +1,53 @@
+// Import commands
+
+import (ize.models.newrelic)
+import (ize.models.newrelic as nr)
+
+import ("my/custom/module.iz")
+import ("my/custom/module.iz" as mymod)
+
+import (
+    ize.models.newrelic,
+    ize.models.newrelic as nr,
+    "my/custom/module.iz",
+    "my/custom/module.iz" as mymod
+)
+
+// Model commands
+
+model MyList List[String]
+model MyModel Map[String, List[Metrics]]
+
+model MyEvent (
+    eventType: String,
+    timestamp as "timestamp.ms": Integer,
+    attributes: Map[String,String],
+    other: ...
+)
+
+// Transfer commands
+
+transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
+    Tuple[String,String].New(in.first, in.second.ToStr())
+    // "New(in.first, in.second.ToStr())" should do the trick as well
+)
+
+transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
+    in.action.Match("^CONTENT_") if? in else? none
+)
+
+transfer LogToEvent MyLog -> MyEvent (
+	attributes: in.attr.Append("message", in.msg),
+	eventType: in.type,
+    timestamp: in.ts*1000
+)
+
+transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
+	name: in.first,
+    value: select in.first as _ (
+        "CPU" -> in.second.Median("value"),
+        "RespTime" -> in.second.Mode("value"),
+        _ -> in.second.Mean("value")
+    ),
+    count: in.second.Len()
+)

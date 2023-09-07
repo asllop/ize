@@ -1,29 +1,44 @@
 //! # IZE Language
 //!
-//! IZE is a programming language specialized in data pipelines and ETL processes, designed to accomplish the following tasks:
+//! IZE is a domain-specific programming language specialized in data pipelines and ETL processes, designed to accomplish the following data related tasks:
+//! - Aggregate
+//! - Buffer
+//! - Combine
+//! - Convert
+//! - Expand
+//! - Filter
+//! - Route
+//! - Wrap
 //!
-//! - Define data models.
-//! - Convert from different data formats.
-//! - Apply data transformations.
-//! - Route data from multiple origins to multiple destinations.
-//! - Define data fetching and pushing policies.
+//! It transpiles into Rust and can run in multiple environments:
+//! - System service (deamon) for Unix-like systems and Windows.
+//! - On-cloud Lambda/Function for AWS, Azure and Google Cloud.
+//! - CLI tool for Unix-like systems and Windows.
 //!
-//! It can either transcompile to Rust or run an interpreter.
-//!
-//! IZE is a statically typed, async oriented, and functional-styled programming language with a minimalistic and expressive syntax.
+//! Is statically typed, async oriented, and declarative, with a minimalistic and expressive syntax, influenced by:
+//! - Protobuf
+//! - Rust / Serde
+//! - Vector VRL
+//! - New Relic Flex
+//! - SQL
+//! - Go
+//! - TypeScript
 
 #![no_std]
 
 #[macro_use]
 extern crate alloc;
 
-mod env;
+mod common;
+pub use common::{IzeErr, Pos};
 
-/// First strage: Lexical analyzer.
+/// Lexical analyzer.
 pub mod lexer;
 
-/// Second stage: Parser.
+/// Abstract Syntax Tree.
+pub mod ast;
+
+/// Parser.
 pub mod parser;
 
-/// Third stage: Interpreter.
-pub mod eval;
+//TODO: tests

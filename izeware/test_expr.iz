@@ -1,0 +1,113 @@
+// Primary expression
+
+100
+-5
+99.4
+"hello"
+true
+my_var
+null
+none
+
+// Equality expression
+
+ten != 10
+num == true
+
+// Comparison expression
+
+10 > "hola"
+true < 9.99
+5 >= 19
+5 <= 19
+num > 10 == true
+num == 10 && num < 20
+num1 == 10 && num2 == 20
+
+// Math & Logic expressions
+
+10 + num * 100
+num & 255
+// NOTE: The parse can't figure out this is a "minus num", and not part of the previous expression.
+// -num + 10
+10 * -num
+!num + 10
+a + b + c + d
+
+// Groups
+
+(num > 10) && (num < 20)
+
+// Conditions
+
+num > 10 if?
+    "big"
+else?
+    "small"
+
+(num > 10) && (num < 20) if?
+    num * 10
+else?
+    (num + var) / 10
+
+value < 10 if?
+	"low"
+else? value < 50 if?
+	"medium"
+else?
+	"high"
+
+// Let
+
+let num -100.67
+let op (num + 100) / 10
+
+num > 10 if?
+    let num 10
+else?
+    num
+
+let x let y let z 100
+
+// Function calls
+
+foo() * 10
+foo(1000)
+foo(1,2,3)
+bar(num * 3,var + 1) + 10
+
+// Dot expressions
+
+this.is.an.expression
+str.Foo().bar
+str.Foo().bar.Doo(num * 3,var + 1)
+10.ToStr()
+
+
+// Chain expressions
+
+let num -100.67; 10*foo(1+2); str.Foo().bar
+// NOTE: The parser can't figure out this is not a bar(x+y) function call
+// (x + y) * 10
+
+state.ExistInt("my_counter") if?
+    let prev state.GetInt("my_counter");
+    state.SetInt("my_counter", in.val) - prev
+else?
+	state.SetInt("my_counter", in.val)
+
+// Select & Unwrap
+
+select metric.name as _ (
+    "CPU" -> in.second.Median("value"),
+    "RespTime" -> in.second.Mode("value"),
+    _ -> in.second.Mean("value")
+)
+
+unwrap var.Get("user") as usr (
+    Integer -> usr.ToStr(),
+    String -> usr,
+    None -> "",
+    CustomType -> "",
+    Tuple[List[String], Map[String, Map[Integer, Float]]] -> "",
+)

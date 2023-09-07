@@ -1,82 +1,77 @@
-// Show all possible syntax forms of an IZE program
+import (
+    ize.models.newrelic,
+    "my/custom/module.iz" as mymod
+)
 
-#import("models/metric.iz")
+// Model de sortida
+model MyEvent (
+	eventType: String,
+	timestamp as "timestamp.ms": Integer,
+	attributes: Map[String,String]
+)
 
-struct User:
-    timestamp as "time.ms": Integer
-    name: String
-    surname: String
-    type: String("free", "full", "admin")
-    birthday:
-        year: Integer(1900..2023)
-        month: Integer(1..12)
-        day: Integer(1..31)
-    range: Float(0.99..1.99)
-    whatever : Integer | None
-    something:Map<String,List<Integer>>
-    address: Address | Null
-    other: ...
+// Model Alias
+model MyInputA Map[String,String]
+model MyInputB Integer
 
-struct Address:
-    street: String
-    number: Integer
+// Transferència
+transfer LogToEvent MyLog -> MyEvent (
+	attributes: in.attr.Append("message", in.msg),
+	eventType: in.type,
+    timestamp: in.ts*1000,
+    is_true: true,
+    is_false: false
+)
 
-struct Something:
-    pattern: String(r"^[a-zA-Z0-9_]+$")
+transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
+	Tuple[String,String].New(in.first, in.second.ToStr())
+)
 
-dyn NewIntType<Integer>
+transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
+	in.action.Match("^CONTENT_") if? in else? none
+)
 
-const MY_NUM = 1001
-const UNICODE_üçí_NAME = 0
-const MY_STR = "This is \t \t\h\x\s\\\n\a an \"escaped\" \ \r \0 \w \xAB string unicode: üçí 'yeha' \\backslash\\\n"
-const NEATIVE_F = -9.09
-const NEATIVE_I = -9
+transfer MyTrans Input -> Output (
+	attr: in.val == "ZERO" if? 0 else? -1,
+	other: in.other
+)
 
-#on_error(abort)
-transfer my_sum(input: List<Integer | Float>) -> Integer | Float:
-    // This is the primary use of MATCH
-    match input:
-        Integer as i:
-            out = i.sum()
-            if out > 255:
-                out = 255
-        Float as f:
-            out = f.sum()
-        _:  // This is not necessary here
-            out = 0
-    out
+transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
+	name: in.first,
+    value: select in.first as _ (
+        "CPU" -> in.second.Median("value"),
+        "RespTime" -> in.second.Mode("value"),
+        _ -> in.second.Mean("value")
+    ),
+    count: in.second.Len()
+)
 
-transfer my_transfer(input: User) -> Integer:
-    // This can be an IF-ELSE chain
-    match input:
-        .type = "free", .name = "Foo":
-            do_foo()
-        .type = "free", .name = "Bar":
-            do_bar()
-        .type = "admin":
-            do_admin()
-        _:
-            do_else()
-    0
+transfer Whatever Mux[Integer,String,None] -> String (
+	unwrap in as _ (
+		Integer -> in.ToStr(),
+		String -> in,
+		None -> ""
+	)
+)
 
-transfer valid_password(input: String) -> Boolean:
-    // This can be an IF-ELSE chain
-    match input:
-        "12345" | "password" | "admin":
-            return false
-        "whatever":
-            return false
-        _:
-            return true
+transfer Whatever Any -> String (
+	unwrap in as _ (
+		Integer -> in.ToStr(),
+		Float -> in.Format(".2"),
+		String -> in,
+		_ -> ""
+	)
+)
 
-pipeline main:
-    from_json:
-        on_error: "skip"
-    my_sum:
-        on_error: "abort"   // Alternative on_error system, the pipeline decides how to handle it, not the transfer.
-    whatever:
-        opts:
-            name: "Hello this is a name"
-            num: 2001
-            f_num: 20.01
-            flag: true
+run pipe MyPipe (
+	ReadHttpPost (
+		url: ".....",
+		body: "......"
+	),
+	FromJson,
+	Buffer (
+		time: 30,
+		size: 500
+	),
+	AggrMyModel
+)
