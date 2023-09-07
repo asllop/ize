@@ -51,3 +51,17 @@ transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
     ),
     count: in.second.Len()
 )
+
+// Pipe commands
+
+pipe MyPipeA (
+	First,
+	Second,
+	Third
+)
+
+run pipe MyPipeB (
+	First,
+	Second,
+	Third
+)

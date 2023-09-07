@@ -1,9 +1,11 @@
+// Examples of IZE syntax
+
 import (
     ize.models.newrelic,
     "my/custom/module.iz" as mymod
 )
 
-// Model de sortida
+// Models
 model MyEvent (
 	eventType: String,
 	timestamp as "timestamp.ms": Integer,
@@ -14,13 +16,13 @@ model MyEvent (
 model MyInputA Map[String,String]
 model MyInputB Integer
 
-// Transferència
+// Transfers
 transfer LogToEvent MyLog -> MyEvent (
 	attributes: in.attr.Append("message", in.msg),
 	eventType: in.type,
     timestamp: in.ts*1000,
     is_true: true,
-    is_false: false
+    other: ...
 )
 
 transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
@@ -62,6 +64,8 @@ transfer Whatever Any -> String (
 		_ -> ""
 	)
 )
+
+// Pipes
 
 run pipe MyPipe (
 	ReadHttpPost (

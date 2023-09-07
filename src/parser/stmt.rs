@@ -8,7 +8,8 @@ use rustc_hash::FxHashMap;
 use crate::{
     ast::{
         Command, CommandSet, DotPath, Expr, FieldName, FieldType, Import, ImportPath, Literal,
-        Model, ModelField, ModelType, Package, StructModel, Transfer, TransferDef, TransferFields,
+        Model, ModelField, ModelType, Package, Pipe, PipeItem, StructModel, Transfer, TransferDef,
+        TransferFields, PipeStruct,
     },
     lexer::TokenKind,
     parser::{common::FromToken, Parser},
@@ -187,7 +188,22 @@ impl Parser {
             });
         }
         self.discard_particle(TokenKind::OpenParenth)?;
-        todo!("parse pipe")
+
+        let pipe_body = self.parse_pipe_body()?;
+
+        if !self.is_token(TokenKind::ClosingParenth, 0) {
+            return Err(IzeErr {
+                message: "Pipe expecting a closing parenthesis after pipe body".into(),
+                pos: self.last_pos(),
+            });
+        }
+        self.discard_particle(TokenKind::ClosingParenth)?;
+        let pipe = Pipe {
+            run,
+            name: pipe_name,
+            items: pipe_body,
+        };
+        Ok(Command::new(CommandSet::Pipe(pipe), pos))
     }
 
     fn parse_import_line(&mut self) -> Result<Option<Package>, IzeErr> {
@@ -366,6 +382,53 @@ impl Parser {
                 message: "Transfer line expecting an identifier".into(),
                 pos: self.last_pos(),
             })
+        }
+    }
+
+    fn parse_pipe_body(&mut self) -> Result<Vec<PipeItem>, IzeErr> {
+        let mut items = Vec::new();
+        while !self.is_token(TokenKind::ClosingParenth, 0) {
+            if let Some(item) = self.parse_pipe_item()? {
+                items.push(item);
+            }
+        }
+        Ok(items)
+    }
+
+    fn parse_pipe_item(&mut self) -> Result<Option<PipeItem>, IzeErr> {
+        if self.is_token(TokenKind::Comma, 0) {
+            // End of line
+            self.discard_particle(TokenKind::Comma)?;
+            Ok(None)
+        } else if self.is_token(TokenKind::ClosingParenth, 0) {
+            // End of command
+            Ok(None)
+        } else if self.is_token(TokenKind::Ident, 0) {
+            let (id, _) = self.consume_token().into_ident()?;
+            let pipe_struct = if let Some(pipe_struct) = self.parse_pipe_struct()? {
+                Some(pipe_struct)
+            } else {
+                None
+            };
+            let pipe_item = PipeItem {
+                name: id,
+                pipe_struct,
+            };
+            Ok(Some(pipe_item))
+        } else {
+            Err(IzeErr {
+                message: "Pipe item expecting an identifier".into(),
+                pos: self.last_pos(),
+            })
+        }
+    }
+
+    fn parse_pipe_struct(&mut self) -> Result<Option<PipeStruct>, IzeErr> {
+        if self.is_token(TokenKind::OpenParenth, 0) {
+            self.discard_particle(TokenKind::OpenParenth)?;
+            todo!("Parse Pipe struct")
+        } else {
+            Ok(None)
         }
     }
 }

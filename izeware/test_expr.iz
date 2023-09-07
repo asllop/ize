@@ -1,3 +1,5 @@
+// NOTE: only parseable calling directly to Parser::expression()
+
 // Primary expression
 
 100
