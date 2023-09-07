@@ -37,13 +37,13 @@ transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
 )
 
 transfer LogToEvent MyLog -> MyEvent (
-	attributes: in.attr.Append("message", in.msg),
-	eventType: in.type,
+    attributes: in.attr.Append("message", in.msg),
+    eventType: in.type,
     timestamp: in.ts*1000
 )
 
 transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
-	name: in.first,
+    name: in.first,
     value: select in.first as _ (
         "CPU" -> in.second.Median("value"),
         "RespTime" -> in.second.Mode("value"),
@@ -55,19 +55,19 @@ transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
 // Pipe commands
 
 pipe MyPipeA (
-	First,
-	Second,
-	Third
+    First,
+    Second,
+    Third
 )
 
 run pipe MyPipeB (
-	First,
-	Second,
-	Third
+    First,
+    Second,
+    Third
 )
 
 run pipe MyPipe (
-	ReadHttpPost (
+    ReadHttpPost (
         url: ".....",
         body: "......"
     ),

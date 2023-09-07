@@ -7,9 +7,9 @@ import (
 
 // Models
 model MyEvent (
-	eventType: String,
-	timestamp as "timestamp.ms": Integer,
-	attributes: Map[String,String]
+    eventType: String,
+    timestamp as "timestamp.ms": Integer,
+    attributes: Map[String,String]
 )
 
 // Model Alias
@@ -18,28 +18,28 @@ model MyInputB Integer
 
 // Transfers
 transfer LogToEvent MyLog -> MyEvent (
-	attributes: in.attr.Append("message", in.msg),
-	eventType: in.type,
+    attributes: in.attr.Append("message", in.msg),
+    eventType: in.type,
     timestamp: in.ts*1000,
     is_true: true,
     other: ...
 )
 
 transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
-	Tuple[String,String].New(in.first, in.second.ToStr())
+    Tuple[String,String].New(in.first, in.second.ToStr())
 )
 
 transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
-	in.action.Match("^CONTENT_") if? in else? none
+    in.action.Match("^CONTENT_") if? in else? none
 )
 
 transfer MyTrans Input -> Output (
-	attr: in.val == "ZERO" if? 0 else? -1,
-	other: in.other
+    attr: in.val == "ZERO" if? 0 else? -1,
+    other: in.other
 )
 
 transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
-	name: in.first,
+    name: in.first,
     value: select in.first as _ (
         "CPU" -> in.second.Median("value"),
         "RespTime" -> in.second.Mode("value"),
@@ -49,33 +49,33 @@ transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
 )
 
 transfer Whatever Mux[Integer,String,None] -> String (
-	unwrap in as _ (
-		Integer -> in.ToStr(),
-		String -> in,
-		None -> ""
-	)
+    unwrap in as _ (
+        Integer -> in.ToStr(),
+        String -> in,
+        None -> ""
+    )
 )
 
 transfer Whatever Any -> String (
-	unwrap in as _ (
-		Integer -> in.ToStr(),
-		Float -> in.Format(".2"),
-		String -> in,
-		_ -> ""
-	)
+    unwrap in as _ (
+        Integer -> in.ToStr(),
+        Float -> in.Format(".2"),
+        String -> in,
+        _ -> ""
+    )
 )
 
 // Pipes
 
 run pipe MyPipe (
-	ReadHttpPost (
-		url: ".....",
-		body: "......"
-	),
-	FromJson,
-	Buffer (
-		time: 30,
-		size: 500
-	),
-	AggrMyModel
+    ReadHttpPost (
+        url: ".....",
+        body: "......"
+    ),
+    FromJson,
+    Buffer (
+        time: 30,
+        size: 500
+    ),
+    AggrMyModel
 )
