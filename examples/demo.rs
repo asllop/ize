@@ -39,9 +39,8 @@ fn main() {
     println!("\n------ PARSER\n");
 
     let mut parser = Parser::new(tokens);
-    //let _commands = parser.parse().expect("Error parsing");
-    while !parser.ended() {
-        let cmd = parser.command().expect("Error parsing command");
+    let commands = parser.parse().expect("Error parsing");
+    commands.iter().for_each(|cmd| {
         println!("-------------------\n{:#?}", cmd);
-    }
+    });
 }

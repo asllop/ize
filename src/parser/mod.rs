@@ -26,7 +26,10 @@ impl Parser {
 
     /// Parse the entire program.
     pub fn parse(&mut self) -> Result<Vec<Command>, IzeErr> {
-        //TODO: parse all commands and return a vector
-        todo!()
+        let mut commands = Vec::new();
+        while !self.ended() {
+            commands.push(self.command()?);
+        }
+        Ok(commands)
     }
 }
