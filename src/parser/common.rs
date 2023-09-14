@@ -4,6 +4,7 @@
 
 use crate::{
     ast::Literal,
+    common::BuildErr,
     lexer::{Lexeme, Token, TokenKind},
     parser::Parser,
     IzeErr, Pos,
@@ -22,10 +23,7 @@ impl FromToken for Option<Token> {
         if let Some(token) = self {
             Ok((token.lexeme, token.pos))
         } else {
-            Err(IzeErr {
-                message: "Token is None".into(),
-                pos: Pos::default(),
-            })
+            Result::ize_err("Token is None".into(), Pos::default())
         }
     }
 
@@ -34,10 +32,7 @@ impl FromToken for Option<Token> {
         if let Lexeme::Particle(t) = lexeme {
             Ok((t, pos))
         } else {
-            Err(IzeErr {
-                message: "Expected a particle".into(),
-                pos: Pos::default(),
-            })
+            Result::ize_err("Expected a particle".into(), Pos::default())
         }
     }
 
@@ -46,10 +41,7 @@ impl FromToken for Option<Token> {
         if let Lexeme::Ident(s) = lexeme {
             Ok((s, pos))
         } else {
-            Err(IzeErr {
-                message: "Expected an identifier".into(),
-                pos: Pos::default(),
-            })
+            Result::ize_err("Expected an identifier".into(), Pos::default())
         }
     }
 
@@ -62,10 +54,7 @@ impl FromToken for Option<Token> {
             Lexeme::String(s) => Ok((Literal::String(s), pos)),
             Lexeme::Particle(TokenKind::NullLiteral) => Ok((Literal::Null, pos)),
             Lexeme::Particle(TokenKind::NoneLiteral) => Ok((Literal::None, pos)),
-            _ => Err(IzeErr {
-                message: "Expected a literal".into(),
-                pos: Pos::default(),
-            }),
+            _ => Result::ize_err("Expected a literal".into(), Pos::default()),
         }
     }
 }
@@ -87,16 +76,10 @@ impl Parser {
                 if token_kind == particle {
                     Ok(())
                 } else {
-                    Err(IzeErr {
-                        message: "Unexpected particle type".into(),
-                        pos: self.last_pos(),
-                    })
+                    Result::ize_err("Unexpected particle type".into(), self.last_pos())
                 }
             }
-            Err(_) => Err(IzeErr {
-                message: "Unexpected token type".into(),
-                pos: self.last_pos(),
-            }),
+            Err(_) => Result::ize_err("Unexpected token type".into(), self.last_pos()),
         }
     }
 
@@ -126,10 +109,7 @@ impl Parser {
         err_msg: &str,
     ) -> Result<(), IzeErr> {
         if !self.is_token(token_type, offset) {
-            Err(IzeErr {
-                message: err_msg.into(),
-                pos: self.last_pos(),
-            })
+            Result::ize_err(err_msg.into(), self.last_pos())
         } else {
             Ok(())
         }

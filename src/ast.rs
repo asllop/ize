@@ -2,24 +2,28 @@
 //!
 //! The AST models the code structure. This crate contains a collection of types to build and represent an AST.
 
-use crate::{lexer::TokenKind, IzeErr, Pos};
+use crate::{common::BuildErr, lexer::TokenKind, IzeErr, Pos};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
 /// Abstract Syntax Tree. Represents a parsed IZE file.
 pub struct Ast {
-    /// Module name, result of an import.
-    pub symbol: String,
     /// List of commands.
     pub commands: Vec<Command>,
-    /// File name.
-    pub file: String,
+    // Imported modules: other ASTs, each one associated with an alias.
+    pub imports: FxHashMap<String, Ast>,
 }
 
 impl<'a> Ast {
     pub fn build(_code: &'a str) -> Result<Self, IzeErr> {
         //TODO: call the lexer, parser, semantic checker and code generator
+        /* TODO:
+           - Tokenize all.
+           - Parse one command:
+               - if it's an import, load files and call build recursively on them. Put the resulting AST in "imports".
+               - If any other command, just add to "commands".
+        */
         todo!("Parse and build AST")
     }
 }
@@ -71,10 +75,10 @@ impl TryFrom<TokenKind> for BinaryOp {
             TokenKind::TwoOrs => Ok(BinaryOp::LazyOr),
             TokenKind::TwoEquals => Ok(BinaryOp::Equal),
             TokenKind::NotEqual => Ok(BinaryOp::NotEqual),
-            _ => Err(IzeErr {
-                message: "Invalid TokenKind to BinaryOp conversion".into(),
-                pos: Default::default(),
-            }),
+            _ => Result::ize_err(
+                "Invalid TokenKind to BinaryOp conversion".into(),
+                Pos::default(),
+            ),
         }
     }
 }
@@ -341,10 +345,10 @@ impl TryFrom<TokenKind> for TypeId {
             TokenKind::ListType => Ok(Self::List),
             TokenKind::MuxType => Ok(Self::Mux),
             TokenKind::TupleType => Ok(Self::Tuple),
-            _ => Err(IzeErr {
-                message: "Invalid TokenKind to TypeId conversion".into(),
-                pos: Default::default(),
-            }),
+            _ => Result::ize_err(
+                "Invalid TokenKind to TypeId conversion".into(),
+                Pos::default(),
+            ),
         }
     }
 }

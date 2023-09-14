@@ -2,7 +2,7 @@
 //!
 //! The lexer reads raw source code and converts it into a vector of [Token](crate::lexer::Token)s.
 
-use crate::{IzeErr, Pos};
+use crate::{common::BuildErr, IzeErr, Pos};
 use alloc::string::String;
 use logos::Logos;
 
@@ -217,10 +217,7 @@ impl<'a> Lexer<'a> {
                             self.last_pos = next_pos;
                             Ok(token)
                         }
-                        Err(err) => Err(IzeErr {
-                            message: format!("{:?}", err),
-                            pos: next_pos,
-                        }),
+                        Err(err) => Result::ize_err(format!("{:?}", err), next_pos),
                     },
                     TokenKind::FloatLiteral => match str::parse(fragment) {
                         Ok(n) => {
@@ -229,10 +226,7 @@ impl<'a> Lexer<'a> {
                             self.last_pos = next_pos;
                             Ok(token)
                         }
-                        Err(err) => Err(IzeErr {
-                            message: format!("{:?}", err),
-                            pos: next_pos,
-                        }),
+                        Err(err) => Result::ize_err(format!("{:?}", err), next_pos),
                     },
                     TokenKind::StringLiteral => {
                         let token = Token::new(Lexeme::String(fragment.into()), next_pos);
@@ -260,10 +254,7 @@ impl<'a> Lexer<'a> {
                     }
                 }
             } else {
-                return Err(IzeErr {
-                    message: format!("Unrecognized lexeme: '{}'", fragment),
-                    pos: next_pos,
-                });
+                return Result::ize_err(format!("Unrecognized lexeme: '{}'", fragment), next_pos);
             }
         } else {
             // EOF

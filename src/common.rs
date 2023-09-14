@@ -9,6 +9,18 @@ pub struct IzeErr {
     pub pos: Pos,
 }
 
+/// Build an ize error for any generic result type.
+pub trait BuildErr {
+    /// Build ize error.
+    fn ize_err(message: String, pos: Pos) -> Self;
+}
+
+impl<T> BuildErr for Result<T, IzeErr> {
+    fn ize_err(message: String, pos: Pos) -> Self {
+        Err(IzeErr { message, pos })
+    }
+}
+
 #[derive(Debug, Default, Copy, Clone)]
 /// Position of language element in the code.
 pub struct Pos {

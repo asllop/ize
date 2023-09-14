@@ -11,6 +11,7 @@ use crate::{
         Model, ModelField, ModelType, Package, Pipe, PipeItem, PipeStruct, PipeVal, StructModel,
         Transfer, TransferDef, TransferFields,
     },
+    common::BuildErr,
     lexer::TokenKind,
     parser::{common::FromToken, Parser},
     IzeErr,
@@ -28,10 +29,7 @@ impl Parser {
         } else if self.check_tokens(&[TokenKind::Run, TokenKind::Pipe], 0) {
             self.pipe_command()
         } else {
-            Err(IzeErr {
-                message: "Unknown command".into(),
-                pos: self.last_pos(),
-            })
+            Result::ize_err("Unknown command".into(), self.last_pos())
         }
     }
 
@@ -88,10 +86,10 @@ impl Parser {
                 };
                 Ok(Command::new(CommandSet::Model(model), pos))
             } else {
-                Err(IzeErr {
-                    message: "Expecting a type for model definition".into(),
-                    pos: self.last_pos(),
-                })
+                Result::ize_err(
+                    "Expecting a type for model definition".into(),
+                    self.last_pos(),
+                )
             }
         }
     }
@@ -107,10 +105,7 @@ impl Parser {
         let input_type = if let Some((input_type, _)) = self.parse_type()? {
             input_type
         } else {
-            return Err(IzeErr {
-                message: "Transfer expecting an input type".into(),
-                pos: self.last_pos(),
-            });
+            return Result::ize_err("Transfer expecting an input type".into(), self.last_pos());
         };
         self.assert_token(
             TokenKind::Arrow,
@@ -121,10 +116,7 @@ impl Parser {
         let output_type = if let Some((output_type, _)) = self.parse_type()? {
             output_type
         } else {
-            return Err(IzeErr {
-                message: "Transfer expecting an output type".into(),
-                pos: self.last_pos(),
-            });
+            return Result::ize_err("Transfer expecting an output type".into(), self.last_pos());
         };
         self.assert_token(
             TokenKind::OpenParenth,
@@ -211,10 +203,7 @@ impl Parser {
                     alias,
                 }))
             } else {
-                Err(IzeErr {
-                    message: "Expecting a string literal".into(),
-                    pos: self.last_pos(),
-                })
+                Result::ize_err("Expecting a string literal".into(), self.last_pos())
             }
         } else if self.is_token(TokenKind::Ident, 0) {
             let dot_path = self.parse_dot_path()?;
@@ -230,10 +219,7 @@ impl Parser {
                 alias,
             }))
         } else {
-            Err(IzeErr {
-                message: "Unrecognized import line format".into(),
-                pos: self.last_pos(),
-            })
+            Result::ize_err("Unrecognized import line format".into(), self.last_pos())
         }
     }
 
@@ -278,17 +264,16 @@ impl Parser {
                         };
                         Ok(Some((field_name, model_field)))
                     } else {
-                        Err(IzeErr {
-                            message: "Expecting a type for model field definition".into(),
-                            pos: self.last_pos(),
-                        })
+                        Result::ize_err(
+                            "Expecting a type for model field definition".into(),
+                            self.last_pos(),
+                        )
                     }
                 } else {
-                    Err(IzeErr {
-                        message: "Model definition expecting a string literal as field alias"
-                            .into(),
-                        pos: self.last_pos(),
-                    })
+                    Result::ize_err(
+                        "Model definition expecting a string literal as field alias".into(),
+                        self.last_pos(),
+                    )
                 }
             } else {
                 // Field definition without rename
@@ -312,17 +297,14 @@ impl Parser {
                     };
                     Ok(Some((field_name, model_field)))
                 } else {
-                    Err(IzeErr {
-                        message: "Expecting a type for model field definition".into(),
-                        pos: self.last_pos(),
-                    })
+                    Result::ize_err(
+                        "Expecting a type for model field definition".into(),
+                        self.last_pos(),
+                    )
                 }
             }
         } else {
-            Err(IzeErr {
-                message: "Unrecognized model line format".into(),
-                pos: self.last_pos(),
-            })
+            Result::ize_err("Unrecognized model line format".into(), self.last_pos())
         }
     }
 
@@ -351,16 +333,16 @@ impl Parser {
                 let expr = self.expression()?;
                 Ok(Some((attr_name, expr)))
             } else {
-                Err(IzeErr {
-                    message: "Transfer line expecting a colon after identifier".into(),
-                    pos: self.last_pos(),
-                })
+                Result::ize_err(
+                    "Transfer line expecting a colon after identifier".into(),
+                    self.last_pos(),
+                )
             }
         } else {
-            Err(IzeErr {
-                message: "Transfer line expecting an identifier".into(),
-                pos: self.last_pos(),
-            })
+            Result::ize_err(
+                "Transfer line expecting an identifier".into(),
+                self.last_pos(),
+            )
         }
     }
 
@@ -390,10 +372,7 @@ impl Parser {
             };
             Ok(Some(pipe_item))
         } else {
-            Err(IzeErr {
-                message: "Pipe item expecting an identifier".into(),
-                pos: self.last_pos(),
-            })
+            Result::ize_err("Pipe item expecting an identifier".into(), self.last_pos())
         }
     }
 
@@ -442,18 +421,17 @@ impl Parser {
                 if let Some(pipe_struct) = self.parse_pipe_struct()? {
                     PipeVal::Struct(pipe_struct)
                 } else {
-                    Err(IzeErr {
-                        message: "Pipe struct line expecting a struct as value.".into(),
-                        pos: self.last_pos(),
-                    })?
+                    Result::ize_err(
+                        "Pipe struct line expecting a struct as value.".into(),
+                        self.last_pos(),
+                    )?
                 }
             } else {
-                Err(IzeErr {
-                    message:
-                        "Pipe struct line expecting a valid value: identifier, literal or struct."
-                            .into(),
-                    pos: self.last_pos(),
-                })?
+                Result::ize_err(
+                    "Pipe struct line expecting a valid value: identifier, literal or struct."
+                        .into(),
+                    self.last_pos(),
+                )?
             };
             if self.is_token(TokenKind::Comma, 0) {
                 self.discard_particle(TokenKind::Comma)?;
@@ -462,10 +440,10 @@ impl Parser {
             }
             Ok(Some((id, pipe_val)))
         } else {
-            Err(IzeErr {
-                message: "Pipe struct line expecting an identifier".into(),
-                pos: self.last_pos(),
-            })
+            Result::ize_err(
+                "Pipe struct line expecting an identifier".into(),
+                self.last_pos(),
+            )
         }
     }
 }

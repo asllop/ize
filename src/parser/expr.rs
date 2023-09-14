@@ -4,6 +4,7 @@
 
 use crate::{
     ast::{Arm, BinaryOp, Expr, ExprSet, Type, TypeId, UnaryOp},
+    common::BuildErr,
     lexer::TokenKind,
     parser::{common::FromToken, Parser},
     IzeErr, Pos,
@@ -103,10 +104,10 @@ impl Parser {
                     if_pos,
                 ))
             } else {
-                Err(IzeErr {
-                    message: "Expected 'else?' keyword after 'if?' expression".into(),
-                    pos: self.last_pos(),
-                })
+                Result::ize_err(
+                    "Expected 'else?' keyword after 'if?' expression".into(),
+                    self.last_pos(),
+                )
             }
         } else {
             Ok(expr)
@@ -155,10 +156,7 @@ impl Parser {
             let op = match op {
                 TokenKind::Not => Ok(UnaryOp::Negate),
                 TokenKind::Minus => Ok(UnaryOp::Minus),
-                _ => Err(IzeErr {
-                    message: "Token is not a unary operator".into(),
-                    pos: op_pos,
-                }),
+                _ => Result::ize_err("Token is not a unary operator".into(), op_pos),
             }?;
             let right = self.unary_expr()?;
             let pos = right.pos;
@@ -189,10 +187,10 @@ impl Parser {
                     let_pos,
                 ))
             } else {
-                Err(IzeErr {
-                    message: "Let must be followed by an identifier".into(),
-                    pos: self.last_pos(),
-                })
+                Result::ize_err(
+                    "Let must be followed by an identifier".into(),
+                    self.last_pos(),
+                )
             }
         } else {
             self.next_expr(ExprType::Let)
@@ -300,18 +298,18 @@ impl Parser {
             // If we are here, something is badly formed
             if let Some(next_token) = self.consume_token() {
                 //TODO: check the next token and see if we can provide a more specific error message
-                Err(IzeErr {
-                    message: format!(
+                Result::ize_err(
+                    format!(
                         "Couldn't parse a valid expression. Last token: {:?}",
                         next_token.lexeme
                     ),
-                    pos: next_token.pos,
-                })
+                    next_token.pos,
+                )
             } else {
-                Err(IzeErr {
-                    message: "Couldn't parse a valid expression at end".into(),
-                    pos: Pos { row: 0, col: 0 },
-                })
+                Result::ize_err(
+                    "Couldn't parse a valid expression at end".into(),
+                    Pos::default(),
+                )
             }
         }
     }
@@ -490,10 +488,7 @@ impl Parser {
                 id: TypeId::None,
                 inner: Default::default(),
             },
-            _ => Err(IzeErr {
-                message: "Unexpected token, expecting a base type".into(),
-                pos,
-            })?,
+            _ => Result::ize_err("Unexpected token, expecting a base type".into(), pos)?,
         };
         Ok(Some((ize_type, pos)))
     }
@@ -518,16 +513,13 @@ impl Parser {
                     self.discard_particle(TokenKind::ClosingClause)?;
                     break;
                 } else {
-                    Err(IzeErr {
-                        message: "Type expected comma or closing clause".into(),
-                        pos: self.last_pos(),
-                    })?;
+                    Result::ize_err(
+                        "Type expected comma or closing clause".into(),
+                        self.last_pos(),
+                    )?;
                 }
             } else {
-                Err(IzeErr {
-                    message: "Expecting an inner type".into(),
-                    pos: self.last_pos(),
-                })?;
+                Result::ize_err("Expecting an inner type".into(), self.last_pos())?;
             }
         }
         let ize_type = Type {
