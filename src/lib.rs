@@ -49,3 +49,35 @@ pub mod semanter;
 pub mod ext;
 
 //TODO: tests
+
+use alloc::string::String;
+use ast::{Ast, CommandSet, ImportPath};
+use lexer::Lexer;
+use parser::Parser;
+
+/// Build AST
+pub fn build<'a>(code: &'a str, reader: fn(&ImportPath) -> String) -> Result<Ast, IzeErr> {
+    let mut ast = ast::Ast {
+        commands: Default::default(),
+        imports: Default::default(),
+    };
+
+    let mut parser = Parser::new(Lexer::new(code).tokenize()?);
+
+    while !parser.ended() {
+        let command = parser.command()?;
+        if let CommandSet::Import(import) = command.command {
+            for pkg in import.packages {
+                let pkg_ast = build(&reader(&pkg.path), reader)?;
+                //TODO: what if alias is None??? We have to get it from the package last component
+                ast.imports.insert(pkg.alias.unwrap(), pkg_ast);
+            }
+        } else {
+            ast.commands.push(command);
+        }
+    }
+
+    //TODO: call the semantic checker
+
+    Ok(ast)
+}

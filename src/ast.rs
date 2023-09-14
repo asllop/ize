@@ -15,19 +15,6 @@ pub struct Ast {
     pub imports: FxHashMap<String, Ast>,
 }
 
-impl<'a> Ast {
-    pub fn build(_code: &'a str) -> Result<Self, IzeErr> {
-        //TODO: call the lexer, parser, semantic checker and code generator
-        /* TODO:
-           - Tokenize all.
-           - Parse one command:
-               - if it's an import, load files and call build recursively on them. Put the resulting AST in "imports".
-               - If any other command, just add to "commands".
-        */
-        todo!("Parse and build AST")
-    }
-}
-
 #[derive(Debug)]
 /// Unary operation set.
 pub enum UnaryOp {

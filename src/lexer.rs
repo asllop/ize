@@ -3,7 +3,7 @@
 //! The lexer reads raw source code and converts it into a vector of [Token](crate::lexer::Token)s.
 
 use crate::{common::BuildErr, IzeErr, Pos};
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
@@ -177,13 +177,29 @@ impl<'a> Lexer<'a> {
     pub fn new(code: &'a str) -> Self {
         Self {
             current_code: code,
-            last_pos: Pos::new(0, 0),
+            last_pos: Pos::default(),
         }
     }
 
     /// Position of last read token.
     pub fn pos(&self) -> Pos {
         self.last_pos
+    }
+
+    /// Scan all tokens
+    pub fn tokenize(&mut self) -> Result<Vec<Token>, IzeErr> {
+        let mut tokens = Vec::new();
+        loop {
+            let token = self.scan_token().expect("Error scanning tokens");
+            match token.lexeme {
+                Lexeme::EOF => break,
+                Lexeme::Nothing => {}
+                _ => {
+                    tokens.push(token);
+                }
+            }
+        }
+        Ok(tokens)
     }
 
     /// Scan next token from the source code.
@@ -229,7 +245,8 @@ impl<'a> Lexer<'a> {
                         Err(err) => Result::ize_err(format!("{:?}", err), next_pos),
                     },
                     TokenKind::StringLiteral => {
-                        let token = Token::new(Lexeme::String(fragment.into()), next_pos);
+                        let literal_str = fragment[1..fragment.len() - 1].into();
+                        let token = Token::new(Lexeme::String(literal_str), next_pos);
                         next_pos.col += lex_offs.end - lex_offs.start;
                         self.last_pos = next_pos;
                         Ok(token)

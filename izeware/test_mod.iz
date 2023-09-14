@@ -1,0 +1,30 @@
+import (
+    "izeware/mods/mod1.iz" as mod1,
+    "izeware/mods/mod2.iz" as mod2
+)
+
+model MyList List[String]
+model MyModel Map[String, List[Metrics]]
+
+transfer LogToEvent MyLog -> MyEvent (
+    attributes: in.attr.Append("message", in.msg),
+    eventType: in.type,
+    timestamp: in.ts*1000
+)
+
+run pipe MyPipe (
+    ReadHttpPost (
+        url: ".....",
+        body: "......"
+    ),
+    FromJson,
+    Buffer (
+        time: 30,
+        size: 500,
+        args: (
+            one: 1,
+            two: 2
+        )
+    ),
+    AggrMyModel
+)
