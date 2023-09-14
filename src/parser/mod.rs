@@ -8,6 +8,8 @@ mod expr;
 
 mod stmt;
 
+mod import;
+
 use crate::{ast::Command, lexer::Token, IzeErr};
 use alloc::{collections::VecDeque, vec::Vec};
 

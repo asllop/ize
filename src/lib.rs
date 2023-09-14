@@ -29,6 +29,7 @@
 #[macro_use]
 extern crate alloc;
 
+// Common types, used by all parts of the crate.
 mod common;
 pub use common::{IzeErr, Pos};
 
@@ -38,7 +39,13 @@ pub mod lexer;
 /// Abstract Syntax Tree.
 pub mod ast;
 
-/// Parser.
+/// Parser (syntactic analyzer).
 pub mod parser;
+
+/// Semantic analyzer.
+pub mod semanter;
+
+/// Interface for creating Extensions / Plugins.
+pub mod ext;
 
 //TODO: tests
