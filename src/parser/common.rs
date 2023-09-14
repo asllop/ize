@@ -118,6 +118,23 @@ impl Parser {
         }
     }
 
+    /// Check for a particular token and return an error if not found.
+    pub(crate) fn assert_token(
+        &mut self,
+        token_type: TokenKind,
+        offset: usize,
+        err_msg: &str,
+    ) -> Result<(), IzeErr> {
+        if !self.is_token(token_type, offset) {
+            Err(IzeErr {
+                message: err_msg.into(),
+                pos: self.last_pos(),
+            })
+        } else {
+            Ok(())
+        }
+    }
+
     /// Check for a list of tokens.
     pub(crate) fn check_tokens(&mut self, token_types: &[TokenKind], offset: usize) -> bool {
         // Check if token exist at the specified offset

@@ -162,15 +162,16 @@ impl Parser {
             }?;
             let right = self.unary_expr()?;
             let pos = right.pos;
-            return Ok(Expr::new(
+            Ok(Expr::new(
                 ExprSet::Unary {
                     op,
                     expr: Box::new(right),
                 },
                 pos,
-            ));
+            ))
+        } else {
+            self.next_expr(ExprType::Unary)
         }
-        self.next_expr(ExprType::Unary)
     }
 
     fn let_expr(&mut self) -> Result<Expr, IzeErr> {
@@ -230,12 +231,11 @@ impl Parser {
                         self.discard_particle(TokenKind::ClosingParenth)?;
                         break;
                     }
-                    if !self.is_token(TokenKind::Comma, 0) {
-                        return Err(IzeErr {
-                            message: "Expected a comma after function argument".into(),
-                            pos: self.last_pos(),
-                        });
-                    }
+                    self.assert_token(
+                        TokenKind::Comma,
+                        0,
+                        "Expected a comma after function argument",
+                    )?;
                     self.discard_particle(TokenKind::Comma)?;
                 }
                 Ok(Expr::new(
@@ -264,12 +264,11 @@ impl Parser {
         if self.is_token(TokenKind::OpenParenth, 0) {
             self.discard_particle(TokenKind::OpenParenth)?;
             let expr = self.expression()?;
-            if !self.is_token(TokenKind::ClosingParenth, 0) {
-                return Err(IzeErr {
-                    message: "Group without closing parenthesis".into(),
-                    pos: self.last_pos(),
-                });
-            }
+            self.assert_token(
+                TokenKind::ClosingParenth,
+                0,
+                "Group without closing parenthesis",
+            )?;
             self.discard_particle(TokenKind::ClosingParenth)?;
             let pos = expr.pos;
             Ok(Expr::new(
@@ -284,38 +283,36 @@ impl Parser {
     }
 
     fn primary_expr(&mut self) -> Result<Expr, IzeErr> {
-        // Literal
         if self.is_literal(0) {
+            // Literal
             let (lit, pos) = self.consume_token().into_literal()?;
             let expr = Expr::new(ExprSet::Literal(lit), pos);
-            return Ok(expr);
-        }
-        // Identifier
-        if self.is_token(TokenKind::Ident, 0) {
+            Ok(expr)
+        } else if self.is_token(TokenKind::Ident, 0) {
+            // Identifier
             let (id, pos) = self.consume_token().into_ident()?;
             let expr = Expr::new(ExprSet::Identifier(id), pos);
-            return Ok(expr);
-        }
-        // Type
-        if let Some((ize_type, pos)) = self.parse_type()? {
-            return Ok(Expr::new(ExprSet::Type(ize_type), pos));
-        }
-
-        // If we are here, something is badly formed
-        if let Some(next_token) = self.consume_token() {
-            //TODO: check the next token and see if we can provide a more specific error message
-            Err(IzeErr {
-                message: format!(
-                    "Couldn't parse a valid expression. Last token: {:?}",
-                    next_token.lexeme
-                ),
-                pos: next_token.pos,
-            })
+            Ok(expr)
+        } else if let Some((ize_type, pos)) = self.parse_type()? {
+            // Type
+            Ok(Expr::new(ExprSet::Type(ize_type), pos))
         } else {
-            Err(IzeErr {
-                message: "Couldn't parse a valid expression at end".into(),
-                pos: Pos { row: 0, col: 0 },
-            })
+            // If we are here, something is badly formed
+            if let Some(next_token) = self.consume_token() {
+                //TODO: check the next token and see if we can provide a more specific error message
+                Err(IzeErr {
+                    message: format!(
+                        "Couldn't parse a valid expression. Last token: {:?}",
+                        next_token.lexeme
+                    ),
+                    pos: next_token.pos,
+                })
+            } else {
+                Err(IzeErr {
+                    message: "Couldn't parse a valid expression at end".into(),
+                    pos: Pos { row: 0, col: 0 },
+                })
+            }
         }
     }
 
@@ -372,13 +369,11 @@ impl Parser {
         }
 
         let value = self.expression()?;
-        if !self.is_token(TokenKind::Arrow, 0) {
-            return Err(IzeErr {
-                message: "Expected an arrow to structure the arm".into(),
-                pos: self.last_pos(),
-            });
-        }
-
+        self.assert_token(
+            TokenKind::Arrow,
+            0,
+            "Expected an arrow to structure the arm",
+        )?;
         self.discard_particle(TokenKind::Arrow)?;
 
         let action = self.expression()?;
@@ -397,22 +392,24 @@ impl Parser {
         let (_, block_pos) = self.consume_token().into_particle()?; // consume keyword "select" or "unwrap"
         let expr = self.expression()?;
 
-        if !(self.is_token(TokenKind::As, 0) && self.is_token(TokenKind::Ident, 1)) {
-            return Err(IzeErr {
-                message: "Unwrap/Select block expected keyword 'as' and an identifier".into(),
-                pos: self.last_pos(),
-            });
-        }
-
+        self.assert_token(
+            TokenKind::As,
+            0,
+            "Unwrap/Select block expected keyword 'as'",
+        )?;
         self.discard_particle(TokenKind::As)?;
+        self.assert_token(
+            TokenKind::Ident,
+            0,
+            "Unwrap/Select block expected an identifier",
+        )?;
         let (alias, _) = self.consume_token().into_ident()?;
 
-        if !self.is_token(TokenKind::OpenParenth, 0) {
-            return Err(IzeErr {
-                message: "Unwrap/Select block missing open parenthesis".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::OpenParenth,
+            0,
+            "Unwrap/Select block missing open parenthesis",
+        )?;
         self.discard_particle(TokenKind::OpenParenth)?;
 
         let mut arms = Vec::new();
@@ -420,12 +417,11 @@ impl Parser {
             arms.push(arm);
         }
 
-        if !self.is_token(TokenKind::ClosingParenth, 0) {
-            return Err(IzeErr {
-                message: "Unwrap/Select block missing closing parenthesis".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::ClosingParenth,
+            0,
+            "Unwrap/Select block missing closing parenthesis",
+        )?;
         self.discard_particle(TokenKind::ClosingParenth)?;
 
         Ok((block_pos, expr, alias, arms))
@@ -505,13 +501,11 @@ impl Parser {
     /// Parse a compound type (Map, List, Tuple, and Mux)
     fn parse_compound_type(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
         let (type_token, pos) = self.consume_token().into_particle()?;
-        if !self.is_token(TokenKind::OpenClause, 0) {
-            return Err(IzeErr {
-                message: "Expected open clause on a compound type (Map, List, Tuple, and Mux)"
-                    .into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::OpenClause,
+            0,
+            "Expected open clause on a compound type (Map, List, Tuple, and Mux)",
+        )?;
         self.discard_particle(TokenKind::OpenClause)?;
         let mut inner_types = Vec::new();
         loop {
@@ -524,16 +518,16 @@ impl Parser {
                     self.discard_particle(TokenKind::ClosingClause)?;
                     break;
                 } else {
-                    return Err(IzeErr {
+                    Err(IzeErr {
                         message: "Type expected comma or closing clause".into(),
                         pos: self.last_pos(),
-                    });
+                    })?;
                 }
             } else {
-                return Err(IzeErr {
+                Err(IzeErr {
                     message: "Expecting an inner type".into(),
                     pos: self.last_pos(),
-                });
+                })?;
             }
         }
         let ize_type = Type {

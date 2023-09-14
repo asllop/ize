@@ -37,12 +37,11 @@ impl Parser {
 
     fn import_command(&mut self) -> Result<Command, IzeErr> {
         let (_, pos) = self.consume_token().into_particle()?; // Consume "import"
-        if !self.is_token(TokenKind::OpenParenth, 0) {
-            return Err(IzeErr {
-                message: "Expecting an open parenthesis after import command".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::OpenParenth,
+            0,
+            "Expecting an open parenthesis after import command",
+        )?;
         self.discard_particle(TokenKind::OpenParenth)?;
         let mut packages = Vec::new();
         while !self.is_token(TokenKind::ClosingParenth, 0) {
@@ -57,12 +56,7 @@ impl Parser {
 
     fn model_command(&mut self) -> Result<Command, IzeErr> {
         let (_, pos) = self.consume_token().into_particle()?; // Consume "model"
-        if !self.is_token(TokenKind::Ident, 0) {
-            return Err(IzeErr {
-                message: "Expecting an identifier as model name".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(TokenKind::Ident, 0, "Expecting an identifier as model name")?;
         let (model_name, _) = self.consume_token().into_ident()?;
         if self.is_token(TokenKind::OpenParenth, 0) {
             // Struct model
@@ -104,12 +98,11 @@ impl Parser {
 
     fn transfer_command(&mut self) -> Result<Command, IzeErr> {
         let (_, pos) = self.consume_token().into_particle()?; // Consume "transfer"
-        if !self.is_token(TokenKind::Ident, 0) {
-            return Err(IzeErr {
-                message: "Expecting an identifier as transfer name".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::Ident,
+            0,
+            "Expecting an identifier as transfer name",
+        )?;
         let (transfer_name, _) = self.consume_token().into_ident()?;
         let input_type = if let Some((input_type, _)) = self.parse_type()? {
             input_type
@@ -119,12 +112,11 @@ impl Parser {
                 pos: self.last_pos(),
             });
         };
-        if !self.is_token(TokenKind::Arrow, 0) {
-            return Err(IzeErr {
-                message: "Transfer expecting an arrow between input and output types".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::Arrow,
+            0,
+            "Transfer expecting an arrow between input and output types",
+        )?;
         self.discard_particle(TokenKind::Arrow)?;
         let output_type = if let Some((output_type, _)) = self.parse_type()? {
             output_type
@@ -134,12 +126,11 @@ impl Parser {
                 pos: self.last_pos(),
             });
         };
-        if !self.is_token(TokenKind::OpenParenth, 0) {
-            return Err(IzeErr {
-                message: "Transfer expecting an open parenthesis after output type".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::OpenParenth,
+            0,
+            "Transfer expecting an open parenthesis after output type",
+        )?;
         self.discard_particle(TokenKind::OpenParenth)?;
         let transfer_def =
             if self.is_token(TokenKind::Ident, 0) && self.is_token(TokenKind::Colon, 1) {
@@ -149,12 +140,11 @@ impl Parser {
                 // Parse single expression transfer
                 TransferDef::Expr(self.expression()?)
             };
-        if !self.is_token(TokenKind::ClosingParenth, 0) {
-            return Err(IzeErr {
-                message: "Transfer expecting a closing parenthesis after body definition".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::ClosingParenth,
+            0,
+            "Transfer expecting a closing parenthesis after body definition",
+        )?;
         self.discard_particle(TokenKind::ClosingParenth)?;
         let transfer = Transfer {
             name: transfer_name,
@@ -174,29 +164,22 @@ impl Parser {
             let (_, pos) = self.consume_token().into_particle()?; // Consume "pipe"
             (false, pos)
         };
-        if !self.is_token(TokenKind::Ident, 0) {
-            return Err(IzeErr {
-                message: "Expecting an identifier as pipe name".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(TokenKind::Ident, 0, "Expecting an identifier as pipe name")?;
         let (pipe_name, _) = self.consume_token().into_ident()?;
-        if !self.is_token(TokenKind::OpenParenth, 0) {
-            return Err(IzeErr {
-                message: "Pipe expecting an open parenthesis after name".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::OpenParenth,
+            0,
+            "Pipe expecting an open parenthesis after name",
+        )?;
         self.discard_particle(TokenKind::OpenParenth)?;
 
         let pipe_body = self.parse_pipe_body()?;
 
-        if !self.is_token(TokenKind::ClosingParenth, 0) {
-            return Err(IzeErr {
-                message: "Pipe expecting a closing parenthesis after pipe body".into(),
-                pos: self.last_pos(),
-            });
-        }
+        self.assert_token(
+            TokenKind::ClosingParenth,
+            0,
+            "Pipe expecting a closing parenthesis after pipe body",
+        )?;
         self.discard_particle(TokenKind::ClosingParenth)?;
         let pipe = Pipe {
             run,
@@ -282,12 +265,11 @@ impl Parser {
                 // Field definiton with rename
                 self.discard_particle(TokenKind::As)?;
                 if let (Literal::String(actual_name), _) = self.consume_token().into_literal()? {
-                    if !self.is_token(TokenKind::Colon, 0) {
-                        return Err(IzeErr {
-                            message: "Model definition expecting a colon after field name".into(),
-                            pos: self.last_pos(),
-                        });
-                    }
+                    self.assert_token(
+                        TokenKind::Colon,
+                        0,
+                        "Model definition expecting a colon after field name",
+                    )?;
                     self.discard_particle(TokenKind::Colon)?;
                     if let Some((field_type, _)) = self.parse_type()? {
                         let model_field = ModelField {
@@ -310,12 +292,11 @@ impl Parser {
                 }
             } else {
                 // Field definition without rename
-                if !self.is_token(TokenKind::Colon, 0) {
-                    return Err(IzeErr {
-                        message: "Model definition expecting a colon after field name".into(),
-                        pos: self.last_pos(),
-                    });
-                }
+                self.assert_token(
+                    TokenKind::Colon,
+                    0,
+                    "Model definition expecting a colon after field name",
+                )?;
                 self.discard_particle(TokenKind::Colon)?;
                 if self.is_token(TokenKind::ThreeDots, 0) {
                     self.discard_particle(TokenKind::ThreeDots)?;
@@ -435,12 +416,11 @@ impl Parser {
     fn parse_pipe_struct_line(&mut self) -> Result<Option<(FieldName, PipeVal)>, IzeErr> {
         if self.is_token(TokenKind::Ident, 0) {
             let (id, _) = self.consume_token().into_ident()?;
-            if !self.is_token(TokenKind::Colon, 0) {
-                return Err(IzeErr {
-                    message: "Pipe struct line expecting a colon after identifier".into(),
-                    pos: self.last_pos(),
-                });
-            }
+            self.assert_token(
+                TokenKind::Colon,
+                0,
+                "Pipe struct line expecting a colon after identifier",
+            )?;
             self.discard_particle(TokenKind::Colon)?;
             let pipe_val = if self.is_token(TokenKind::Ident, 0) {
                 let (ident, _) = self.consume_token().into_ident()?;
@@ -477,13 +457,8 @@ impl Parser {
             };
             if self.is_token(TokenKind::Comma, 0) {
                 self.discard_particle(TokenKind::Comma)?;
-            } else if !self.is_token(TokenKind::ClosingParenth, 0) {
-                Err(IzeErr {
-                    message:
-                        "Pipe struct expecting either comma or closing parenthesis after pasing a line."
-                            .into(),
-                    pos: self.last_pos(),
-                })?
+            } else {
+                self.assert_token(TokenKind::ClosingParenth, 0, "Pipe struct expecting either comma or closing parenthesis after pasing a line.")?;
             }
             Ok(Some((id, pipe_val)))
         } else {

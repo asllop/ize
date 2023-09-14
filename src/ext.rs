@@ -1,4 +1,3 @@
-
 //TODO: Plugins / Extensions
 // Create a plugin system. These plugins will be used to implement the stdlib and user extensions.
 // With the following features:

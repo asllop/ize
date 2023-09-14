@@ -1,5 +1,5 @@
 //! Semantic Analyzer
-//! 
+//!
 //! Performs semantic analysis: symbol resolution (models, transfers, variables, and pipes), and type checking of all operations.
 
 //TODO: Check reserved identifiers: no let, model, transfer or pipe is named "in" or "New".
