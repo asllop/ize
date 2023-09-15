@@ -6,7 +6,7 @@ use std::{
 };
 
 fn main() {
-    let code = read_code("izeware/test_mod.iz").expect("Error opening file");
+    let code = read_code("izeware/test_mod.iz").expect("Error reading file");
     let ast = ize::build(code.as_str(), pkg_reader).expect("Error parsing program");
 
     println!("{:#?}", ast);

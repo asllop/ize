@@ -190,7 +190,7 @@ impl<'a> Lexer<'a> {
     pub fn tokenize(&mut self) -> Result<Vec<Token>, IzeErr> {
         let mut tokens = Vec::new();
         loop {
-            let token = self.scan_token().expect("Error scanning tokens");
+            let token = self.scan_token()?;
             match token.lexeme {
                 Lexeme::EOF => break,
                 Lexeme::Nothing => {}
