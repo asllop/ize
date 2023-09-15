@@ -31,7 +31,7 @@ extern crate alloc;
 
 // Common types, used by all parts of the crate.
 mod common;
-pub use common::{IzeErr, Pos};
+pub use common::{BuildErr, IzeErr, Pos};
 
 /// Lexical analyzer.
 pub mod lexer;
@@ -55,8 +55,10 @@ use ast::{Ast, CommandSet, ImportPath};
 use lexer::Lexer;
 use parser::Parser;
 
+type ImportReaderFn = fn(&ImportPath, Pos) -> Result<String, IzeErr>;
+
 /// Build AST
-pub fn build<'a>(code: &'a str, reader: fn(&ImportPath) -> String) -> Result<Ast, IzeErr> {
+pub fn build<'a>(code: &'a str, reader: ImportReaderFn) -> Result<Ast, IzeErr> {
     let mut ast = ast::Ast {
         commands: Default::default(),
         imports: Default::default(),
@@ -68,9 +70,12 @@ pub fn build<'a>(code: &'a str, reader: fn(&ImportPath) -> String) -> Result<Ast
         let command = parser.command()?;
         if let CommandSet::Import(import) = command.command {
             for pkg in import.packages {
-                let pkg_ast = build(&reader(&pkg.path), reader)?;
-                //TODO: what if alias is None??? We have to get it from the package last component
-                ast.imports.insert(pkg.alias.unwrap(), pkg_ast);
+                let pkg_ast = build(&reader(&pkg.path, command.pos)?, reader)?;
+                let alias = pkg.alias.unwrap_or_else(|| {
+                    //TODO: We have to get the alias from the package last component
+                    todo!("Alias is not defined")
+                });
+                ast.imports.insert(alias, pkg_ast);
             }
         } else {
             ast.commands.push(command);
