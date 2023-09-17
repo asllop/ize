@@ -33,6 +33,9 @@ extern crate alloc;
 mod common;
 pub use common::{BuildErr, IzeErr, Pos};
 
+mod compiler;
+pub use compiler::build;
+
 /// Lexical analyzer.
 pub mod lexer;
 
@@ -49,48 +52,3 @@ pub mod semanter;
 pub mod ext;
 
 //TODO: tests
-
-use alloc::string::String;
-use ast::{Ast, CommandSet, ImportPath};
-use lexer::Lexer;
-use parser::Parser;
-
-type ImportReaderFn = fn(&ImportPath, Pos) -> Result<String, IzeErr>;
-
-/// Build AST
-pub fn build<'a>(code: &'a str, reader: ImportReaderFn) -> Result<Ast, IzeErr> {
-    let mut ast = Ast {
-        commands: Default::default(),
-        imports: Default::default(),
-    };
-
-    let mut parser = Parser::new(Lexer::new(code).tokenize()?);
-
-    while !parser.ended() {
-        let command = parser.command()?;
-        if let CommandSet::Import(import) = command.command {
-            for pkg in import.packages {
-                let pkg_ast = build(&reader(&pkg.path, command.pos)?, reader)?;
-                let alias = pkg.alias.unwrap_or_else(|| {
-                    //TODO: We have to get the alias from the package last component
-                    todo!("Alias is not defined")
-                });
-                if ast.imports.contains_key(&alias) {
-                    return Result::ize_err(
-                        format!("Module name {} already defined", alias),
-                        command.pos,
-                    );
-                }
-                ast.imports.insert(alias, pkg_ast);
-            }
-        } else {
-            ast.commands.push(command);
-        }
-    }
-
-    //TODO: call the semantic checker
-    //TODO: call the transpiler: we will need to extend the "Import Reader", and make it a type that implements a trait to do multipe things: get imports, write transpiler files, etc.
-    //TODO: just return Result<(), IzeErr>
-
-    Ok(ast)
-}

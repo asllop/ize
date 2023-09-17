@@ -194,9 +194,7 @@ impl<'a> Lexer<'a> {
             match token.lexeme {
                 Lexeme::EOF => break,
                 Lexeme::Nothing => {}
-                _ => {
-                    tokens.push(token);
-                }
+                _ => tokens.push(token),
             }
         }
         Ok(tokens)
