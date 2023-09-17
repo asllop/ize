@@ -22,11 +22,24 @@ pub fn build<'a>(code: &'a str, reader: ImportReaderFn) -> Result<Ast, IzeErr> {
         if let CommandSet::Import(import) = command.command {
             for pkg in import.packages {
                 let pkg_ast = build(&reader(&pkg.path, command.pos)?, reader)?;
-                let alias = pkg.alias.unwrap_or_else(|| {
-                    //TODO: We have to get the alias from the package last component?
-                    //      Or we put all in global scope? Go approach vs Rust approach.
-                    todo!("Alias is not defined")
-                });
+                let alias = if let Some(alias) = pkg.alias {
+                    alias
+                } else {
+                    if let ImportPath::Dot(dot_path) = pkg.path {
+                        if let Some(last_compo) = dot_path.path.last() {
+                            last_compo.clone()
+                        } else {
+                            // This should never happen, the parser enforces a non empty dot path.
+                            return Result::ize_err("Dot paths can't be empty".into(), command.pos);
+                        }
+                    } else {
+                        // This should never happen, the parser enforces all absolute paths to have an alias.
+                        return Result::ize_err(
+                            "Absolute paths must define an alias enforced by the parser".into(),
+                            command.pos,
+                        );
+                    }
+                };
                 if ast.imports.contains_key(&alias) {
                     return Result::ize_err(
                         format!("Module name {} already defined", alias),

@@ -1,6 +1,6 @@
 import (
-    "izeware/mods/mod1.iz" as mod1,
-    "izeware/mods/mod2.iz" as mod2
+    "izeware/mods/my_mod1.iz" as mod1,
+    mods.my_mod2
 )
 
 model MyList List[String]

@@ -191,9 +191,17 @@ impl Parser {
             Ok(None)
         } else if self.is_token(TokenKind::StringLiteral, 0) {
             if let (Literal::String(path), _) = self.consume_token().into_literal()? {
-                self.assert_token(TokenKind::As, 0, "Absolute path imports must be followed by an 'as' keyword")?;
+                self.assert_token(
+                    TokenKind::As,
+                    0,
+                    "Absolute path imports must be followed by an 'as' keyword",
+                )?;
                 self.discard_particle(TokenKind::As)?;
-                self.assert_token(TokenKind::Ident, 0, "Expected an identifier after an 'as' keyword")?;
+                self.assert_token(
+                    TokenKind::Ident,
+                    0,
+                    "Expected an identifier after an 'as' keyword",
+                )?;
                 let (alias, _) = self.consume_token().into_ident()?;
                 Ok(Some(Package {
                     path: ImportPath::File(path),

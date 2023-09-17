@@ -51,6 +51,7 @@ impl Parser {
                 pos,
             })
         } else {
+            // This will never panic, we know for sure this vec contains one component.
             Ok(expr.pop().unwrap())
         }
     }
@@ -212,6 +213,7 @@ impl Parser {
                 pos,
             })
         } else {
+            // This will never panic, we know for sure this vec contains one component.
             Ok(expr.pop().unwrap())
         }
     }

@@ -1,4 +1,7 @@
-use ize::{ast::ImportPath, BuildErr, IzeErr, Pos};
+use ize::{
+    ast::{DotPath, ImportPath},
+    BuildErr, IzeErr, Pos,
+};
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
@@ -13,21 +16,25 @@ fn main() {
 }
 
 fn pkg_reader<'a>(import_path: &ImportPath, import_pos: Pos) -> Result<String, IzeErr> {
-    match import_path {
-        ImportPath::Dot(_dot_path) => todo!("Implement dot path"),
-        ImportPath::File(file_path) => {
-            let code = read_code(file_path.as_str()).or_else(|e| match e {
-                ReadCodeErr::IoErr(e) => {
-                    Result::ize_err(format!("IO error on file {}: {}", file_path, e), import_pos)
-                }
-                ReadCodeErr::Utf8Err(e) => Result::ize_err(
-                    format!("UTF-8 conversion error on file {}: {}", file_path, e),
-                    import_pos,
-                ),
-            })?;
-            Ok(code)
+    let file_path = match import_path {
+        ImportPath::Dot(dot_path) => convert_dot_path(dot_path),
+        ImportPath::File(file_path) => file_path.clone(),
+    };
+
+    let code = read_code(file_path.as_str()).or_else(|e| match e {
+        ReadCodeErr::IoErr(e) => {
+            Result::ize_err(format!("IO error on file {}: {}", file_path, e), import_pos)
         }
-    }
+        ReadCodeErr::Utf8Err(e) => Result::ize_err(
+            format!("UTF-8 conversion error on file {}: {}", file_path, e),
+            import_pos,
+        ),
+    })?;
+    Ok(code)
+}
+
+fn convert_dot_path(dot_path: &DotPath) -> String {
+    "izeware/".to_owned() + &dot_path.path.join("/") + ".iz"
 }
 
 #[derive(Debug)]
