@@ -11,8 +11,10 @@ use rustc_hash::FxHashMap;
 pub struct Ast {
     /// List of commands.
     pub commands: Vec<Command>,
-    // Imported modules: other ASTs, each one associated with an alias.
+    /// Imported modules: other ASTs, each one associated with an alias.
     pub imports: FxHashMap<String, Ast>,
+    /// Source file.
+    pub source: ImportPath,
 }
 
 #[derive(Debug)]
@@ -194,14 +196,14 @@ pub struct Package {
     pub alias: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Import path.
 pub enum ImportPath {
     Dot(DotPath),
     File(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Dot path.
 pub struct DotPath {
     pub path: Vec<String>,

@@ -9,19 +9,25 @@ use alloc::string::String;
 type ImportReaderFn = fn(&ImportPath, Pos) -> Result<String, IzeErr>;
 
 /// Build IZE program.
-pub fn build<'a>(code: &'a str, reader: ImportReaderFn) -> Result<Ast, IzeErr> {
+pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> Result<Ast, IzeErr> {
     let mut ast = Ast {
         commands: Default::default(),
         imports: Default::default(),
+        source,
     };
 
     let mut parser = Parser::new(Lexer::new(code).tokenize()?);
 
     while !parser.ended() {
         let command = parser.command()?;
+
+        //TODO: detect circular import references: every time we import, annotate the file absolute path, and see if we repeat one, that means we have a cycle.
+
         if let CommandSet::Import(import) = command.command {
             for pkg in import.packages {
-                let pkg_ast = build(&reader(&pkg.path, command.pos)?, reader)?;
+                let mut pkg_ast =
+                    build(&reader(&pkg.path, command.pos)?, pkg.path.clone(), reader)?;
+                pkg_ast.source = pkg.path.clone();
                 let alias = if let Some(alias) = pkg.alias {
                     alias
                 } else {

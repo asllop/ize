@@ -9,8 +9,14 @@ use std::{
 };
 
 fn main() {
-    let code = read_code("izeware/test_mod.iz").expect("Error reading file");
-    let ast = ize::build(code.as_str(), pkg_reader).expect("Error parsing program");
+    let file_path = "izeware/test_mod.iz";
+    let code = read_code(file_path).expect("Error reading file");
+    let ast = ize::build(
+        code.as_str(),
+        ImportPath::File(file_path.into()),
+        pkg_reader,
+    )
+    .expect("Error parsing program");
 
     println!("{:#?}", ast);
 }
