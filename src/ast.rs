@@ -6,15 +6,28 @@ use crate::{common::BuildErr, lexer::TokenKind, IzeErr, Pos};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use rustc_hash::FxHashMap;
 
+type ModuleName = String;
+type SymbolName = String;
+
 #[derive(Debug)]
 /// Abstract Syntax Tree. Represents a parsed IZE file.
 pub struct Ast {
     /// List of commands.
     pub commands: Vec<Command>,
     /// Imported modules: other ASTs, each one associated with an alias.
-    pub imports: FxHashMap<String, Ast>,
+    pub imports: FxHashMap<ModuleName, Ast>,
     /// Source file.
     pub source: ImportPath,
+    /// Symbol table, symbols defined in the current source file.
+    pub symbols: FxHashMap<SymbolName, SymType>,
+}
+
+#[derive(Debug)]
+/// Symbol type, used in the symbol table.
+pub enum SymType {
+    Model,
+    Pipe,
+    Transfer,
 }
 
 #[derive(Debug)]

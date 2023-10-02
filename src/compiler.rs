@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Ast, CommandSet, ImportPath},
+    ast::{Ast, CommandSet, ImportPath, SymType},
     lexer::Lexer,
     parser::Parser,
     BuildErr, IzeErr, Pos,
@@ -13,6 +13,7 @@ pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> R
     let mut ast = Ast {
         commands: Default::default(),
         imports: Default::default(),
+        symbols: Default::default(),
         source,
     };
 
@@ -21,9 +22,9 @@ pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> R
     while !parser.ended() {
         let command = parser.command()?;
 
-        //TODO: detect circular import references: every time we import, annotate the file absolute path, and see if we repeat one, that means we have a cycle.
-
         if let CommandSet::Import(import) = command.command {
+            //TODO: detect circular import references: every time we import, annotate the file absolute path, and see if we repeat one, that means we have a cycle.
+            // Import packages
             for pkg in import.packages {
                 let mut pkg_ast =
                     build(&reader(&pkg.path, command.pos)?, pkg.path.clone(), reader)?;
@@ -55,6 +56,21 @@ pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> R
                 ast.imports.insert(alias, pkg_ast);
             }
         } else {
+            // Update symbol table
+            match &command.command {
+                CommandSet::Model(model) => {
+                    ast.symbols.insert(model.name.clone(), SymType::Model);
+                }
+                CommandSet::Transfer(transfer) => {
+                    ast.symbols.insert(transfer.name.clone(), SymType::Transfer);
+                }
+                CommandSet::Pipe(pipe) => {
+                    ast.symbols.insert(pipe.name.clone(), SymType::Pipe);
+                }
+                CommandSet::Import(_) => {
+                    return Result::ize_err("FATAL: This can't be an import!".into(), command.pos)
+                }
+            }
             ast.commands.push(command);
         }
     }
