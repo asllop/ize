@@ -2,7 +2,7 @@ use crate::{
     ast::{Ast, CommandSet, ImportPath, SymType},
     lexer::Lexer,
     parser::Parser,
-    BuildErr, IzeErr, Pos,
+    semanter, BuildErr, IzeErr, Pos,
 };
 use alloc::string::String;
 
@@ -29,31 +29,16 @@ pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> R
                 let mut pkg_ast =
                     build(&reader(&pkg.path, command.pos)?, pkg.path.clone(), reader)?;
                 pkg_ast.source = pkg.path.clone();
-                let alias = if let Some(alias) = pkg.alias {
-                    alias
-                } else {
-                    if let ImportPath::Dot(dot_path) = pkg.path {
-                        if let Some(last_compo) = dot_path.path.last() {
-                            last_compo.clone()
-                        } else {
-                            // This should never happen, the parser enforces a non empty dot path.
-                            return Result::ize_err("Dot paths can't be empty".into(), command.pos);
-                        }
-                    } else {
-                        // This should never happen, the parser enforces all absolute paths to have an alias.
-                        return Result::ize_err(
-                            "Absolute paths must define an alias enforced by the parser".into(),
-                            command.pos,
-                        );
-                    }
-                };
-                if ast.imports.contains_key(&alias) {
+                let mod_name = pkg
+                    .mod_name()
+                    .or_else(|err_msg| Result::ize_err(err_msg.into(), command.pos))?;
+                if ast.imports.contains_key(&mod_name) {
                     return Result::ize_err(
-                        format!("Module name {} already defined", alias),
+                        format!("Module name {} already defined", mod_name),
                         command.pos,
                     );
                 }
-                ast.imports.insert(alias, pkg_ast);
+                ast.imports.insert(mod_name, pkg_ast);
             }
         } else {
             // Update symbol table
@@ -75,7 +60,9 @@ pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> R
         }
     }
 
-    //TODO: call the semantic checker
+    // Pass the semantic cheker
+    //semanter::sem_check(&ast)?;
+
     //TODO: call the transpiler: we will need to extend the "Import Reader", and make it a type that implements a trait to do multipe things: get imports, write transpiler files, etc.
     //TODO: just return Result<(), IzeErr>
 

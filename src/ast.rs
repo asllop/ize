@@ -14,7 +14,7 @@ type SymbolName = String;
 pub struct Ast {
     /// List of commands.
     pub commands: Vec<Command>,
-    /// Imported modules: other ASTs, each one associated with an alias.
+    /// Imported modules: other ASTs, each one associated with a module name.
     pub imports: FxHashMap<ModuleName, Ast>,
     /// Source file.
     pub source: ImportPath,
@@ -207,6 +207,26 @@ pub struct Import {
 pub struct Package {
     pub path: ImportPath,
     pub alias: Option<String>,
+}
+
+impl Package {
+    pub fn mod_name(self) -> Result<String, &'static str> {
+        if let Some(alias) = self.alias {
+            Ok(alias)
+        } else {
+            if let ImportPath::Dot(mut dot_path) = self.path {
+                if let Some(last_compo) = dot_path.path.pop() {
+                    Ok(last_compo)
+                } else {
+                    // This should never happen, the parser enforces a non empty dot path.
+                    Err("Dot paths can't be empty")
+                }
+            } else {
+                // This should never happen, the parser enforces all absolute paths to have an alias.
+                Err("Absolute paths must define an alias enforced by the parser")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
