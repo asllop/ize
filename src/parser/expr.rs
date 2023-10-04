@@ -427,6 +427,7 @@ impl Parser {
         Ok((block_pos, expr, alias, arms))
     }
 
+    //TODO: types can be chains like "my.mod.MyType"
     /// Parse type.
     pub(crate) fn parse_type(&mut self) -> Result<Option<(Type, Pos)>, IzeErr> {
         if self.check_tokens(

@@ -142,6 +142,7 @@ pub enum ExprSet {
 pub struct Arm {
     pub value: Box<Expr>,
     pub action: Box<Expr>,
+    //TODO: Pos
 }
 
 #[derive(Debug)]
@@ -207,6 +208,7 @@ pub struct Import {
 pub struct Package {
     pub path: ImportPath,
     pub alias: Option<String>,
+    //TODO: Pos
 }
 
 impl Package {
@@ -268,6 +270,7 @@ pub struct StructModel {
 pub struct ModelField {
     pub rename: Option<String>,
     pub field_type: FieldType,
+    //TODO: Pos
 }
 
 #[derive(Debug)]
@@ -312,6 +315,7 @@ pub struct Pipe {
 pub struct PipeItem {
     pub name: String,
     pub pipe_struct: Option<PipeStruct>,
+    //TODO: Pos
 }
 
 #[derive(Debug)]

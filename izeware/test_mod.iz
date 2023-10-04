@@ -6,6 +6,7 @@ import (
 model MyList List[String]
 model MyModel Map[String, List[Metrics]]
 
+// Allow types with chains like: mod1.MyEvent
 transfer LogToEvent MyLog -> MyEvent (
     attributes: in.attr.Append("message", in.msg),
     eventType: in.type,

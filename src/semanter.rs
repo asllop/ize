@@ -2,12 +2,162 @@
 //!
 //! Performs semantic analysis: symbol resolution (models, transfers, variables, and pipes), and type checking of all operations.
 
-//TODO: Check reserved identifiers: no let, model, transfer or pipe is named "in" or "New".
+//TODO: traverse the AST
+//TODO: perform as many checks as possible on each AST pass
+//TODO: build a symbol table, that contains all synbols defined on each scope, in a hasmap for fast search.
 
-//TODO: Check compount type integrity:
+use crate::{
+    ast::{Ast, Command, CommandSet, FieldType, ModelType, Pipe, Transfer, Type, TypeId},
+    BuildErr, IzeErr, Pos,
+};
+
+/// Check semantics.
+pub fn sem_check(ast: &Ast) -> Result<(), IzeErr> {
+    traverse_ast(ast)?;
+    Ok(())
+}
+
+fn traverse_ast(ast: &Ast) -> Result<(), IzeErr> {
+    for command in ast.commands.iter() {
+        check_command(ast, command)?;
+    }
+    for ast in ast.imports.values() {
+        traverse_ast(ast)?;
+    }
+    Ok(())
+}
+
+fn check_command(ast: &Ast, command: &Command) -> Result<(), IzeErr> {
+    match &command.command {
+        CommandSet::Model(model) => check_model(ast, &model.model_type),
+        CommandSet::Transfer(transfer) => check_transfer(ast, transfer),
+        CommandSet::Pipe(pipe) => check_pipe(ast, pipe),
+        CommandSet::Import(_) => {
+            Result::ize_err("Unexpected import command in the AST".into(), command.pos)
+        }
+    }
+}
+
+/// Check types of a model.
+fn check_model(ast: &Ast, model_type: &ModelType) -> Result<(), IzeErr> {
+    match model_type {
+        ModelType::Struct(struct_model) => {
+            let mut num_remains = 0;
+            for (field_name, model_field) in &struct_model.fields {
+                match &model_field.field_type {
+                    FieldType::Remain => {
+                        if num_remains > 0 {
+                            //PROBLEM: Pos not available, we should put a pos on every AST component, not only top level ones.
+                            Result::ize_err(
+                                "Only one '...' field allowed.".into(),
+                                Pos::default(),
+                            )?;
+                        }
+                        num_remains += 1;
+                        if struct_model.field_order.last() != Some(field_name) {
+                            //PROBLEM: Pos not available, we should put a pos on every AST component, not only top level ones.
+                            Result::ize_err(
+                                "Field '...' must come the last.".into(),
+                                Pos::default(),
+                            )?;
+                        }
+                        if model_field.rename.is_some() {
+                            //PROBLEM: Pos not available, we should put a pos on every AST component, not only top level ones.
+                            Result::ize_err(
+                                "Field '...' can't have an alias.".into(),
+                                Pos::default(),
+                            )?;
+                        }
+                    }
+                    FieldType::Type(model_field_type) => {
+                        check_null_or_none(model_field_type)?;
+                        check_type(ast, model_field_type)?
+                    },
+                }
+            }
+            Ok(())
+        }
+        ModelType::Alias(alias_model) => {
+            check_null_or_none(alias_model)?;
+            check_type(ast, alias_model)
+        },
+    }
+}
+
+fn check_transfer(ast: &Ast, transfer: &Transfer) -> Result<(), IzeErr> {
+    todo!("check_transfer")
+}
+
+fn check_pipe(ast: &Ast, pipe: &Pipe) -> Result<(), IzeErr> {
+    todo!("check_pipe")
+}
+
+//TODO: Check type integrity:
 //  - Mux contains no repeated types.
 //  - List contains only one type.
 //  - Map contains one or two types.
+//  - Defined type is in the symbol table
+// NOTE: types can be a chain like: "my.mod.MyType"
+fn check_type(ast: &Ast, ize_type: &Type) -> Result<(), IzeErr> {
+    match &ize_type.id {
+        TypeId::Custom(custom_type) => {
+            if !ize_type.inner.is_empty() {
+                Result::ize_err(
+                    "Custom types can't contain compound types".into(),
+                    //TODO: get actual pos
+                    Pos::default(),
+                )
+            } else {
+                if !ast.symbols.contains_key(custom_type) {
+                    Result::ize_err(
+                        "Custom type not defined".into(),
+                        //TODO: get actual pos
+                        Pos::default(),
+                    )
+                } else {
+                    Ok(())
+                }
+            }
+        },
+        TypeId::String
+        | TypeId::Integer
+        | TypeId::Float
+        | TypeId::Boolean
+        | TypeId::Null
+        | TypeId::None
+        | TypeId::Any => {
+            if !ize_type.inner.is_empty() {
+                Result::ize_err(
+                    "Base types can't contain compound types".into(),
+                    //TODO: get actual pos
+                    Pos::default(),
+                )
+            } else {
+                Ok(())
+            }
+        }
+        //TODO: check compound types integrity
+        TypeId::List => todo!(),
+        TypeId::Map => todo!(),
+        TypeId::Mux => todo!(),
+        TypeId::Tuple => todo!(),
+    }
+}
+
+fn check_null_or_none(ize_type: &Type) -> Result<(), IzeErr> {
+    match &ize_type.id {
+        TypeId::None | TypeId::Null => {
+            Result::ize_err(
+                "Null or None types not permitted in this position".into(),
+                //TODO: get actual pos
+                Pos::default(),
+            )
+        },
+        _ => Ok(())
+    }
+}
+
+//TODO: Check reserved identifiers: no let, model, transfer or pipe is named "in" or "New".
 
 //TODO: Check model integrity:
 //  - Only one "..." field that comes the last.

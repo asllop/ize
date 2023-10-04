@@ -44,12 +44,15 @@ pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> R
             // Update symbol table
             match &command.command {
                 CommandSet::Model(model) => {
+                    check_symbol_exists(&ast, &model.name, command.pos)?;
                     ast.symbols.insert(model.name.clone(), SymType::Model);
                 }
                 CommandSet::Transfer(transfer) => {
+                    check_symbol_exists(&ast, &transfer.name, command.pos)?;
                     ast.symbols.insert(transfer.name.clone(), SymType::Transfer);
                 }
                 CommandSet::Pipe(pipe) => {
+                    check_symbol_exists(&ast, &pipe.name, command.pos)?;
                     ast.symbols.insert(pipe.name.clone(), SymType::Pipe);
                 }
                 CommandSet::Import(_) => {
@@ -67,4 +70,12 @@ pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> R
     //TODO: just return Result<(), IzeErr>
 
     Ok(ast)
+}
+
+fn check_symbol_exists(ast: &Ast, sym: &str, pos: Pos) -> Result<(), IzeErr> {
+    if ast.symbols.contains_key(sym) {
+        Result::ize_err(format!("Symbol {} already exists", sym), pos)
+    } else {
+        Ok(())
+    }
 }
