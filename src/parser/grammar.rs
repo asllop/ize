@@ -579,13 +579,13 @@ fn term_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
 fn factor_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
     Grammar::new(token_stream)
         .parse(&[
-            Expr(primary_expr),
+            Expr(group_expr),
             OrTk(&[Star, Slash, Percent]),
             Expr(factor_expr),
         ])
         .collect(|mut result, _| {
             if result.succeed {
-                // Build term-binary expression
+                // Build factor-binary expression
                 let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
                 let operator = result.atoms.pop().unwrap().as_token().unwrap();
                 let left_expr_atom = result.atoms.pop().unwrap();
@@ -613,6 +613,38 @@ fn factor_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
                 }
             }
         })
+}
+
+fn group_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    Grammar::new(token_stream)
+    .parse(&[
+        Tk(OpenParenth),
+        Expr(expression),
+        Tk(ClosingParenth),
+    ])
+    .collect(|mut result, token_stream| {
+        if result.succeed {
+            // Build group expression
+            let _right_parenth = result.atoms.pop().unwrap();
+            let inner_expr = result.atoms.pop().unwrap().as_expr().unwrap();
+            let group_pos = result.atoms.pop().unwrap().pos();
+            let expr = Expr::new(
+                ExprSet::Group { expr: Box::new(inner_expr) },
+                group_pos,
+            );
+            Ok(expr)
+        } else {
+            if result.atoms.is_empty() {
+                // Not a term expression, return the remaining expression parsed
+                primary_expr(token_stream)
+            } else {
+                // Error parsing term expression
+                Err(result
+                    .error
+                    .expect("Result error can't be None if succeed is false"))
+            }
+        }
+    })
 }
 
 // fn unary_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
