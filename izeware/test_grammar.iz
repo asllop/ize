@@ -8,5 +8,8 @@ my_var
 
 10 + -7.8 * my_var
 
-// Use Mul in grammar to parse multiple contiguous operators of the same type
-//10 + 8 + 100
+10 + 8 - 100
+
+let num_var 10 + -7.8 * my_var / 5
+
+let x let y let z none

@@ -553,8 +553,8 @@ fn term_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
     Grammar::new(token_stream).parse(&[
         Expr(factor_expr),
         OrTk(&[Plus, Minus]),
-        Expr(factor_expr),
-    ]).collect(|mut result, token_stream| {
+        Expr(term_expr),
+    ]).collect(|mut result, _| {
         if result.succeed {
             // Build term-binary expression
             let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
@@ -585,8 +585,8 @@ fn factor_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
     Grammar::new(token_stream).parse(&[
         Expr(primary_expr),
         OrTk(&[Star, Slash, Percent]),
-        Expr(primary_expr),
-    ]).collect(|mut result, token_stream| {
+        Expr(factor_expr),
+    ]).collect(|mut result, _| {
         if result.succeed {
             // Build term-binary expression
             let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
