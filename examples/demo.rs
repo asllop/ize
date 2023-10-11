@@ -1,8 +1,8 @@
 use ize::{
     ast::{DotPath, ImportPath},
-    BuildErr, IzeErr, Pos,
-    parser::grammar,
     lexer::Lexer,
+    parser::grammar,
+    BuildErr, IzeErr, Pos,
 };
 use std::{
     fs::File,
@@ -13,7 +13,9 @@ use std::{
 fn main() {
     let file_path = "izeware/test_grammar.iz";
     let code = read_code(file_path).expect("Error reading file");
-    let mut token_stream = Lexer::new(code.as_str()).tokenize().expect("Error tokenizing");
+    let mut token_stream = Lexer::new(code.as_str())
+        .tokenize()
+        .expect("Error tokenizing");
     while !token_stream.ended() {
         let expr = grammar::expression(&mut token_stream).expect("Error parsing expr");
         println!("{:#?}", expr);

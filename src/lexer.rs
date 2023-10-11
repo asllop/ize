@@ -3,7 +3,7 @@
 //! The lexer reads raw source code and converts it into a vector of [Token](crate::lexer::Token)s.
 
 use crate::{common::BuildErr, IzeErr, Pos};
-use alloc::{string::String, vec::Vec, collections::VecDeque};
+use alloc::{collections::VecDeque, string::String, vec::Vec};
 use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
@@ -258,7 +258,9 @@ impl TokenStream {
 
 impl From<Vec<Token>> for TokenStream {
     fn from(value: Vec<Token>) -> Self {
-        Self { tokens: VecDeque::from(value) }
+        Self {
+            tokens: VecDeque::from(value),
+        }
     }
 }
 

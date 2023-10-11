@@ -72,7 +72,7 @@ fn check_model(ast: &Ast, model_type: &ModelType) -> Result<(), IzeErr> {
                     FieldType::Type(model_field_type) => {
                         check_null_or_none(model_field_type)?;
                         check_type(ast, model_field_type)?
-                    },
+                    }
                 }
             }
             Ok(())
@@ -80,7 +80,7 @@ fn check_model(ast: &Ast, model_type: &ModelType) -> Result<(), IzeErr> {
         ModelType::Alias(alias_model) => {
             check_null_or_none(alias_model)?;
             check_type(ast, alias_model)
-        },
+        }
     }
 }
 
@@ -118,7 +118,7 @@ fn check_type(ast: &Ast, ize_type: &Type) -> Result<(), IzeErr> {
                     Ok(())
                 }
             }
-        },
+        }
         TypeId::String
         | TypeId::Integer
         | TypeId::Float
@@ -152,8 +152,8 @@ fn check_null_or_none(ize_type: &Type) -> Result<(), IzeErr> {
                 //TODO: get actual pos
                 Pos::default(),
             )
-        },
-        _ => Ok(())
+        }
+        _ => Ok(()),
     }
 }
 
