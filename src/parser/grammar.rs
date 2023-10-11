@@ -289,10 +289,7 @@ impl<'a> Grammar<'a> {
             atoms: vec![],
         };
         self.exec_grammar(&mut result, grammar);
-        GrammarCollector {
-            result,
-            token_stream: self.token_stream,
-        }
+        GrammarCollector::new(result, self.token_stream)
     }
 
     fn exec_grammar(&mut self, result: &mut ParseResult, grammar: &'static [Elem]) -> bool {
@@ -424,6 +421,11 @@ pub struct GrammarCollector<'a> {
 }
 
 impl<'a> GrammarCollector<'a> {
+    /// Create a new grammar collector.
+    pub fn new(result: ParseResult, token_stream: &'a mut TokenStream) -> Self {
+        Self { result, token_stream }
+    }
+
     /// Collect parsing results and generate AST component.
     pub fn collect(
         self,
@@ -514,13 +516,13 @@ fn let_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
                 // Build LET expression
                 let let_expr = result.atoms.pop().unwrap().as_expr().unwrap();
                 let let_ident = result.atoms.pop().unwrap().as_ident().unwrap();
-                let let_pos = result.atoms.pop().unwrap().pos();
+                let pos = result.atoms.pop().unwrap().pos();
                 let expr = Expr::new(
                     ExprSet::Let {
                         name: let_ident,
                         value: Box::new(let_expr),
                     },
-                    let_pos,
+                    pos,
                 );
                 Ok(expr)
             } else {
@@ -542,7 +544,7 @@ fn term_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
         .parse(&[
             Expr(factor_expr),
             OrTk(&[Plus, Minus]),
-            Expr(term_expr)
+            Expr(expression)
         ])
         .collect(|mut result, _| {
             if result.succeed {
@@ -550,7 +552,7 @@ fn term_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
                 let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
                 let operator = result.atoms.pop().unwrap().as_token().unwrap();
                 let left_expr_atom = result.atoms.pop().unwrap();
-                let expr_pos = left_expr_atom.pos();
+                let pos = left_expr_atom.pos();
                 let left_expr = left_expr_atom.as_expr().unwrap();
                 let expr = Expr::new(
                     ExprSet::Binary {
@@ -558,7 +560,7 @@ fn term_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
                         left_expr: Box::new(left_expr),
                         right_expr: Box::new(right_expr),
                     },
-                    expr_pos,
+                    pos,
                 );
                 Ok(expr)
             } else {
@@ -581,7 +583,7 @@ fn factor_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
         .parse(&[
             Expr(group_expr),
             OrTk(&[Star, Slash, Percent]),
-            Expr(factor_expr),
+            Expr(expression),
         ])
         .collect(|mut result, _| {
             if result.succeed {
@@ -589,7 +591,7 @@ fn factor_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
                 let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
                 let operator = result.atoms.pop().unwrap().as_token().unwrap();
                 let left_expr_atom = result.atoms.pop().unwrap();
-                let expr_pos = left_expr_atom.pos();
+                let pos = left_expr_atom.pos();
                 let left_expr = left_expr_atom.as_expr().unwrap();
                 let expr = Expr::new(
                     ExprSet::Binary {
@@ -597,7 +599,7 @@ fn factor_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
                         left_expr: Box::new(left_expr),
                         right_expr: Box::new(right_expr),
                     },
-                    expr_pos,
+                    pos,
                 );
                 Ok(expr)
             } else {
@@ -627,10 +629,10 @@ fn group_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
             // Build group expression
             let _right_parenth = result.atoms.pop().unwrap();
             let inner_expr = result.atoms.pop().unwrap().as_expr().unwrap();
-            let group_pos = result.atoms.pop().unwrap().pos();
+            let pos = result.atoms.pop().unwrap().pos();
             let expr = Expr::new(
                 ExprSet::Group { expr: Box::new(inner_expr) },
-                group_pos,
+                pos,
             );
             Ok(expr)
         } else {
