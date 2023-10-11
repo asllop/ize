@@ -14,6 +14,7 @@ type SymbolName = String;
 pub struct Ast {
     /// List of commands.
     pub commands: Vec<Command>,
+    //TODO: each entry must reference an Import instance.
     /// Imported modules: other ASTs, each one associated with a module name.
     pub imports: FxHashMap<ModuleName, Ast>,
     /// Source file.
@@ -321,6 +322,7 @@ pub struct PipeItem {
 #[derive(Debug)]
 /// Pipe item struct.
 pub struct PipeStruct {
+    //TODO: Pos on each field
     pub fields: FxHashMap<FieldName, PipeVal>,
 }
 
@@ -337,6 +339,7 @@ pub enum PipeVal {
 pub struct Type {
     pub id: TypeId,
     pub inner: Vec<Type>,
+    //TODO: Pos
 }
 
 #[derive(Debug)]

@@ -29,6 +29,14 @@
 #[macro_use]
 extern crate alloc;
 
+/* IMPROVEMENTS
+- Put Pos on every AST component, not only top level ones (Command and Expr).
+- Modify the AST and parser to better fit the structure of the code.
+    - Each sintactic component needs a separate AST component and a Pos.
+    - Separate the AST from the symbol table.
+    - Separate Import from Command. Import is not a command.
+*/
+
 // Common types, used by all parts of the crate.
 mod common;
 pub use common::{BuildErr, IzeErr, Pos};

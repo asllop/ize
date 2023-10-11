@@ -3,7 +3,7 @@
 //! The lexer reads raw source code and converts it into a vector of [Token](crate::lexer::Token)s.
 
 use crate::{common::BuildErr, IzeErr, Pos};
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, vec::Vec, collections::VecDeque};
 use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
@@ -166,6 +166,102 @@ impl Token {
     }
 }
 
+#[derive(Debug)]
+/// Stream of tokens returned by the lexer.
+pub struct TokenStream {
+    tokens: VecDeque<Token>,
+}
+
+impl TokenStream {
+    /// Check if parser ended processing tokens.
+    pub fn ended(&self) -> bool {
+        self.tokens.is_empty()
+    }
+
+    /// Return position of next token in the stream.
+    pub fn last_pos(&self) -> Pos {
+        if !self.ended() {
+            self.tokens[0].pos
+        } else {
+            Default::default()
+        }
+    }
+
+    /// Consume token.
+    pub fn consume_token(&mut self) -> Option<Token> {
+        self.tokens.pop_front()
+    }
+
+    /// Check if token at offset is of given type.
+    pub fn is_token(&self, token_kind: TokenKind, offset: usize) -> bool {
+        // Check if token exist at the specified offset
+        if let Some(token) = self.tokens.get(offset) {
+            match token.lexeme {
+                Lexeme::Float(_) => token_kind == TokenKind::FloatLiteral,
+                Lexeme::Int(_) => token_kind == TokenKind::IntegerLiteral,
+                Lexeme::Bool(_) => token_kind == TokenKind::BooleanLiteral,
+                Lexeme::String(_) => token_kind == TokenKind::StringLiteral,
+                Lexeme::Ident(_) => token_kind == TokenKind::Ident,
+                Lexeme::Particle(tt) => token_kind == tt,
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Check if token is a literal.
+    pub fn is_literal(&self, offset: usize) -> bool {
+        // Check if token exist at the specified offset
+        if let Some(token) = self.tokens.get(offset) {
+            match token.lexeme {
+                Lexeme::Float(_)
+                | Lexeme::Int(_)
+                | Lexeme::Bool(_)
+                | Lexeme::String(_)
+                | Lexeme::Particle(TokenKind::NullLiteral)
+                | Lexeme::Particle(TokenKind::NoneLiteral) => true,
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Check if token is an identifier.
+    pub fn is_ident(&self, offset: usize) -> bool {
+        // Check if token exist at the specified offset
+        if let Some(token) = self.tokens.get(offset) {
+            if let Lexeme::Ident(_) = token.lexeme {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Check for a list of tokens.
+    pub fn check_tokens(&self, token_types: &[TokenKind], offset: usize) -> bool {
+        // Check if token exist at the specified offset
+        for t in token_types {
+            if self.is_token(*t, offset) {
+                return true;
+            }
+        }
+        false
+    }
+
+    //TODO: extract, check empty, check token type, etc
+}
+
+impl From<Vec<Token>> for TokenStream {
+    fn from(value: Vec<Token>) -> Self {
+        Self { tokens: VecDeque::from(value) }
+    }
+}
+
 /// Lexer.
 pub struct Lexer<'a> {
     current_code: &'a str,
@@ -187,7 +283,13 @@ impl<'a> Lexer<'a> {
     }
 
     /// Scan all tokens
-    pub fn tokenize(&mut self) -> Result<Vec<Token>, IzeErr> {
+    pub fn tokenize(&mut self) -> Result<TokenStream, IzeErr> {
+        Ok(self.tokenize_vec()?.into())
+    }
+
+    //TODO: remove this and keep only "tokenize"
+    /// Scan all tokens
+    pub fn tokenize_vec(&mut self) -> Result<Vec<Token>, IzeErr> {
         let mut tokens = Vec::new();
         loop {
             let token = self.scan_token()?;

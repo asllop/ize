@@ -1,0 +1,12 @@
+100
+77.11
+"Hello world"
+none null true false
+my_var
+
+10 * -7.8 + my_var
+
+10 + -7.8 * my_var
+
+// Use Mul in grammar to parse multiple contiguous operators of the same type
+//10 + 8 + 100
