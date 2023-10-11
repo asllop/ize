@@ -15,3 +15,14 @@ let num_var 10 + -7.8 * my_var / 5
 let x let y let z none
 
 5 * (10 + 2 - 8)
+
+(10 + 8 - 100) if?
+    10 + 8 - 100
+else?
+    10 + 8 - 100
+
+// this is interpreted as "8 + ifelse_expr". Something is wrong with the precedence.
+10 + 8 if?
+    10 + 8
+else?
+    10 + 8
