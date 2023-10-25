@@ -24,7 +24,8 @@
 //! - Go
 //! - TypeScript
 
-#![no_std]
+//TODO: uncomment this
+//#![no_std]
 
 #[macro_use]
 extern crate alloc;

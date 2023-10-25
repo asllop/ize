@@ -243,7 +243,7 @@ impl TokenStream {
     }
 
     /// Check for a list of tokens.
-    pub fn check_tokens(&self, token_types: &[TokenKind], offset: usize) -> bool {
+    pub fn is_any_of_tokens(&self, token_types: &[TokenKind], offset: usize) -> bool {
         // Check if token exist at the specified offset
         for t in token_types {
             if self.is_token(*t, offset) {
@@ -253,6 +253,11 @@ impl TokenStream {
         false
     }
 
+    /// Token at position
+    pub fn at(&self, pos: usize) -> Option<&Token> {
+        self.tokens.get(pos)
+    }
+    
     //TODO: extract, check empty, check token type, etc
 }
 

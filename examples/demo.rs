@@ -11,15 +11,21 @@ use std::{
 };
 
 fn main() {
-    let file_path = "izeware/test_grammar.iz";
+    let file_path = "izeware/test_grammar_2.iz";
     let code = read_code(file_path).expect("Error reading file");
     let mut token_stream = Lexer::new(code.as_str())
         .tokenize()
         .expect("Error tokenizing");
+    let mut index = 0;
     while !token_stream.ended() {
-        let expr = grammar::expression(&mut token_stream).expect("Error parsing expr");
-        println!("{:#?}", expr);
-        println!("-----------------------");
+        // let expr = grammar::parse_expression(&mut token_stream).expect("Error parsing expr");
+        // println!("{:#?}", expr);
+        // println!("-----------------------");
+        let (result, new_index) = grammar::check_expression(&mut token_stream, index);
+        index = new_index;
+        if !result {
+            break;
+        }
     }
 }
 

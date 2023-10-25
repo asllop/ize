@@ -21,8 +21,10 @@ let x let y let z none
 else?
     10 + 8 - 100
 
-// this is interpreted as "8 + ifelse_expr". Something is wrong with the precedence.
-10 + 8 if?
-    10 + 8
+// this is interpreted as "100 + ifelse_expr". Something is wrong with the precedence.
+// We need Mul to redefine term_expr as: factor_expr ( ("+" | "-") factor_expr )*
+// Instead of current definition: factor_expr ("+" | "-") expression
+100 + 200 if?
+    300 + 400
 else?
-    10 + 8
+    500 + 600

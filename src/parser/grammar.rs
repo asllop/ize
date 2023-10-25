@@ -242,13 +242,8 @@ use crate::{
 use alloc::{boxed::Box, string::String, vec::Vec};
 use Elem::*;
 
-/// Expression function type.
-type ExprFunc = fn(&mut TokenStream) -> Result<Expr, IzeErr>;
-
-/// Array of grammar elements.
-type ElemArr = &'static [Elem];
-
 /// Grammar elements.
+#[derive(Debug)]
 pub enum Elem {
     /// One token.
     Tk(TokenKind),
@@ -259,16 +254,18 @@ pub enum Elem {
     /// Literal.
     Literal,
     /// A grammar sequence present zero or more times.
-    Mul(ElemArr),
+    Mul(&'static [Elem]),
     /// A grammar sequence present one or more times.
-    Plu(ElemArr),
+    Plu(&'static [Elem]),
     /// A grammar sequence present zero or one time.
-    Opt(ElemArr),
+    Opt(&'static [Elem]),
     /// Multiple possible grammar sequences.
-    OrEl(&'static [ElemArr]),
+    OrGr(&'static [&'static [Elem]]),
     /// Expression defined by function.
-    Expr(ExprFunc),
+    Expr(fn() -> Grammar),
 }
+
+/*
 
 /// Define language grammars.
 pub struct Grammar<'a> {
@@ -376,12 +373,6 @@ impl<'a> Grammar<'a> {
                 Elem::Plu(_) => todo!("Plu grammar"),
                 Elem::Opt(_) => todo!("Opt grammar"),
                 Elem::OrEl(_grammars) => {
-                    // PROBLEMA: hem de comprovar si alguna de les seqüencies funciona, NO passar-les totes.
-                    // Després, si no ha funcionat, hem de retornar el stream al seu estat anterior.
-                    // Com? Doncs extraient els results i convertint-los en tokens un altres cop.
-                    // Cal saber en quin punt estàvem, quins results ja teníem i quins són nous.
-                    // Ho podem fer passant un objecte result nou o marcant la posició actual.
-
                     // for &grammar in *grammars {
                     //     self.exec_grammar(result, grammar);
                     // }
@@ -435,6 +426,394 @@ impl<'a> GrammarCollector<'a> {
         block: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
     ) -> Result<Expr, IzeErr> {
         block(self.result, self.token_stream)
+    }
+}
+
+///////// TEST expression parsing \\\\\\\\\
+
+pub fn expression(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    println!("# Expression");
+    let_expr(token_stream)
+}
+
+fn let_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    println!("# Let Expr");
+    Grammar::new(token_stream)
+        .parse(&[
+            Tk(Let),
+            Identifier,
+            Expr(let_expr)
+        ])
+        .collect(|mut result, token_stream| {
+            if result.succeed {
+                // Build LET expression
+                let let_expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                let let_ident = result.atoms.pop().unwrap().as_ident().unwrap();
+                let pos = result.atoms.pop().unwrap().pos();
+
+                let expr = Expr::new(
+                    ExprSet::Let {
+                        name: let_ident,
+                        value: Box::new(let_expr),
+                    },
+                    pos,
+                );
+
+                println!("---> IS a Let Expr = {:?}", expr);
+
+                Ok(expr)
+            } else {
+                if result.atoms.is_empty() {
+                    // Not a LET expr, keep parsing in precedence order
+                    ifelse_expr(token_stream)
+                } else {
+                    // Error parsing LET expression
+                    Err(result
+                        .error
+                        .expect("Result error can't be None if succeed is false"))
+                }
+            }
+        })
+}
+
+fn ifelse_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    println!("# IfElse Expr");
+    Grammar::new(token_stream)
+        .parse(&[
+            Expr(term_expr),
+            Tk(If),
+            Expr(expression),
+            Tk(Else),
+            Expr(expression),
+        ])
+        .collect(|mut result, _| {
+            if result.succeed {
+                // Build if-else expression
+                let else_expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                let _else_token = result.atoms.pop().unwrap().as_token().unwrap();
+                let then_expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                let _if_token = result.atoms.pop().unwrap().as_token().unwrap();
+                let cond_expr_atom = result.atoms.pop().unwrap();
+                let pos = cond_expr_atom.pos();
+                let cond_expr = cond_expr_atom.as_expr().unwrap();
+
+                let expr = Expr::new(
+                    ExprSet::IfElse {
+                        condition: Box::new(cond_expr),
+                        then_expr: Box::new(then_expr),
+                        else_expr: Box::new(else_expr)
+                    },
+                    pos,
+                );
+
+                println!("---> IS a IfElse Expr = {:?}", expr);
+
+                Ok(expr)
+            } else {
+                if result.atoms.len() == 1 {
+                    // Not an ifelse expression, return the remaining expression parsed
+                    let expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                    Ok(expr)
+                } else {
+                    // Error parsing term expression
+                    Err(result
+                        .error
+                        .expect("Result error can't be None if succeed is false"))
+                }
+            }
+        })
+}
+
+fn term_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    println!("# Term Expr");
+    Grammar::new(token_stream)
+        .parse(&[
+            Expr(factor_expr),
+            OrTk(&[Plus, Minus]),
+            Expr(expression)
+        ])
+        .collect(|mut result, _| {
+            if result.succeed {
+                // Build term-binary expression
+                let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                let operator = result.atoms.pop().unwrap().as_token().unwrap();
+                let left_expr_atom = result.atoms.pop().unwrap();
+                let pos = left_expr_atom.pos();
+                let left_expr = left_expr_atom.as_expr().unwrap();
+
+                let expr = Expr::new(
+                    ExprSet::Binary {
+                        op: operator.try_into().unwrap(),
+                        left_expr: Box::new(left_expr),
+                        right_expr: Box::new(right_expr),
+                    },
+                    pos,
+                );
+
+                println!("---> IS a Term Expr = {:?}", expr);
+
+                Ok(expr)
+            } else {
+                if result.atoms.len() == 1 {
+                    // Not a term expression, return the remaining expression parsed
+                    let expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                    Ok(expr)
+                } else {
+                    // Error parsing term expression
+                    Err(result
+                        .error
+                        .expect("Result error can't be None if succeed is false"))
+                }
+            }
+        })
+}
+
+fn factor_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    println!("# Factor Expr");
+    Grammar::new(token_stream)
+        .parse(&[
+            Expr(group_expr),
+            OrTk(&[Star, Slash, Percent]),
+            Expr(expression),
+        ])
+        .collect(|mut result, _| {
+            if result.succeed {
+                // Build factor-binary expression
+                let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                let operator = result.atoms.pop().unwrap().as_token().unwrap();
+                let left_expr_atom = result.atoms.pop().unwrap();
+                let pos = left_expr_atom.pos();
+                let left_expr = left_expr_atom.as_expr().unwrap();
+
+                let expr = Expr::new(
+                    ExprSet::Binary {
+                        op: operator.try_into().unwrap(),
+                        left_expr: Box::new(left_expr),
+                        right_expr: Box::new(right_expr),
+                    },
+                    pos,
+                );
+
+                println!("---> IS a factor = {:?}", expr);
+
+                Ok(expr)
+            } else {
+                if result.atoms.len() == 1 {
+                    // Not a factor expression, return the remaining expression parsed
+                    let expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                    Ok(expr)
+                } else {
+                    // Error parsing term expression
+                    Err(result
+                        .error
+                        .expect("Result error can't be None if succeed is false"))
+                }
+            }
+        })
+}
+
+fn group_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    println!("# Group Expr");
+    Grammar::new(token_stream)
+        .parse(&[
+            Tk(OpenParenth),
+            Expr(expression),
+            Tk(ClosingParenth)
+        ])
+        .collect(|mut result, token_stream| {
+            if result.succeed {
+                // Build group expression
+                let _right_parenth = result.atoms.pop().unwrap();
+                let inner_expr = result.atoms.pop().unwrap().as_expr().unwrap();
+                let pos = result.atoms.pop().unwrap().pos();
+
+                let expr = Expr::new(
+                    ExprSet::Group {
+                        expr: Box::new(inner_expr),
+                    },
+                    pos,
+                );
+
+                println!("---> IS a Group Expr = {:?}", expr);
+
+                Ok(expr)
+            } else {
+                if result.atoms.is_empty() {
+                    // Not a group expression, try to parse a primary expression
+                    primary_expr(token_stream)
+                } else {
+                    // Error parsing term expression
+                    Err(result
+                        .error
+                        .expect("Result error can't be None if succeed is false"))
+                }
+            }
+        })
+}
+
+// fn unary_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+//     Grammar::new(token_stream).parse(&[
+//         OrTk(&[Minus, Not]),
+//         Expr(primary_expr),
+//         // OrEl(&[
+//         //     &[Expr(unary_expr)],
+//         //     &[Expr(primary_expr)],
+//         // ]),
+//     ]).collect(|result, token_stream| {
+//         todo!("Collect factor expr")
+//     })
+// }
+
+fn primary_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    println!("# Primary Expr");
+    if token_stream.is_literal(0) {
+        // Literal
+        let (lit, pos) = token_stream.consume_token().into_literal()?;
+        let expr = Expr::new(ExprSet::Literal(lit), pos);
+
+        println!("---> IS a Primary Expr = {:?}", expr);
+
+        Ok(expr)
+    } else if token_stream.is_token(TokenKind::Ident, 0) {
+        // Identifier
+        let (id, pos) = token_stream.consume_token().into_ident()?;
+        let expr = Expr::new(ExprSet::Identifier(id), pos);
+
+        println!("---> IS a Primary Expr = {:?}", expr);
+
+        Ok(expr)
+    } else {
+        Result::ize_err(
+            "Couldn't parse a valid expression at end".into(),
+            token_stream.last_pos(),
+        )
+    }
+    // Grammar::new(token_stream).parse(&[
+    //     OrEl(&[
+    //         &[Literal],
+    //         &[Identifier],
+    //         //TODO: type expression
+    //     ])
+    // ]).collect(|result| {
+    //     todo!("Collect primary expr")
+    // })
+}
+*/
+
+/*
+PROBLEMA amb Mul, Plu, Opt i OrEl:
+Hem de comprovar si alguna de les seqüencies funciona, però sense modificar el TokenStream fins que no sapiguem segur que funcionarà.
+
+Podem definir un sistema de check, per saber si una expressió existeix abans de parsar i consumir tokens.
+Les funcions "expr" en comptes de retornar un Result<Expr, IzeErr>, retorna una struct tipus Grammar.
+Aquesta instància de Grammar conté dues coses definides per l'usuari:
+    - Un array de definició de gramàtica.
+    - Un closure per fer el collect.
+El procés de parsing aleshores consisteix en:
+    - Recursivament anar comprovant tots els elements definits a la gramàtica contra el TokenStream, sens modificar-lo, mitjançant un índex que indica la pos actual.
+    - Un cop tot l'arbre d'expressions ha retornat OK, fem el parsing de veritat consumint tokens i cridem les funcions "collect".
+*/
+
+pub struct Grammar {
+    grammar: &'static [Elem],
+    collector: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
+}
+
+impl Grammar {
+    pub fn new(
+        grammar: &'static [Elem],
+        collector: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
+    ) -> Self {
+        Self { grammar, collector }
+    }
+
+    /// Check that a grammar can be parsed given the available tokens.
+    pub fn check(&self, token_stream: &mut TokenStream, index: usize) -> (bool, usize) {
+        Self::iterate_grammar(token_stream, self.grammar, index)
+    }
+
+    fn iterate_grammar(token_stream: &mut TokenStream, grammar: &[Elem], mut index: usize) -> (bool, usize) {
+        for elem in grammar {
+            match elem {
+                Elem::Tk(token_kind) => {
+                    print!("Token {:?} ", token_kind);
+                    if token_stream.is_token(*token_kind, index) {
+                        println!("OK");
+                        index += 1;
+                    } else {
+                        println!("ERR");
+                        return (false, index);
+                    }
+                },
+                Elem::OrTk(tokens) => {
+                    print!("Ok Token {:?} ", tokens);
+                    if token_stream.is_any_of_tokens(*tokens, index) {
+                        println!("OK");
+                        index += 1;
+                    } else {
+                        println!("ERR");
+                        return (false, index);
+                    }
+                },
+                Elem::Identifier => {
+                    print!("Identifier ");
+                    if token_stream.is_ident(index) {
+                        println!("OK");
+                        index += 1;
+                    } else {
+                        println!("ERR");
+                        return (false, index);
+                    }
+                },
+                Elem::Literal => {
+                    print!("Literal ");
+                    if token_stream.is_literal(index) {
+                        println!("OK");
+                        index += 1;
+                    } else {
+                        println!("ERR");
+                        return (false, index);
+                    }
+                },
+                Elem::Mul(_) => todo!(),
+                Elem::Plu(_) => todo!(),
+                Elem::Opt(_) => todo!(),
+                Elem::OrGr(grammars) => {
+                    println!("Or Grammars:");
+                    let mut grammar_result = false;
+                    for &grammar in grammars.iter() {
+                        println!("Try Grammar {:?} ", grammar);
+                        let (check_result, new_index) = Self::iterate_grammar(token_stream, grammar, index);
+                        if check_result {
+                            println!("OK");
+                            index = new_index;
+                            grammar_result = true;
+                            break;
+                        } else {
+                            println!("TRY NEXT");
+                        }
+                    }
+                    // None of the grammars matched
+                    if !grammar_result {
+                        println!("Grammar ERR");
+                        return (false, index);
+                    }
+                },
+                Elem::Expr(expr) => {
+                    let grammar = expr();
+                    println!("Expression {:?} ", grammar.grammar);
+                    let (check_result, new_index) = grammar.check(token_stream, index);
+                    if check_result {
+                        println!("OK");
+                        index = new_index;
+                    } else {
+                        println!("ERR");
+                        return (false, new_index);
+                    }
+                },
+            }
+        }
+        (true, index)
     }
 }
 
@@ -503,18 +882,50 @@ impl ResultAtom {
 
 ///////// TEST expression parsing \\\\\\\\\
 
-pub fn expression(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
-    let_expr(token_stream)
+pub fn parse_expression(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
+    todo!("Parsing not implemented yet")
 }
 
-fn let_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
-    Grammar::new(token_stream)
-        .parse(&[
-            Tk(Let),
-            Identifier,
-            Expr(let_expr)
-        ])
-        .collect(|mut result, token_stream| {
+pub fn check_expression(token_stream: &mut TokenStream, index: usize) -> (bool, usize) {
+    let grammar = expr();
+    println!("Grammar = {:?}", grammar.grammar);
+    let (result, new_index) = grammar.check(token_stream, index);
+    
+    println!("Check result = {} index = {}", result, index);
+
+    print_token_range(token_stream, index, new_index);
+
+    (result, new_index)
+}
+
+
+fn print_token_range(token_stream: &TokenStream, mut start: usize, end: usize) {
+    print!("---> CHECKED EXPR: ");
+    while start < end {
+        let lexeme = &token_stream.at(start).unwrap().lexeme;
+        print!("{:?} ", lexeme);
+        start += 1;
+    }
+    println!();
+}
+
+fn expr() -> Grammar {
+    Grammar::new(
+        &[OrGr(&[
+            &[Expr(let_expr)],
+            &[Expr(primary_expr)],
+            //TODO: type expression
+        ])],
+        |mut result, token_stream| {
+            todo!()
+        },
+    )
+}
+
+fn let_expr() -> Grammar {
+    Grammar::new(
+        &[Tk(Let), Identifier, Expr(primary_expr)],
+        |mut result, token_stream| {
             if result.succeed {
                 // Build LET expression
                 let let_expr = result.atoms.pop().unwrap().as_expr().unwrap();
@@ -528,11 +939,12 @@ fn let_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
                     },
                     pos,
                 );
+
                 Ok(expr)
             } else {
                 if result.atoms.is_empty() {
                     // Not a LET expr, keep parsing in precedence order
-                    ifelse_expr(token_stream)
+                    todo!()
                 } else {
                     // Error parsing LET expression
                     Err(result
@@ -540,205 +952,59 @@ fn let_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
                         .expect("Result error can't be None if succeed is false"))
                 }
             }
-        })
+        },
+    )
 }
 
-fn ifelse_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
-    Grammar::new(token_stream)
-        .parse(&[
-            Expr(term_expr),
-            Tk(If),
-            Expr(expression),
-            Tk(Else),
-            Expr(expression),
-        ])
-        .collect(|mut result, _| {
+fn primary_expr() -> Grammar {
+    Grammar::new(
+        &[OrGr(&[
+            &[Literal],
+            &[Identifier],
+            //TODO: type expression
+        ])],
+        |mut result, token_stream| {
             if result.succeed {
-                // Build if-else expression
-                let else_expr = result.atoms.pop().unwrap().as_expr().unwrap();
-                let _else_token = result.atoms.pop().unwrap().as_token().unwrap();
-                let then_expr = result.atoms.pop().unwrap().as_expr().unwrap();
-                let _if_token = result.atoms.pop().unwrap().as_token().unwrap();
-                let cond_expr_atom = result.atoms.pop().unwrap();
-                let pos = cond_expr_atom.pos();
-                let cond_expr = cond_expr_atom.as_expr().unwrap();
+                // Build primary expression
+                let primary_atom = result.atoms.pop().unwrap();
+                let pos = primary_atom.pos();
 
-                let expr = Expr::new(
-                    ExprSet::IfElse {
-                        condition: Box::new(cond_expr),
-                        then_expr: Box::new(then_expr),
-                        else_expr: Box::new(else_expr)
-                    },
-                    pos,
-                );
-                Ok(expr)
-            } else {
-                if result.atoms.len() == 1 {
-                    // Not an ifelse expression, return the remaining expression parsed
-                    let expr = result.atoms.pop().unwrap().as_expr().unwrap();
-                    Ok(expr)
-                } else {
-                    // Error parsing term expression
-                    Err(result
-                        .error
-                        .expect("Result error can't be None if succeed is false"))
-                }
-            }
-        })
-}
+                let expr = match primary_atom {
+                    ResultAtom::Ident { pos, val } => Ok(Expr::new(ExprSet::Identifier(val), pos)),
+                    ResultAtom::StrLiteral { pos, val } => {
+                        Ok(Expr::new(ExprSet::Literal(Literal::String(val)), pos))
+                    }
+                    ResultAtom::IntLiteral { pos, val } => {
+                        Ok(Expr::new(ExprSet::Literal(Literal::Integer(val)), pos))
+                    }
+                    ResultAtom::FltLiteral { pos, val } => {
+                        Ok(Expr::new(ExprSet::Literal(Literal::Float(val)), pos))
+                    }
+                    ResultAtom::BoolLiteral { pos, val } => {
+                        Ok(Expr::new(ExprSet::Literal(Literal::Boolean(val)), pos))
+                    }
+                    ResultAtom::NoneLiteral { pos } => {
+                        Ok(Expr::new(ExprSet::Literal(Literal::None), pos))
+                    }
+                    ResultAtom::NullLiteral { pos } => {
+                        Ok(Expr::new(ExprSet::Literal(Literal::Null), pos))
+                    }
+                    _ => Result::ize_err("Expected a primary expression".into(), pos),
+                }?;
 
-fn term_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
-    Grammar::new(token_stream)
-        .parse(&[
-            Expr(factor_expr),
-            OrTk(&[Plus, Minus]),
-            Expr(expression)
-        ])
-        .collect(|mut result, _| {
-            if result.succeed {
-                // Build term-binary expression
-                let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
-                let operator = result.atoms.pop().unwrap().as_token().unwrap();
-                let left_expr_atom = result.atoms.pop().unwrap();
-                let pos = left_expr_atom.pos();
-                let left_expr = left_expr_atom.as_expr().unwrap();
-
-                let expr = Expr::new(
-                    ExprSet::Binary {
-                        op: operator.try_into().unwrap(),
-                        left_expr: Box::new(left_expr),
-                        right_expr: Box::new(right_expr),
-                    },
-                    pos,
-                );
-                Ok(expr)
-            } else {
-                if result.atoms.len() == 1 {
-                    // Not a term expression, return the remaining expression parsed
-                    let expr = result.atoms.pop().unwrap().as_expr().unwrap();
-                    Ok(expr)
-                } else {
-                    // Error parsing term expression
-                    Err(result
-                        .error
-                        .expect("Result error can't be None if succeed is false"))
-                }
-            }
-        })
-}
-
-fn factor_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
-    Grammar::new(token_stream)
-        .parse(&[
-            Expr(group_expr),
-            OrTk(&[Star, Slash, Percent]),
-            Expr(expression),
-        ])
-        .collect(|mut result, _| {
-            if result.succeed {
-                // Build factor-binary expression
-                let right_expr = result.atoms.pop().unwrap().as_expr().unwrap();
-                let operator = result.atoms.pop().unwrap().as_token().unwrap();
-                let left_expr_atom = result.atoms.pop().unwrap();
-                let pos = left_expr_atom.pos();
-                let left_expr = left_expr_atom.as_expr().unwrap();
-
-                let expr = Expr::new(
-                    ExprSet::Binary {
-                        op: operator.try_into().unwrap(),
-                        left_expr: Box::new(left_expr),
-                        right_expr: Box::new(right_expr),
-                    },
-                    pos,
-                );
-                Ok(expr)
-            } else {
-                if result.atoms.len() == 1 {
-                    // Not a factor expression, return the remaining expression parsed
-                    let expr = result.atoms.pop().unwrap().as_expr().unwrap();
-                    Ok(expr)
-                } else {
-                    // Error parsing term expression
-                    Err(result
-                        .error
-                        .expect("Result error can't be None if succeed is false"))
-                }
-            }
-        })
-}
-
-fn group_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
-    Grammar::new(token_stream)
-        .parse(&[
-            Tk(OpenParenth),
-            Expr(expression),
-            Tk(ClosingParenth)
-        ])
-        .collect(|mut result, token_stream| {
-            if result.succeed {
-                // Build group expression
-                let _right_parenth = result.atoms.pop().unwrap();
-                let inner_expr = result.atoms.pop().unwrap().as_expr().unwrap();
-                let pos = result.atoms.pop().unwrap().pos();
-
-                let expr = Expr::new(
-                    ExprSet::Group {
-                        expr: Box::new(inner_expr),
-                    },
-                    pos,
-                );
                 Ok(expr)
             } else {
                 if result.atoms.is_empty() {
-                    // Not a group expression, try to parse a primary expression
-                    primary_expr(token_stream)
+                    // Error
+                    Result::ize_err(
+                        "Couldn't parse a valid expression at end".into(),
+                        token_stream.last_pos(),
+                    )
                 } else {
-                    // Error parsing term expression
-                    Err(result
-                        .error
-                        .expect("Result error can't be None if succeed is false"))
+                    // Error parsing LET expression
+                    Err(result.error.unwrap())
                 }
             }
-        })
-}
-
-// fn unary_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
-//     Grammar::new(token_stream).parse(&[
-//         OrTk(&[Minus, Not]),
-//         Expr(primary_expr),
-//         // OrEl(&[
-//         //     &[Expr(unary_expr)],
-//         //     &[Expr(primary_expr)],
-//         // ]),
-//     ]).collect(|result, token_stream| {
-//         todo!("Collect factor expr")
-//     })
-// }
-
-fn primary_expr(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> {
-    if token_stream.is_literal(0) {
-        // Literal
-        let (lit, pos) = token_stream.consume_token().into_literal()?;
-        let expr = Expr::new(ExprSet::Literal(lit), pos);
-        Ok(expr)
-    } else if token_stream.is_token(TokenKind::Ident, 0) {
-        // Identifier
-        let (id, pos) = token_stream.consume_token().into_ident()?;
-        let expr = Expr::new(ExprSet::Identifier(id), pos);
-        Ok(expr)
-    } else {
-        Result::ize_err(
-            "Couldn't parse a valid expression at end".into(),
-            token_stream.last_pos(),
-        )
-    }
-    // Grammar::new(token_stream).parse(&[
-    //     OrEl(&[
-    //         &[Literal],
-    //         &[Identifier],
-    //         //TODO: type expression
-    //     ])
-    // ]).collect(|result| {
-    //     todo!("Collect primary expr")
-    // })
+        },
+    )
 }

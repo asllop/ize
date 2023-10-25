@@ -1,0 +1,10 @@
+100
+77.11
+"Hello world"
+none null true false
+my_var
+
+let name "Hello World"
+let value -100.99
+let my_var value
+let x let y let z none
