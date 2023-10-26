@@ -972,12 +972,23 @@ fn term_expr() -> Grammar {
 fn factor_expr() -> Grammar {
     Grammar::new(
         &[
-            Expr(let_expr),
+            Expr(unary_expr),
             Mul(&[
                 OrTk(&[TokenKind::Star, TokenKind::Slash, TokenKind::Percent]),
-                Expr(let_expr),
+                Expr(unary_expr),
             ]),
         ],
+        |mut result, token_stream| todo!(),
+    )
+}
+
+// ( "!" | "-" ) unary | next_expr
+fn unary_expr() -> Grammar {
+    Grammar::new(
+        &[Sel(&[
+            &[OrTk(&[TokenKind::Minus, TokenKind::Not]), Expr(unary_expr),],
+            &[Expr(let_expr)],
+        ])],
         |mut result, token_stream| todo!(),
     )
 }

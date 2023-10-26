@@ -17,4 +17,5 @@ x * 6 / var + 88 - 100
 let my_var
     x * 6 / var + 88 - 100
 
-my_num
+!my_num
+!!-my_num
