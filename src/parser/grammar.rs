@@ -929,12 +929,22 @@ fn print_token_range(token_stream: &TokenStream, mut start: usize, end: usize) {
 }
 
 fn expr() -> Grammar {
+    //Grammar::new(&[Expr(chain_expr)], |mut result, token_stream| todo!())
+    chain_expr()
+}
+
+// next_expr ";" next_expr (";" next_expr)*
+// next_expr (";" next_expr)+
+fn chain_expr() -> Grammar {
     Grammar::new(
         &[Sel(&[
+            &[
+                Expr(equality_expr),
+                Tk(Semicolon),
+                Expr(equality_expr),
+                Mul(&[Tk(Semicolon), Expr(equality_expr)]),
+            ],
             &[Expr(equality_expr)],
-            &[Expr(let_expr)],
-            &[Expr(primary_expr)],
-            //TODO: more expressions
         ])],
         |mut result, token_stream| todo!(),
     )
@@ -986,7 +996,7 @@ fn factor_expr() -> Grammar {
 fn unary_expr() -> Grammar {
     Grammar::new(
         &[Sel(&[
-            &[OrTk(&[TokenKind::Minus, TokenKind::Not]), Expr(unary_expr),],
+            &[OrTk(&[TokenKind::Minus, TokenKind::Not]), Expr(unary_expr)],
             &[Expr(let_expr)],
         ])],
         |mut result, token_stream| todo!(),

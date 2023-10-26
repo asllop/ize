@@ -19,3 +19,7 @@ let my_var
 
 !my_num
 !!-my_num
+
+num ; -num ; !1+b
+
+let a 0 ; let b 1 ; a+b
