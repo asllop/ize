@@ -8,3 +8,13 @@ let name "Hello World"
 let value -100.99
 let my_var value
 let x let y let z none
+
+x != 100
+y == 200 != 300
+
+x * 6 / var + 88 - 100
+
+let my_var
+    x * 6 / var + 88 - 100
+
+my_num

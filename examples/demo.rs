@@ -16,15 +16,23 @@ fn main() {
     let mut token_stream = Lexer::new(code.as_str())
         .tokenize()
         .expect("Error tokenizing");
+    // while !token_stream.ended() {
+    //     let expr = grammar::parse_expression(&mut token_stream).expect("Error parsing expr");
+    //     println!("{:#?}", expr);
+    //     println!("-----------------------");
+    // }
     let mut index = 0;
-    while !token_stream.ended() {
-        // let expr = grammar::parse_expression(&mut token_stream).expect("Error parsing expr");
-        // println!("{:#?}", expr);
-        // println!("-----------------------");
+    loop {
         let (result, new_index) = grammar::check_expression(&mut token_stream, index);
-        index = new_index;
         if !result {
+            println!("CHECK FAILED");
             break;
+        }
+        if new_index == token_stream.len() {
+            println!("END OF TOKEN STREAM");
+            break;
+        } else {
+            index = new_index;
         }
     }
 }

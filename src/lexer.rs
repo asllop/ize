@@ -178,6 +178,11 @@ impl TokenStream {
         self.tokens.is_empty()
     }
 
+    /// Stream length.
+    pub fn len(&self) -> usize {
+        self.tokens.len()
+    }
+
     /// Return position of next token in the stream.
     pub fn last_pos(&self) -> Pos {
         if !self.ended() {
@@ -257,7 +262,7 @@ impl TokenStream {
     pub fn at(&self, pos: usize) -> Option<&Token> {
         self.tokens.get(pos)
     }
-    
+
     //TODO: extract, check empty, check token type, etc
 }
 
