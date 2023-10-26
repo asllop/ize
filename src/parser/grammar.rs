@@ -793,7 +793,25 @@ impl Grammar {
                     }
                     println!("Mul OK {i}");
                 }
-                Elem::Plu(_) => todo!(),
+                Elem::Plu(grammar) => {
+                    println!("Plu:");
+                    let mut i = 0;
+                    loop {
+                        let (check_result, new_index) =
+                            Self::check_grammar(token_stream, grammar, index);
+                        if !check_result {
+                            break;
+                        }
+                        index = new_index;
+                        i += 1;
+                    }
+                    if i > 0 {
+                        println!("Plu OK {i}");
+                    } else {
+                        println!("Plu Err");
+                        return (false, index);
+                    }
+                }
                 Elem::Opt(_) => todo!(),
                 Elem::Sel(grammars) => {
                     println!("OR Grammars:");
@@ -933,16 +951,13 @@ fn expr() -> Grammar {
     chain_expr()
 }
 
-// next_expr ";" next_expr (";" next_expr)*
 // next_expr (";" next_expr)+
 fn chain_expr() -> Grammar {
     Grammar::new(
         &[Sel(&[
             &[
                 Expr(equality_expr),
-                Tk(Semicolon),
-                Expr(equality_expr),
-                Mul(&[Tk(Semicolon), Expr(equality_expr)]),
+                Plu(&[Tk(Semicolon), Expr(equality_expr)]),
             ],
             &[Expr(equality_expr)],
         ])],
