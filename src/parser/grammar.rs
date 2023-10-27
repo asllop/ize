@@ -267,6 +267,8 @@ pub enum Elem {
     Sel(&'static [&'static [Elem]]),
     /// Expression defined by function.
     Expr(GrammarFn),
+    /// This element makes the parsing of current Grammar unavoidable. Once found we can't fallaback to the next expression.
+    Must(&'static Elem),
 }
 
 /*
@@ -741,6 +743,29 @@ impl Grammar {
         }
     }
 
+    /*  PROBLEMA: ERROR HANDLING
+
+        Aquesta estructura basada en gramàtiques s'assembla força a un parser combinator.
+        El problema és que no sabem que una expressió ha fallat fins que no ho hem provat tot, i per tant
+        fer un bon error handling és complicat. Per exemple l'expressió errònia:
+            a+b;let 10
+        Produeix una expressió correcta "a+b" i l'índex de l'error és al ";".
+        Amb el parser Recursive Descendant clàssic podem detectar l'error dins de let_expr() i generar un missatge tal com:
+            "Identifier expected after let". Amb l'índex correcte apuntant al "10".
+        El problema és que com que chain_expr() no pot parsar, perquè "let_expr" ha fallat, fallback a next i finalment es pot parsar
+        una expressió binaria, de manera que l'error es produeix en intentar parsar la següent epxressió que comença per ";".
+        Dita d'una altra manera, quan una gramàtica no pot parsar, no té manera de saber si és perquè l'expressió és errònia o
+        simplement perquè correspon a un altre tipus d'expressió.
+
+        SOLUCIÓ:
+
+        Cal incloure informació sobre els checks a la gramàtica. Per exemple, a la gramàtica de let_expr li hem de poder dir
+        que si troba un token "let" ja no pot fer fallaback a next, a partir d'aquest punt o bé parsa una expressió let completa
+        o ha de generar un error. El mateix amb chain, si troba un ";", ha de poder parsar una expressió chain completa.
+        Igual amb els binaris, si troba un "+" ha de poder trobar una altra expressió despres. Etc.
+        Això ho podem fer amb un nou element gramatical: Must.
+     */
+
     /// Check if a grammar can be parsed given the available tokens.
     pub fn check(&self, token_stream: &TokenStream, index: usize) -> (bool, usize) {
         let (result, new_index) = Self::check_grammar(token_stream, self.grammar, index);
@@ -839,7 +864,8 @@ impl Grammar {
                     } else {
                         return (false, new_index);
                     }
-                }
+                },
+                Elem::Must(_) => todo!("Must grammar element")
             }
         }
         (true, index)
