@@ -124,9 +124,9 @@ pub enum TokenKind {
     Import,
 
     // Decision
-    #[token("if?")]
+    #[token("if")]
     If,
-    #[token("else?")]
+    #[token("else")]
     Else,
     #[token("select")]
     Select,

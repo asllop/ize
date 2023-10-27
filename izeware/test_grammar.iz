@@ -4,27 +4,40 @@
 none null true false
 my_var
 
-10 * -7.8 + my_var
-
-10 + -7.8 * my_var
-
-10 + 8 - 100
-
-let num_var 10 + -7.8 * my_var / 5
-
+let name "Hello World"
+let value -100.99
+let my_var value
 let x let y let z none
 
-5 * (10 + 2 - 8)
+x != 100
+y == 200 != 300
 
-(10 + 8 - 100) if?
-    10 + 8 - 100
-else?
-    10 + 8 - 100
+x * 6 - var / 88 + 100
 
-// this is interpreted as "100 + ifelse_expr". Something is wrong with the precedence.
-// We need Mul to redefine term_expr as: factor_expr ( ("+" | "-") factor_expr )*
-// Instead of current definition: factor_expr ("+" | "-") expression
-100 + 200 if?
-    300 + 400
-else?
-    500 + 600
+let my_var
+    x * 6 / var + 88 - 100
+
+!my_num
+!!-my_num
+
+num ; -num ; !1+b
+
+let a 0 ; let b 1 ; a+b
+
+if (y == 200 != 300)
+    let y 1+y ; y
+else
+    y * 100 - 1
+
+y < 100 && y > 200
+
+(a+b)*c
+((a+b)*c)+d
+
+//TODO: Handle errors. Error examples:
+//let 6 a
+//let a
+//(a+9
+//a+9)
+//a+
+//a;

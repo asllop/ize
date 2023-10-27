@@ -11,7 +11,7 @@ use std::{
 };
 
 fn main() {
-    let file_path = "izeware/test_grammar_2.iz";
+    let file_path = "izeware/test_grammar.iz";
     let code = read_code(file_path).expect("Error reading file");
     let mut token_stream = Lexer::new(code.as_str())
         .tokenize()

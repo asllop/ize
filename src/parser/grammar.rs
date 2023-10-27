@@ -95,7 +95,7 @@ unwrap ->           "unwrap" expr "as" ID "("
                         expr "->" expr
                         ("," expr "->" expr)*
                     ")"
-ifelse ->		    equality "if?" expr "else?" expr
+ifelse ->		    "if" "(" expr ")" expr "else" expr
 equality ->         comparison ( ( "!=" | "==" ) comparison )*
 comparison ->       term ( ( ">" | ">=" | "<" | "<=" ) term )*
 term ->             factor ( ( "-" | "+" ) factor )*
@@ -119,7 +119,7 @@ unwrap ->           "unwrap" expr "as" ID "("
                         expr "->" expr
                         ("," expr "->" expr)*
                     ")"
-ifelse ->		    expr "if?" expr "else?" expr
+ifelse ->		    "if" "(" expr ")" expr "else" expr
 equality ->         expr ( "!=" | "==" ) expr
 comparison ->       expr ( ">" | ">=" | "<" | "<=" ) expr
 term ->             expr ( "-" | "+" ) expr
@@ -739,12 +739,13 @@ impl Grammar {
         }
     }
 
-    /// Check that a grammar can be parsed given the available tokens.
+    /// Check if a grammar can be parsed given the available tokens.
     pub fn check(&self, token_stream: &TokenStream, index: usize) -> (bool, usize) {
         let (result, new_index) = Self::check_grammar(token_stream, self.grammar, index);
         if result {
             (result, new_index)
         } else {
+            // Try next in precedence
             Self::check_grammar(token_stream, &[Expr(self.next)], index)
         }
     }
@@ -953,6 +954,9 @@ fn let_expr() -> Grammar {
         |mut result, token_stream| {
             if result.succeed {
                 // Build LET expression
+
+                //TODO: convertim "result.atoms" en un tipus (AtomList) de manera que puguem fer un pop_expr(), pop_ident(), etc, sense haver de fer pop, as_xyz, unwrap, etc.
+
                 let let_expr = result.atoms.pop().unwrap().as_expr().unwrap();
                 let let_ident = result.atoms.pop().unwrap().as_ident().unwrap();
                 let pos = result.atoms.pop().unwrap().pos();
@@ -981,12 +985,14 @@ fn let_expr() -> Grammar {
     )
 }
 
-// next_expr "if?" expr "else?" expr
+// "if" "(" expr ")" expr "else" expr
 fn ifelse_expr() -> Grammar {
     Grammar::new(
         &[
-            Expr(equality_expr),
             Tk(If),
+            Tk(OpenParenth),
+            Expr(expr),
+            Tk(ClosingParenth),
             Expr(expr),
             Tk(Else),
             Expr(expr),
@@ -1154,6 +1160,8 @@ fn primary_expr() -> Grammar {
         },
     )
 }
+
+//TODO: handle errors
 
 fn error_expr() -> Grammar {
     panic!("Error expression")
