@@ -758,48 +758,34 @@ impl Grammar {
         for elem in grammar {
             match elem {
                 Elem::Tk(token_kind) => {
-                    print!("Token {:?} ", token_kind);
                     if token_stream.is_token(*token_kind, index) {
-                        println!("OK");
                         index += 1;
                     } else {
-                        println!("ERR");
                         return (false, index);
                     }
                 }
                 Elem::OrTk(tokens) => {
-                    print!("OR Token {:?} ", tokens);
                     if token_stream.is_any_of_tokens(*tokens, index) {
-                        println!("OK");
                         index += 1;
                     } else {
-                        println!("ERR");
                         return (false, index);
                     }
                 }
                 Elem::Identifier => {
-                    print!("Identifier {:?} ", token_stream.at(index));
                     if token_stream.is_ident(index) {
-                        println!("OK");
                         index += 1;
                     } else {
-                        println!("ERR");
                         return (false, index);
                     }
                 }
                 Elem::Literal => {
-                    print!("Literal {:?} ", token_stream.at(index));
                     if token_stream.is_literal(index) {
-                        println!("OK");
                         index += 1;
                     } else {
-                        println!("ERR");
                         return (false, index);
                     }
                 }
                 Elem::Mul(grammar) => {
-                    println!("Mul:");
-                    let mut i = 0;
                     loop {
                         let (check_result, new_index) =
                             Self::check_grammar(token_stream, grammar, index);
@@ -807,12 +793,9 @@ impl Grammar {
                             break;
                         }
                         index = new_index;
-                        i += 1;
                     }
-                    println!("Mul OK {i}");
                 }
                 Elem::Plu(grammar) => {
-                    println!("Plu:");
                     let mut i = 0;
                     loop {
                         let (check_result, new_index) =
@@ -823,45 +806,33 @@ impl Grammar {
                         index = new_index;
                         i += 1;
                     }
-                    if i > 0 {
-                        println!("Plu OK {i}");
-                    } else {
-                        println!("Plu Err");
+                    if i == 0 {
                         return (false, index);
                     }
                 }
                 Elem::Opt(_) => todo!("Optional grammar element '?'"),
                 Elem::Sel(grammars) => {
-                    println!("OR Grammars:");
                     let mut grammar_result = false;
                     for &grammar in grammars.iter() {
-                        println!("Try OR Grammar {:?} ", grammar);
                         let (check_result, new_index) =
                             Self::check_grammar(token_stream, grammar, index);
                         if check_result {
-                            println!("OR Grammar OK");
                             index = new_index;
                             grammar_result = true;
                             break;
-                        } else {
-                            println!("Try Next Grammar");
                         }
                     }
                     // None of the grammars matched
                     if !grammar_result {
-                        println!("OR Grammar ERR");
                         return (false, index);
                     }
                 }
                 Elem::Expr(expr) => {
                     let grammar = expr();
-                    println!("Expression {:?} ", grammar.grammar);
                     let (check_result, new_index) = grammar.check(token_stream, index);
                     if check_result {
-                        println!("OK");
                         index = new_index;
                     } else {
-                        println!("ERR");
                         return (false, new_index);
                     }
                 }
@@ -941,13 +912,10 @@ pub fn parse_expression(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> 
 }
 
 pub fn check_expression(token_stream: &mut TokenStream, index: usize) -> (bool, usize) {
-    let grammar = expr();
-    println!("Grammar = {:?}", grammar.grammar);
-    let (result, new_index) = grammar.check(token_stream, index);
-
-    println!("Check result = {} index = {}", result, index);
+    let (result, new_index) = expr().check(token_stream, index);
 
     print_token_range(token_stream, index, new_index);
+    println!("Check Result = {} , Index = {}", result, index);
 
     (result, new_index)
 }
@@ -1113,7 +1081,20 @@ fn unary_expr() -> Grammar {
     Grammar::new(
         &[
             Plu(&[OrTk(&[TokenKind::Minus, TokenKind::Not])]),
-            Expr(primary_expr),
+            Expr(group_expr),
+        ],
+        group_expr,
+        |mut result, token_stream| todo!(),
+    )
+}
+
+// "(" expr ")"
+fn group_expr() -> Grammar {
+    Grammar::new(
+        &[
+            Tk(OpenParenth),
+            Expr(expr),
+            Tk(ClosingParenth),
         ],
         primary_expr,
         |mut result, token_stream| todo!(),
