@@ -977,7 +977,7 @@ fn chain_expr() -> Grammar {
     )
 }
 
-// "let" ID expr
+// "let" ID let_expr
 fn let_expr() -> Grammar {
     Grammar::new(
         &[Tk(Let), Identifier, Expr(let_expr)],
@@ -1032,9 +1032,44 @@ fn ifelse_expr() -> Grammar {
 fn equality_expr() -> Grammar {
     Grammar::new(
         &[
-            Expr(term_expr),
+            Expr(comparison_expr),
             Plu(&[
                 OrTk(&[TokenKind::NotEqual, TokenKind::TwoEquals]),
+                Expr(comparison_expr),
+            ]),
+        ],
+        comparison_expr,
+        |mut result, token_stream| todo!(),
+    )
+}
+
+// next_expr ( ( ">" | "<" | "<=" | ">=" | "&&" | "||" ) next_expr )+
+fn comparison_expr() -> Grammar {
+    Grammar::new(
+        &[
+            Expr(logic_expr),
+            Plu(&[
+                OrTk(&[TokenKind::GreaterThan,
+                    TokenKind::LesserThan,
+                    TokenKind::GtEqual,
+                    TokenKind::LtEqual,
+                    TokenKind::TwoAnds,
+                    TokenKind::TwoOrs,]),
+                Expr(logic_expr),
+            ]),
+        ],
+        logic_expr,
+        |mut result, token_stream| todo!(),
+    )
+}
+
+// next_expr ( ( "&" | "|" ) next_expr )+
+fn logic_expr() -> Grammar {
+    Grammar::new(
+        &[
+            Expr(term_expr),
+            Plu(&[
+                OrTk(&[TokenKind::And, TokenKind::Or]),
                 Expr(term_expr),
             ]),
         ],
@@ -1042,8 +1077,6 @@ fn equality_expr() -> Grammar {
         |mut result, token_stream| todo!(),
     )
 }
-
-// TODO: comparison and logic
 
 // next_expr ( ( "+" | "-" ) next_expr )+
 fn term_expr() -> Grammar {
