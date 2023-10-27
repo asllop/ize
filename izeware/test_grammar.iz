@@ -36,8 +36,10 @@ y < 100 && y > 200
 
 //TODO: Handle errors. Error examples:
 //let 6 a
+//a+b;let 6 a
 //let a
 //(a+9
 //a+9)
 //a+
 //a;
+//if ( a else b

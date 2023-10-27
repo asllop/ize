@@ -25,11 +25,11 @@ fn main() {
     loop {
         let (result, new_index) = grammar::check_expression(&mut token_stream, index);
         if !result {
-            println!("CHECK FAILED");
+            println!("\nFAIL");
             break;
         }
         if new_index == token_stream.len() {
-            println!("END OF TOKEN STREAM");
+            println!("\nEND OF TOKEN STREAM");
             break;
         } else {
             index = new_index;

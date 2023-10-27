@@ -230,6 +230,8 @@ TODO: how to pass tokens through the process?? it must go though the Expr functi
 
 */
 
+use std::ops::RemAssign;
+
 use crate::{
     ast::{Expr, ExprSet, Literal},
     lexer::{
@@ -718,7 +720,7 @@ El procés de parsing aleshores consisteix en:
 
 pub struct Grammar {
     grammar: &'static [Elem],
-    next: GrammarFn,
+    next: Option<GrammarFn>,
     collector: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
 }
 
@@ -729,7 +731,7 @@ impl Grammar {
     /// - collector: Collector closure, to collect grammar elements and build expression.
     pub fn new(
         grammar: &'static [Elem],
-        next: GrammarFn,
+        next: Option<GrammarFn>,
         collector: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
     ) -> Self {
         Self {
@@ -746,7 +748,10 @@ impl Grammar {
             (result, new_index)
         } else {
             // Try next in precedence
-            Self::check_grammar(token_stream, &[Expr(self.next)], index)
+            match self.next {
+                Some(next) => Self::check_grammar(token_stream, &[Expr(next)], index),
+                None => (false, index),
+            }
         }
     }
 
@@ -786,16 +791,14 @@ impl Grammar {
                         return (false, index);
                     }
                 }
-                Elem::Mul(grammar) => {
-                    loop {
-                        let (check_result, new_index) =
-                            Self::check_grammar(token_stream, grammar, index);
-                        if !check_result {
-                            break;
-                        }
-                        index = new_index;
+                Elem::Mul(grammar) => loop {
+                    let (check_result, new_index) =
+                        Self::check_grammar(token_stream, grammar, index);
+                    if !check_result {
+                        break;
                     }
-                }
+                    index = new_index;
+                },
                 Elem::Plu(grammar) => {
                     let mut i = 0;
                     loop {
@@ -915,22 +918,24 @@ pub fn parse_expression(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> 
 pub fn check_expression(token_stream: &mut TokenStream, index: usize) -> (bool, usize) {
     let (result, new_index) = expr().check(token_stream, index);
 
-    print_token_range(token_stream, index, new_index);
+    if result {
+        print_token_range(token_stream, index, new_index);
+    } else {
+        println!("\n---> CHECK FAILED, next token: {:?}\n", token_stream.at(index).unwrap().lexeme);
+    }
     println!("Check Result = {} , Index = {}", result, index);
 
     (result, new_index)
 }
 
 fn print_token_range(token_stream: &TokenStream, mut start: usize, end: usize) {
-    println!();
-    print!("---> CHECKED EXPR: ");
+    print!("\n---> CHECKED EXPR: ");
     while start < end {
         let lexeme = &token_stream.at(start).unwrap().lexeme;
         print!("{:?} ", lexeme);
         start += 1;
     }
-    println!();
-    println!();
+    println!("\n");
 }
 
 fn expr() -> Grammar {
@@ -941,7 +946,7 @@ fn expr() -> Grammar {
 fn chain_expr() -> Grammar {
     Grammar::new(
         &[Expr(let_expr), Plu(&[Tk(Semicolon), Expr(let_expr)])],
-        let_expr,
+        Some(let_expr),
         |mut result, token_stream| todo!(),
     )
 }
@@ -950,7 +955,7 @@ fn chain_expr() -> Grammar {
 fn let_expr() -> Grammar {
     Grammar::new(
         &[Tk(Let), Identifier, Expr(let_expr)],
-        ifelse_expr,
+        Some(ifelse_expr),
         |mut result, token_stream| {
             if result.succeed {
                 // Build LET expression
@@ -997,7 +1002,7 @@ fn ifelse_expr() -> Grammar {
             Tk(Else),
             Expr(expr),
         ],
-        equality_expr,
+        Some(equality_expr),
         |mut result, token_stream| todo!(),
     )
 }
@@ -1012,7 +1017,7 @@ fn equality_expr() -> Grammar {
                 Expr(comparison_expr),
             ]),
         ],
-        comparison_expr,
+        Some(comparison_expr),
         |mut result, token_stream| todo!(),
     )
 }
@@ -1023,16 +1028,18 @@ fn comparison_expr() -> Grammar {
         &[
             Expr(logic_expr),
             Plu(&[
-                OrTk(&[TokenKind::GreaterThan,
+                OrTk(&[
+                    TokenKind::GreaterThan,
                     TokenKind::LesserThan,
                     TokenKind::GtEqual,
                     TokenKind::LtEqual,
                     TokenKind::TwoAnds,
-                    TokenKind::TwoOrs,]),
+                    TokenKind::TwoOrs,
+                ]),
                 Expr(logic_expr),
             ]),
         ],
-        logic_expr,
+        Some(logic_expr),
         |mut result, token_stream| todo!(),
     )
 }
@@ -1042,12 +1049,9 @@ fn logic_expr() -> Grammar {
     Grammar::new(
         &[
             Expr(term_expr),
-            Plu(&[
-                OrTk(&[TokenKind::And, TokenKind::Or]),
-                Expr(term_expr),
-            ]),
+            Plu(&[OrTk(&[TokenKind::And, TokenKind::Or]), Expr(term_expr)]),
         ],
-        term_expr,
+        Some(term_expr),
         |mut result, token_stream| todo!(),
     )
 }
@@ -1062,7 +1066,7 @@ fn term_expr() -> Grammar {
                 Expr(factor_expr),
             ]),
         ],
-        factor_expr,
+        Some(factor_expr),
         |mut result, token_stream| todo!(),
     )
 }
@@ -1077,7 +1081,7 @@ fn factor_expr() -> Grammar {
                 Expr(unary_expr),
             ]),
         ],
-        unary_expr,
+        Some(unary_expr),
         |mut result, token_stream| todo!(),
     )
 }
@@ -1089,7 +1093,7 @@ fn unary_expr() -> Grammar {
             Plu(&[OrTk(&[TokenKind::Minus, TokenKind::Not])]),
             Expr(group_expr),
         ],
-        group_expr,
+        Some(group_expr),
         |mut result, token_stream| todo!(),
     )
 }
@@ -1097,16 +1101,13 @@ fn unary_expr() -> Grammar {
 // "(" expr ")"
 fn group_expr() -> Grammar {
     Grammar::new(
-        &[
-            Tk(OpenParenth),
-            Expr(expr),
-            Tk(ClosingParenth),
-        ],
-        primary_expr,
+        &[Tk(OpenParenth), Expr(expr), Tk(ClosingParenth)],
+        Some(primary_expr),
         |mut result, token_stream| todo!(),
     )
 }
 
+// LITERAL | ID | type_expr
 fn primary_expr() -> Grammar {
     Grammar::new(
         &[Sel(&[
@@ -1114,7 +1115,7 @@ fn primary_expr() -> Grammar {
             &[Identifier],
             //TODO: type expression
         ])],
-        error_expr, //TODO: we should set None here and handle error
+        None,
         |mut result, token_stream| {
             if result.succeed {
                 // Build primary expression
@@ -1159,10 +1160,4 @@ fn primary_expr() -> Grammar {
             }
         },
     )
-}
-
-//TODO: handle errors
-
-fn error_expr() -> Grammar {
-    panic!("Error expression")
 }
