@@ -242,6 +242,8 @@ use crate::{
 use alloc::{boxed::Box, string::String, vec::Vec};
 use Elem::*;
 
+type GrammarFn = fn() -> Grammar;
+
 /// Grammar elements.
 #[derive(Debug)]
 pub enum Elem {
@@ -262,7 +264,7 @@ pub enum Elem {
     /// Select one out of multiple possible grammar sequences. The first that matches.
     Sel(&'static [&'static [Elem]]),
     /// Expression defined by function.
-    Expr(fn() -> Grammar),
+    Expr(GrammarFn),
 }
 
 /*
@@ -716,25 +718,41 @@ El procés de parsing aleshores consisteix en:
 
 pub struct Grammar {
     grammar: &'static [Elem],
+    next: GrammarFn,
     collector: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
 }
 
 impl Grammar {
+    /// Create new grammar to parse an expression.
+    /// - grammar: Array of grammar elements.
+    /// - next: Next expression to parse in precedence order in case 'grammar' doesn't match.
+    /// - collector: Collector closure, to collect grammar elements and build expression.
     pub fn new(
         grammar: &'static [Elem],
+        next: GrammarFn,
         collector: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
     ) -> Self {
-        Self { grammar, collector }
+        Self {
+            grammar,
+            next,
+            collector,
+        }
     }
 
     /// Check that a grammar can be parsed given the available tokens.
     pub fn check(&self, token_stream: &TokenStream, index: usize) -> (bool, usize) {
-        Self::check_grammar(token_stream, self.grammar, index)
+        let (result, new_index) = Self::check_grammar(token_stream, self.grammar, index);
+        if result {
+            (result, new_index)
+        } else {
+            Self::check_grammar(token_stream, &[Expr(self.next)], index)
+        }
     }
 
     /// Check a gramamar on a token stream starting at index.
-    /// Returns (result, new_index), where 'result' indicates whether the check was sucessful or not.
-    /// And 'new_index' is the current index on the token stream after the check, only if result == true.
+    /// Returns (result, new_index):
+    /// - result: Indicates whether the check was sucessful or not.
+    /// - new_index: Is the current index on the token stream after the check, only if result == true.
     fn check_grammar(token_stream: &TokenStream, grammar: &[Elem], index: usize) -> (bool, usize) {
         let mut index = index;
         for elem in grammar {
@@ -812,7 +830,7 @@ impl Grammar {
                         return (false, index);
                     }
                 }
-                Elem::Opt(_) => todo!(),
+                Elem::Opt(_) => todo!("Optional grammar element '?'"),
                 Elem::Sel(grammars) => {
                     println!("OR Grammars:");
                     let mut grammar_result = false;
@@ -947,84 +965,23 @@ fn print_token_range(token_stream: &TokenStream, mut start: usize, end: usize) {
 }
 
 fn expr() -> Grammar {
-    //Grammar::new(&[Expr(chain_expr)], |mut result, token_stream| todo!())
     chain_expr()
 }
 
 // next_expr (";" next_expr)+
 fn chain_expr() -> Grammar {
     Grammar::new(
-        &[Sel(&[
-            &[
-                Expr(equality_expr),
-                Plu(&[Tk(Semicolon), Expr(equality_expr)]),
-            ],
-            &[Expr(equality_expr)],
-        ])],
+        &[Expr(let_expr), Plu(&[Tk(Semicolon), Expr(let_expr)])],
+        let_expr,
         |mut result, token_stream| todo!(),
     )
 }
 
-// next_expr ( ( "!=" | "==" ) next_expr )*
-fn equality_expr() -> Grammar {
-    Grammar::new(
-        &[
-            Expr(term_expr),
-            Mul(&[
-                OrTk(&[TokenKind::NotEqual, TokenKind::TwoEquals]),
-                Expr(term_expr),
-            ]),
-        ],
-        |mut result, token_stream| todo!(),
-    )
-}
-
-// TODO: comparison and logic
-
-fn term_expr() -> Grammar {
-    Grammar::new(
-        &[
-            Expr(factor_expr),
-            Mul(&[
-                OrTk(&[TokenKind::Plus, TokenKind::Minus]),
-                Expr(factor_expr),
-            ]),
-        ],
-        |mut result, token_stream| todo!(),
-    )
-}
-
-fn factor_expr() -> Grammar {
-    Grammar::new(
-        &[
-            Expr(unary_expr),
-            Mul(&[
-                OrTk(&[TokenKind::Star, TokenKind::Slash, TokenKind::Percent]),
-                Expr(unary_expr),
-            ]),
-        ],
-        |mut result, token_stream| todo!(),
-    )
-}
-
-// ( "!" | "-" ) unary | next_expr
-fn unary_expr() -> Grammar {
-    Grammar::new(
-        &[Sel(&[
-            &[OrTk(&[TokenKind::Minus, TokenKind::Not]), Expr(unary_expr)],
-            &[Expr(let_expr)],
-        ])],
-        |mut result, token_stream| todo!(),
-    )
-}
-
-// ("let" ID expr) | next_expr
+// "let" ID expr
 fn let_expr() -> Grammar {
     Grammar::new(
-        &[Sel(&[
-            &[Tk(Let), Identifier, Expr(expr)],
-            &[Expr(primary_expr)],
-        ])],
+        &[Tk(Let), Identifier, Expr(let_expr)],
+        ifelse_expr,
         |mut result, token_stream| {
             if result.succeed {
                 // Build LET expression
@@ -1056,6 +1013,80 @@ fn let_expr() -> Grammar {
     )
 }
 
+// next_expr "if?" expr "else?" expr
+fn ifelse_expr() -> Grammar {
+    Grammar::new(
+        &[
+            Expr(equality_expr),
+            Tk(If),
+            Expr(expr),
+            Tk(Else),
+            Expr(expr),
+        ],
+        equality_expr,
+        |mut result, token_stream| todo!(),
+    )
+}
+
+// next_expr ( ( "!=" | "==" ) next_expr )+
+fn equality_expr() -> Grammar {
+    Grammar::new(
+        &[
+            Expr(term_expr),
+            Plu(&[
+                OrTk(&[TokenKind::NotEqual, TokenKind::TwoEquals]),
+                Expr(term_expr),
+            ]),
+        ],
+        term_expr,
+        |mut result, token_stream| todo!(),
+    )
+}
+
+// TODO: comparison and logic
+
+// next_expr ( ( "+" | "-" ) next_expr )+
+fn term_expr() -> Grammar {
+    Grammar::new(
+        &[
+            Expr(factor_expr),
+            Plu(&[
+                OrTk(&[TokenKind::Plus, TokenKind::Minus]),
+                Expr(factor_expr),
+            ]),
+        ],
+        factor_expr,
+        |mut result, token_stream| todo!(),
+    )
+}
+
+// next_expr ( ( "*" | "/" | "%" ) next_expr )+
+fn factor_expr() -> Grammar {
+    Grammar::new(
+        &[
+            Expr(unary_expr),
+            Plu(&[
+                OrTk(&[TokenKind::Star, TokenKind::Slash, TokenKind::Percent]),
+                Expr(unary_expr),
+            ]),
+        ],
+        unary_expr,
+        |mut result, token_stream| todo!(),
+    )
+}
+
+// ( "!" | "-" )+ next_expr
+fn unary_expr() -> Grammar {
+    Grammar::new(
+        &[
+            Plu(&[OrTk(&[TokenKind::Minus, TokenKind::Not])]),
+            Expr(primary_expr),
+        ],
+        primary_expr,
+        |mut result, token_stream| todo!(),
+    )
+}
+
 fn primary_expr() -> Grammar {
     Grammar::new(
         &[Sel(&[
@@ -1063,6 +1094,7 @@ fn primary_expr() -> Grammar {
             &[Identifier],
             //TODO: type expression
         ])],
+        error_expr, //TODO: we should set None here and handle error
         |mut result, token_stream| {
             if result.succeed {
                 // Build primary expression
@@ -1107,4 +1139,8 @@ fn primary_expr() -> Grammar {
             }
         },
     )
+}
+
+fn error_expr() -> Grammar {
+    panic!("Error expression")
 }
