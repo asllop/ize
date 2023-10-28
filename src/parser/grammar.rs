@@ -268,7 +268,7 @@ pub enum Elem {
     /// Expression defined by function.
     Expr(GrammarFn),
     /// This element makes the parsing of current Grammar unavoidable. Once found we can't fallaback to the next expression.
-    Must(&'static Elem),
+    Must,
 }
 
 /*
@@ -721,6 +721,7 @@ El procés de parsing aleshores consisteix en:
 */
 
 pub struct Grammar {
+    id: &'static str,
     grammar: &'static [Elem],
     next: Option<GrammarFn>,
     collector: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
@@ -732,11 +733,13 @@ impl Grammar {
     /// - next: Next expression to parse in precedence order in case 'grammar' doesn't match.
     /// - collector: Collector closure, to collect grammar elements and build expression.
     pub fn new(
+        id: &'static str,
         grammar: &'static [Elem],
         next: Option<GrammarFn>,
         collector: fn(ParseResult, &mut TokenStream) -> Result<Expr, IzeErr>,
     ) -> Self {
         Self {
+            id,
             grammar,
             next,
             collector,
@@ -745,37 +748,38 @@ impl Grammar {
 
     /*  PROBLEMA: ERROR HANDLING
 
-        Aquesta estructura basada en gramàtiques s'assembla força a un parser combinator.
-        El problema és que no sabem que una expressió ha fallat fins que no ho hem provat tot, i per tant
-        fer un bon error handling és complicat. Per exemple l'expressió errònia:
-            a+b;let 10
-        Produeix una expressió correcta "a+b" i l'índex de l'error és al ";".
-        Amb el parser Recursive Descendant clàssic podem detectar l'error dins de let_expr() i generar un missatge tal com:
-            "Identifier expected after let". Amb l'índex correcte apuntant al "10".
-        El problema és que com que chain_expr() no pot parsar, perquè "let_expr" ha fallat, fallback a next i finalment es pot parsar
-        una expressió binaria, de manera que l'error es produeix en intentar parsar la següent epxressió que comença per ";".
-        Dita d'una altra manera, quan una gramàtica no pot parsar, no té manera de saber si és perquè l'expressió és errònia o
-        simplement perquè correspon a un altre tipus d'expressió.
+       Aquesta estructura basada en gramàtiques s'assembla força a un parser combinator.
+       El problema és que no sabem que una expressió ha fallat fins que no ho hem provat tot, i per tant
+       fer un bon error handling és complicat. Per exemple l'expressió errònia:
+           a+b;let 10
+       Produeix una expressió correcta "a+b" i l'índex de l'error és al ";".
+       Amb el parser Recursive Descendant clàssic podem detectar l'error dins de let_expr() i generar un missatge tal com:
+           "Identifier expected after let". Amb l'índex correcte apuntant al "10".
+       El problema és que com que chain_expr() no pot parsar, perquè "let_expr" ha fallat, fallback a next i finalment es pot parsar
+       una expressió binaria, de manera que l'error es produeix en intentar parsar la següent epxressió que comença per ";".
+       Dita d'una altra manera, quan una gramàtica no pot parsar, no té manera de saber si és perquè l'expressió és errònia o
+       simplement perquè correspon a un altre tipus d'expressió.
 
-        SOLUCIÓ:
+       SOLUCIÓ:
 
-        Cal incloure informació sobre els checks a la gramàtica. Per exemple, a la gramàtica de let_expr li hem de poder dir
-        que si troba un token "let" ja no pot fer fallaback a next, a partir d'aquest punt o bé parsa una expressió let completa
-        o ha de generar un error. El mateix amb chain, si troba un ";", ha de poder parsar una expressió chain completa.
-        Igual amb els binaris, si troba un "+" ha de poder trobar una altra expressió despres. Etc.
-        Això ho podem fer amb un nou element gramatical: Must.
-     */
+       Cal incloure informació sobre els checks a la gramàtica. Per exemple, a la gramàtica de let_expr li hem de poder dir
+       que si troba un token "let" ja no pot fer fallaback a next, a partir d'aquest punt o bé parsa una expressió let completa
+       o ha de generar un error. El mateix amb chain, si troba un ";", ha de poder parsar una expressió chain completa.
+       Igual amb els binaris, si troba un "+" ha de poder trobar una altra expressió despres. Etc.
+       Això ho podem fer amb un nou element gramatical: Must.
+    */
 
     /// Check if a grammar can be parsed given the available tokens.
-    pub fn check(&self, token_stream: &TokenStream, index: usize) -> (bool, usize) {
-        let (result, new_index) = Self::check_grammar(token_stream, self.grammar, index);
+    pub fn check(&self, token_stream: &TokenStream, index: usize) -> Result<(bool, usize), IzeErr> {
+        let (result, new_index) = self.check_grammar(token_stream, self.grammar, index)?;
         if result {
-            (result, new_index)
+            Ok((result, new_index))
         } else {
             // Try next in precedence
             match self.next {
-                Some(next) => Self::check_grammar(token_stream, &[Expr(next)], index),
-                None => (false, index),
+                Some(next) => self.check_grammar(token_stream, &[Expr(next)], index),
+                //TODO: return generic error
+                None => Ok((false, index)),
             }
         }
     }
@@ -784,7 +788,8 @@ impl Grammar {
     /// Returns (result, new_index):
     /// - result: Indicates whether the check was sucessful or not.
     /// - new_index: Is the current index on the token stream after the check, only if result == true.
-    fn check_grammar(token_stream: &TokenStream, grammar: &[Elem], index: usize) -> (bool, usize) {
+    fn check_grammar(&self, token_stream: &TokenStream, grammar: &[Elem], index: usize) -> Result<(bool, usize), IzeErr> {
+        let mut must = false;
         let mut index = index;
         for elem in grammar {
             match elem {
@@ -792,33 +797,49 @@ impl Grammar {
                     if token_stream.is_token(*token_kind, index) {
                         index += 1;
                     } else {
-                        return (false, index);
+                        return if must {
+                            Result::ize_err(format!("Expression {} error, expected token {:?}", self.id, token_kind), token_stream.pos_at(index))
+                        } else {
+                            Ok((false, index))
+                        };
                     }
                 }
                 Elem::OrTk(tokens) => {
                     if token_stream.is_any_of_tokens(*tokens, index) {
                         index += 1;
                     } else {
-                        return (false, index);
+                        return if must {
+                            Result::ize_err(format!("Expression {} error, one of token {:?}", self.id, tokens), token_stream.pos_at(index))
+                        } else {
+                            Ok((false, index))
+                        };
                     }
                 }
                 Elem::Identifier => {
                     if token_stream.is_ident(index) {
                         index += 1;
                     } else {
-                        return (false, index);
+                        return if must {
+                            Result::ize_err(format!("Expression {} error, expected identifier", self.id), token_stream.pos_at(index))
+                        } else {
+                            Ok((false, index))
+                        };
                     }
                 }
                 Elem::Literal => {
                     if token_stream.is_literal(index) {
                         index += 1;
                     } else {
-                        return (false, index);
+                        return if must {
+                            Result::ize_err(format!("Expression {} error, expected literal", self.id), token_stream.pos_at(index))
+                        } else {
+                            Ok((false, index))
+                        };
                     }
                 }
                 Elem::Mul(grammar) => loop {
                     let (check_result, new_index) =
-                        Self::check_grammar(token_stream, grammar, index);
+                        self.check_grammar(token_stream, grammar, index)?;
                     if !check_result {
                         break;
                     }
@@ -828,7 +849,7 @@ impl Grammar {
                     let mut i = 0;
                     loop {
                         let (check_result, new_index) =
-                            Self::check_grammar(token_stream, grammar, index);
+                            self.check_grammar(token_stream, grammar, index)?;
                         if !check_result {
                             break;
                         }
@@ -836,7 +857,11 @@ impl Grammar {
                         i += 1;
                     }
                     if i == 0 {
-                        return (false, index);
+                        return if must {
+                            Result::ize_err(format!("Expression {} error, expected sequence: {:?}", self.id, grammar), token_stream.pos_at(index))
+                        } else {
+                            Ok((false, index))
+                        };
                     }
                 }
                 Elem::Opt(_) => todo!("Optional grammar element '?'"),
@@ -844,7 +869,7 @@ impl Grammar {
                     let mut grammar_result = false;
                     for &grammar in grammars.iter() {
                         let (check_result, new_index) =
-                            Self::check_grammar(token_stream, grammar, index);
+                            self.check_grammar(token_stream, grammar, index)?;
                         if check_result {
                             index = new_index;
                             grammar_result = true;
@@ -853,22 +878,33 @@ impl Grammar {
                     }
                     // None of the grammars matched
                     if !grammar_result {
-                        return (false, index);
+                        return if must {
+                            Result::ize_err(format!("Expression {} error, expected one of the following sequences:\n{:?}", self.id, grammars), token_stream.pos_at(index))
+                        } else {
+                            Ok((false, index))
+                        };
                     }
                 }
                 Elem::Expr(expr) => {
                     let grammar = expr();
-                    let (check_result, new_index) = grammar.check(token_stream, index);
+                    let (check_result, new_index) = grammar.check(token_stream, index)?;
                     if check_result {
                         index = new_index;
                     } else {
-                        return (false, new_index);
+                        return if must {
+                            Result::ize_err(format!("Expression {} error, expected expression", self.id), token_stream.pos_at(index))
+                        } else {
+                            Ok((false, index))
+                        };
                     }
+                }
+                Elem::Must => {
+                    // Mark current grammar as unskipable: after this we must succeed parsing or generate an error and abort.
+                    must = true;
                 },
-                Elem::Must(_) => todo!("Must grammar element")
             }
         }
-        (true, index)
+        Ok((true, index))
     }
 }
 
@@ -941,17 +977,20 @@ pub fn parse_expression(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> 
     todo!("Parsing not implemented yet")
 }
 
-pub fn check_expression(token_stream: &mut TokenStream, index: usize) -> (bool, usize) {
-    let (result, new_index) = expr().check(token_stream, index);
+pub fn check_expression(token_stream: &mut TokenStream, index: usize) -> Result<(bool, usize), IzeErr> {
+    let (result, new_index) = expr().check(token_stream, index)?;
 
     if result {
         print_token_range(token_stream, index, new_index);
     } else {
-        println!("\n---> CHECK FAILED, next token: {:?}\n", token_stream.at(index).unwrap().lexeme);
+        println!(
+            "\n---> CHECK FAILED, next token: {:?}\n",
+            token_stream.at(index).unwrap().lexeme
+        );
     }
     println!("Check Result = {} , Index = {}", result, index);
 
-    (result, new_index)
+    Ok((result, new_index))
 }
 
 fn print_token_range(token_stream: &TokenStream, mut start: usize, end: usize) {
@@ -971,7 +1010,8 @@ fn expr() -> Grammar {
 // next_expr (";" next_expr)+
 fn chain_expr() -> Grammar {
     Grammar::new(
-        &[Expr(let_expr), Plu(&[Tk(Semicolon), Expr(let_expr)])],
+        "CHAIN",
+        &[Expr(let_expr), Plu(&[Tk(Semicolon), Must, Expr(let_expr)])],
         Some(let_expr),
         |mut result, token_stream| todo!(),
     )
@@ -980,7 +1020,8 @@ fn chain_expr() -> Grammar {
 // "let" ID let_expr
 fn let_expr() -> Grammar {
     Grammar::new(
-        &[Tk(Let), Identifier, Expr(let_expr)],
+        "LET",
+        &[Tk(Let), Must, Identifier, Expr(let_expr)],
         Some(ifelse_expr),
         |mut result, token_stream| {
             if result.succeed {
@@ -1019,6 +1060,7 @@ fn let_expr() -> Grammar {
 // "if" "(" expr ")" expr "else" expr
 fn ifelse_expr() -> Grammar {
     Grammar::new(
+        "IF-ELSE",
         &[
             Tk(If),
             Tk(OpenParenth),
@@ -1036,6 +1078,7 @@ fn ifelse_expr() -> Grammar {
 // next_expr ( ( "!=" | "==" ) next_expr )+
 fn equality_expr() -> Grammar {
     Grammar::new(
+        "EQUALITY-BINARY",
         &[
             Expr(comparison_expr),
             Plu(&[
@@ -1051,6 +1094,7 @@ fn equality_expr() -> Grammar {
 // next_expr ( ( ">" | "<" | "<=" | ">=" | "&&" | "||" ) next_expr )+
 fn comparison_expr() -> Grammar {
     Grammar::new(
+        "COMPARISON-BINARY",
         &[
             Expr(logic_expr),
             Plu(&[
@@ -1073,6 +1117,7 @@ fn comparison_expr() -> Grammar {
 // next_expr ( ( "&" | "|" ) next_expr )+
 fn logic_expr() -> Grammar {
     Grammar::new(
+        "LOGIC-BINARY",
         &[
             Expr(term_expr),
             Plu(&[OrTk(&[TokenKind::And, TokenKind::Or]), Expr(term_expr)]),
@@ -1085,6 +1130,7 @@ fn logic_expr() -> Grammar {
 // next_expr ( ( "+" | "-" ) next_expr )+
 fn term_expr() -> Grammar {
     Grammar::new(
+        "TERM-BINARY",
         &[
             Expr(factor_expr),
             Plu(&[
@@ -1100,6 +1146,7 @@ fn term_expr() -> Grammar {
 // next_expr ( ( "*" | "/" | "%" ) next_expr )+
 fn factor_expr() -> Grammar {
     Grammar::new(
+        "FACTOR-BINARY",
         &[
             Expr(unary_expr),
             Plu(&[
@@ -1115,6 +1162,7 @@ fn factor_expr() -> Grammar {
 // ( "!" | "-" )+ next_expr
 fn unary_expr() -> Grammar {
     Grammar::new(
+        "UNARY",
         &[
             Plu(&[OrTk(&[TokenKind::Minus, TokenKind::Not])]),
             Expr(group_expr),
@@ -1127,6 +1175,7 @@ fn unary_expr() -> Grammar {
 // "(" expr ")"
 fn group_expr() -> Grammar {
     Grammar::new(
+        "GROUP",
         &[Tk(OpenParenth), Expr(expr), Tk(ClosingParenth)],
         Some(primary_expr),
         |mut result, token_stream| todo!(),
@@ -1136,6 +1185,7 @@ fn group_expr() -> Grammar {
 // LITERAL | ID | type_expr
 fn primary_expr() -> Grammar {
     Grammar::new(
+        "PRIMARY",
         &[Sel(&[
             &[Literal],
             &[Identifier],

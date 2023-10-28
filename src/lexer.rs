@@ -258,9 +258,22 @@ impl TokenStream {
         false
     }
 
-    /// Token at position
-    pub fn at(&self, pos: usize) -> Option<&Token> {
-        self.tokens.get(pos)
+    /// Token at index
+    pub fn at(&self, index: usize) -> Option<&Token> {
+        self.tokens.get(index)
+    }
+
+    /// Token Pos at index
+    pub fn pos_at(&self, index: usize) -> Pos {
+        if let Some(t) = self.tokens.get(index) {
+            t.pos
+        } else {
+            if self.tokens.len() == 0 {
+                Pos::default()
+            } else {
+                self.tokens[self.tokens.len() - 1].pos
+            }
+        }
     }
 
     //TODO: extract, check empty, check token type, etc
