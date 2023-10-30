@@ -778,7 +778,6 @@ impl Grammar {
             // Try next in precedence
             match self.next {
                 Some(next) => self.check_grammar(token_stream, &[Expr(next)], index),
-                //TODO: return generic error
                 None => Ok((false, index)),
             }
         }
@@ -788,7 +787,12 @@ impl Grammar {
     /// Returns (result, new_index):
     /// - result: Indicates whether the check was sucessful or not.
     /// - new_index: Is the current index on the token stream after the check, only if result == true.
-    fn check_grammar(&self, token_stream: &TokenStream, grammar: &[Elem], index: usize) -> Result<(bool, usize), IzeErr> {
+    fn check_grammar(
+        &self,
+        token_stream: &TokenStream,
+        grammar: &[Elem],
+        index: usize,
+    ) -> Result<(bool, usize), IzeErr> {
         let mut must = false;
         let mut index = index;
         for elem in grammar {
@@ -798,7 +802,13 @@ impl Grammar {
                         index += 1;
                     } else {
                         return if must {
-                            Result::ize_err(format!("Expression {} error, expected token {:?}", self.id, token_kind), token_stream.pos_at(index))
+                            Result::ize_err(
+                                format!(
+                                    "Expression {} error, expected token {:?}",
+                                    self.id, token_kind
+                                ),
+                                token_stream.pos_at(index),
+                            )
                         } else {
                             Ok((false, index))
                         };
@@ -809,7 +819,10 @@ impl Grammar {
                         index += 1;
                     } else {
                         return if must {
-                            Result::ize_err(format!("Expression {} error, one of token {:?}", self.id, tokens), token_stream.pos_at(index))
+                            Result::ize_err(
+                                format!("Expression {} error, one of token {:?}", self.id, tokens),
+                                token_stream.pos_at(index),
+                            )
                         } else {
                             Ok((false, index))
                         };
@@ -820,7 +833,10 @@ impl Grammar {
                         index += 1;
                     } else {
                         return if must {
-                            Result::ize_err(format!("Expression {} error, expected identifier", self.id), token_stream.pos_at(index))
+                            Result::ize_err(
+                                format!("Expression {} error, expected identifier", self.id),
+                                token_stream.pos_at(index),
+                            )
                         } else {
                             Ok((false, index))
                         };
@@ -831,7 +847,10 @@ impl Grammar {
                         index += 1;
                     } else {
                         return if must {
-                            Result::ize_err(format!("Expression {} error, expected literal", self.id), token_stream.pos_at(index))
+                            Result::ize_err(
+                                format!("Expression {} error, expected literal", self.id),
+                                token_stream.pos_at(index),
+                            )
                         } else {
                             Ok((false, index))
                         };
@@ -858,7 +877,13 @@ impl Grammar {
                     }
                     if i == 0 {
                         return if must {
-                            Result::ize_err(format!("Expression {} error, expected sequence: {:?}", self.id, grammar), token_stream.pos_at(index))
+                            Result::ize_err(
+                                format!(
+                                    "Expression {} error, expected sequence: {:?}",
+                                    self.id, grammar
+                                ),
+                                token_stream.pos_at(index),
+                            )
                         } else {
                             Ok((false, index))
                         };
@@ -892,7 +917,10 @@ impl Grammar {
                         index = new_index;
                     } else {
                         return if must {
-                            Result::ize_err(format!("Expression {} error, expected expression", self.id), token_stream.pos_at(index))
+                            Result::ize_err(
+                                format!("Expression {} error, expected expression", self.id),
+                                token_stream.pos_at(index),
+                            )
                         } else {
                             Ok((false, index))
                         };
@@ -901,7 +929,7 @@ impl Grammar {
                 Elem::Must => {
                     // Mark current grammar as unskipable: after this we must succeed parsing or generate an error and abort.
                     must = true;
-                },
+                }
             }
         }
         Ok((true, index))
@@ -977,20 +1005,28 @@ pub fn parse_expression(token_stream: &mut TokenStream) -> Result<Expr, IzeErr> 
     todo!("Parsing not implemented yet")
 }
 
-pub fn check_expression(token_stream: &mut TokenStream, index: usize) -> Result<(bool, usize), IzeErr> {
+pub fn check_expression(
+    token_stream: &mut TokenStream,
+    index: usize,
+) -> Result<(bool, usize), IzeErr> {
     let (result, new_index) = expr().check(token_stream, index)?;
 
     if result {
         print_token_range(token_stream, index, new_index);
+        println!("Check Result = {} , Index = {}", result, index);
+        Ok((result, new_index))
     } else {
-        println!(
-            "\n---> CHECK FAILED, next token: {:?}\n",
-            token_stream.at(index).unwrap().lexeme
-        );
+        let lexeme = &token_stream.at(index).unwrap().lexeme;
+        println!("\n---> CHECK FAILED, next token: {:?}\n", lexeme);
+        // TODO:
+        // We have to identify specific error cases to generate better error messages.
+        // For example "a+b)" will correctly parse "a+b" and then will fail on ")" because there is no expression that starts with it.
+        // In this case we should say "Maybe you forgot to open the parenthesis?".
+        Result::ize_err(
+            format!("Couldn't parse a valid expression with {:?}", lexeme),
+            token_stream.pos_at(index),
+        )
     }
-    println!("Check Result = {} , Index = {}", result, index);
-
-    Ok((result, new_index))
 }
 
 fn print_token_range(token_stream: &TokenStream, mut start: usize, end: usize) {
@@ -1063,6 +1099,7 @@ fn ifelse_expr() -> Grammar {
         "IF-ELSE",
         &[
             Tk(If),
+            Must,
             Tk(OpenParenth),
             Expr(expr),
             Tk(ClosingParenth),
@@ -1083,6 +1120,7 @@ fn equality_expr() -> Grammar {
             Expr(comparison_expr),
             Plu(&[
                 OrTk(&[TokenKind::NotEqual, TokenKind::TwoEquals]),
+                Must,
                 Expr(comparison_expr),
             ]),
         ],
@@ -1106,6 +1144,7 @@ fn comparison_expr() -> Grammar {
                     TokenKind::TwoAnds,
                     TokenKind::TwoOrs,
                 ]),
+                Must,
                 Expr(logic_expr),
             ]),
         ],
@@ -1120,7 +1159,11 @@ fn logic_expr() -> Grammar {
         "LOGIC-BINARY",
         &[
             Expr(term_expr),
-            Plu(&[OrTk(&[TokenKind::And, TokenKind::Or]), Expr(term_expr)]),
+            Plu(&[
+                OrTk(&[TokenKind::And, TokenKind::Or]),
+                Must,
+                Expr(term_expr),
+            ]),
         ],
         Some(term_expr),
         |mut result, token_stream| todo!(),
@@ -1135,6 +1178,7 @@ fn term_expr() -> Grammar {
             Expr(factor_expr),
             Plu(&[
                 OrTk(&[TokenKind::Plus, TokenKind::Minus]),
+                Must,
                 Expr(factor_expr),
             ]),
         ],
@@ -1151,6 +1195,7 @@ fn factor_expr() -> Grammar {
             Expr(unary_expr),
             Plu(&[
                 OrTk(&[TokenKind::Star, TokenKind::Slash, TokenKind::Percent]),
+                Must,
                 Expr(unary_expr),
             ]),
         ],
@@ -1165,6 +1210,7 @@ fn unary_expr() -> Grammar {
         "UNARY",
         &[
             Plu(&[OrTk(&[TokenKind::Minus, TokenKind::Not])]),
+            Must,
             Expr(group_expr),
         ],
         Some(group_expr),
@@ -1176,7 +1222,7 @@ fn unary_expr() -> Grammar {
 fn group_expr() -> Grammar {
     Grammar::new(
         "GROUP",
-        &[Tk(OpenParenth), Expr(expr), Tk(ClosingParenth)],
+        &[Tk(OpenParenth), Must, Expr(expr), Tk(ClosingParenth)],
         Some(primary_expr),
         |mut result, token_stream| todo!(),
     )

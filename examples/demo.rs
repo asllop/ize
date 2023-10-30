@@ -23,7 +23,8 @@ fn main() {
     // }
     let mut index = 0;
     loop {
-        let (result, new_index) = grammar::check_expression(&mut token_stream, index).expect("Error checking expression");
+        let (result, new_index) =
+            grammar::check_expression(&mut token_stream, index).expect("Error checking expression");
         if !result {
             println!("\nFAIL");
             break;
