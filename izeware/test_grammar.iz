@@ -31,10 +31,14 @@ else
 
 y < 100 && y > 200
 
-(a+b)*c
+(a+b)*10
 ((a+b)*c)+d
 
-//TODO: Handle errors. Error examples:
+a()
+a(b(c*2))
+a(b(c*2), 100, a*b)
+
+//Error examples:
 //let 6 a
 //a+b;let 6 a
 //a+b;let var
@@ -44,3 +48,6 @@ y < 100 && y > 200
 //a+
 //a;
 //if ( a else b
+//if )a) else b
+//foo(100,)
+//foo(,100)
