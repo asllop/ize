@@ -11,7 +11,7 @@ use std::{
 };
 
 fn main() {
-    let file_path = "izeware/test_grammar.iz";
+    let file_path = "izeware/test_grammar2.iz";
     let code = read_code(file_path).expect("Error reading file");
     let mut token_stream = Lexer::new(code.as_str())
         .tokenize()
@@ -21,6 +21,8 @@ fn main() {
     //     println!("{:#?}", expr);
     //     println!("-----------------------");
     // }
+    println!("------ CHECK ------");
+
     let mut index = 0;
     loop {
         let (result, new_index) =
@@ -36,6 +38,14 @@ fn main() {
             index = new_index;
         }
     }
+
+    println!("------ PARSE ------");
+    grammar::parse_expression(&mut token_stream).expect("Error parsing expr 1");
+    println!("------------");
+    grammar::parse_expression(&mut token_stream).expect("Error parsing expr 2");
+    println!("------------");
+    grammar::parse_expression(&mut token_stream).expect("Error parsing expr 3");
+    println!("------------");
 }
 
 fn _main() {

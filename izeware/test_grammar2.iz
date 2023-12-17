@@ -1,0 +1,7 @@
+100
+"Hello world"
+my_var
+
+let name "Hello World"
+
+let num 12.34 ; num
