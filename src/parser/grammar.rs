@@ -1,3 +1,5 @@
+use std::result;
+
 use crate::{
     ast::{Expr, ExprSet, Literal},
     parser::common::FromToken,
@@ -67,7 +69,7 @@ impl Grammar {
     pub fn check(&self, token_stream: &TokenStream, index: usize) -> Result<(bool, usize), IzeErr> {
         let (result, new_index) = self.check_grammar(token_stream, self.grammar, index)?;
         if result {
-            Ok((result, new_index))
+            Ok((true, new_index))
         } else {
             // Try next in precedence
             match self.next {
@@ -150,13 +152,16 @@ impl Grammar {
                         };
                     }
                 }
-                Elem::Mul(grammar) => loop {
-                    let (check_result, new_index) =
-                        self.check_grammar(token_stream, grammar, index)?;
-                    if !check_result {
-                        break;
+                Elem::Mul(grammar) => {
+                    // Find zero or more times the grammar
+                    loop {
+                        let (check_result, new_index) =
+                            self.check_grammar(token_stream, grammar, index)?;
+                        if !check_result {
+                            break;
+                        }
+                        index = new_index;
                     }
-                    index = new_index;
                 },
                 Elem::Plu(grammar) => {
                     let mut i = 0;
@@ -210,8 +215,8 @@ impl Grammar {
                         };
                     }
                 }
-                Elem::Expr(expr) => {
-                    let grammar = expr();
+                Elem::Expr(expr_fn) => {
+                    let grammar = expr_fn();
                     let (check_result, new_index) = grammar.check(token_stream, index)?;
                     if check_result {
                         index = new_index;
@@ -236,21 +241,43 @@ impl Grammar {
     }
 
     /// Parse using grammar rule set.
-    pub fn parse(&mut self, token_stream: &mut TokenStream) -> Result<(), IzeErr> {
-        let mut parse_result = ParseResult::default();
-        if self.exec_grammar(self.grammar, token_stream, &mut parse_result) {
-            Ok(())
+    pub fn parse(&mut self, parse_result: &mut ParseResult, token_stream: &mut TokenStream) -> Result<(), IzeErr> {
+        let (result, index) = self.check(token_stream, 0)?;
+        if result {
+            let result = self.parse_grammar(token_stream, parse_result, self.grammar)?;
+            if result {
+                Ok(())
+            } else {
+                // Try next in precedence
+                match self.next {
+                    Some(next) => {
+                        println!("Run Next in precedence");
+                        self.parse_grammar(token_stream, parse_result, &[Expr(next)])?;
+                        Ok(())
+                    },
+                    None => {
+                        Result::ize_err(
+                            format!("Couldn't parse a valid expression"),
+                            token_stream.pos_at(index),
+                        )
+                    }
+                }
+            }
         } else {
-            Ok(())
-            //Result::ize_err("Exec returned false".into(), token_stream.last_pos())
+            Result::ize_err(
+                format!("Couldn't check for a valid expression"),
+                token_stream.pos_at(index),
+            )
         }
     }
 
-    //TODO: should this return a bool?? We probably need an IzeErr too.
-    /// It can panic.
-    fn exec_grammar(&mut self, grammar: &[Elem], token_stream: &mut TokenStream, result: &mut ParseResult) -> bool {
-        println!("EXEC GRAMMAR = {:?}", grammar);
-
+    fn parse_grammar(
+        &self,
+        token_stream: &mut TokenStream,
+        result: &mut ParseResult,
+        grammar: &[Elem],
+    ) -> Result<bool, IzeErr> {
+        let mut must = false;
         for elem in grammar {
             match elem {
                 Elem::Tk(token_kind) => {
@@ -263,7 +290,17 @@ impl Grammar {
                         result.add_token(pos, *token_kind);
                     } else {
                         println!("Not TK {:?}", token_kind);
-                        return false;
+                        return if must {
+                            Result::ize_err(
+                                format!(
+                                    "Expression {} error, expected token {:?}",
+                                    self.id, token_kind
+                                ),
+                                token_stream.pos_at(0),
+                            )
+                        } else {
+                            Ok(false)
+                        };
                     }
                 }
                 Elem::OrTk(tokens) => {
@@ -276,7 +313,14 @@ impl Grammar {
                         result.add_token(pos, token_kind);
                     } else {
                         println!("Not ORTK {:?}", tokens);
-                        return false;
+                        return if must {
+                            Result::ize_err(
+                                format!("Expression {} error, one of token {:?}", self.id, tokens),
+                                token_stream.pos_at(0),
+                            )
+                        } else {
+                            Ok(false)
+                        };
                     }
                 }
                 Elem::Identifier => {
@@ -289,7 +333,14 @@ impl Grammar {
                         result.add_ident(pos, id);
                     } else {
                         println!("Not ID");
-                        return false;
+                        return if must {
+                            Result::ize_err(
+                                format!("Expression {} error, expected identifier", self.id),
+                                token_stream.pos_at(0),
+                            )
+                        } else {
+                            Ok(false)
+                        };
                     }
                 }
                 Elem::Literal => {
@@ -319,127 +370,324 @@ impl Grammar {
                                 result.add_lit_null(pos);
                             }
                         }
+
+                        println!("Result after LIT {:?}", result);
                     } else {
                         println!("Not LIT");
-                        return false;
+                        return if must {
+                            Result::ize_err(
+                                format!("Expression {} error, expected literal", self.id),
+                                token_stream.pos_at(0),
+                            )
+                        } else {
+                            Ok(false)
+                        };
                     }
                 }
-                //TODO: Next step implement this
                 Elem::Mul(grammar) => {
+                    // Find zero or more times the grammar
                     println!("MUL {:?}", grammar);
-                    /*
-                    - Call check_grammar
-                    - If it fails, do nothing and return ok
-                    - If it works, parse grammar (call exec_grammar) and try again from the begining
-                     */
                     loop {
-                        match self.check_grammar(token_stream, grammar, 0) {
-                            Ok((false, _)) | Err(_) => break,
-                            Ok((true, _)) => {
-                                self.exec_grammar(grammar, token_stream, result);
-                            },
+                        let (check_result, _) =
+                            self.check_grammar(token_stream, grammar, 0)?;
+                        if check_result {
+                            self.parse_grammar(token_stream, result, grammar)?;
+                        } else {
+                            // No mor Mul checks
+                            break;
                         }
                     }
                 },
                 Elem::Plu(grammar) => {
                     println!("PLU {:?}", grammar);
-                    /*
-                    - Call check_grammar
-                    - If it fails, if it's the first time, return error. If not first time, do nothing and return ok.
-                    - If it works, parse grammar (call exec_grammar) and try again from the begining
-                     */
-                    let mut counter = 0;
+                    let mut i = 0;
                     loop {
-                        match self.check_grammar(token_stream, grammar, 0) {
-                            Ok((false, _)) | Err(_) => if counter == 0 {
-                                println!("Plu Not found");
-                                return false
-                            } else {
-                                break
-                            },
-                            Ok((true, _)) => {
-                                println!("Plu found");
-                                self.exec_grammar(grammar, token_stream, result);
-                            },
+                        let (check_result, _) =
+                            self.check_grammar(token_stream, grammar, 0)?;
+                        if check_result {
+                            self.parse_grammar(token_stream, result, grammar)?;
+                        } else {
+                            // No more Plu checks
+                            break;
                         }
-                        counter += 1;
+                        i += 1;
                     }
-                },
+                    if i == 0 {
+                        return if must {
+                            Result::ize_err(
+                                format!(
+                                    "Expression {} error, expected sequence: {:?}",
+                                    self.id, grammar
+                                ),
+                                token_stream.pos_at(0),
+                            )
+                        } else {
+                            Ok(false)
+                        };
+                    }
+                }
                 Elem::Opt(grammar) => {
                     println!("OPT {:?}", grammar);
-                    /*
-                    - Call check_grammar
-                    - If it fails, do nothing and return ok.
-                    - If it works, parse grammar (call exec_grammar) and return ok
-                     */
-                    match self.check_grammar(token_stream, grammar, 0) {
-                        Ok((false, _)) | Err(_) => {},
-                        Ok((true, _)) => {
-                            println!("Opt found");
-                            self.exec_grammar(grammar, token_stream, result);
-                        },
+                    let (check_result, _) =
+                        self.check_grammar(token_stream, grammar, 0)?;
+                    if check_result {
+                        self.parse_grammar(token_stream, result, grammar)?;
                     }
-                },
+                }
                 Elem::Sel(grammars) => {
                     println!("SEL {:?}", grammars);
-                    /*
-                    - Iterate over all grammars.
-                    - Call check_grammar
-                    - If it works, parse grammar and return ok
-                    - If iteration ends without match, return error
-                     */
-                    let mut did_match_grammar = false;
+                    let mut grammar_result = false;
                     for &grammar in grammars.iter() {
-                        match self.check_grammar(token_stream, grammar, 0) {
-                            Ok((false, _)) | Err(_) => {},
-                            Ok((true, _)) => {
-                                println!("SEL found {:?}", grammar);
-                                did_match_grammar = true;
-                                self.exec_grammar(grammar, token_stream, result);
-                            },
+                        let (check_result, _) =
+                            self.check_grammar(token_stream, grammar, 0)?;
+                        if check_result {
+                            grammar_result = true;
+                            self.parse_grammar(token_stream, result, grammar)?;
+                            break;
                         }
                     }
-                    if !did_match_grammar {
-                        println!("Not SEL");
-                        return false;
+                    // None of the grammars matched
+                    if !grammar_result {
+                        return if must {
+                            Result::ize_err(format!("Expression {} error, expected one of the following sequences:\n{:?}", self.id, grammars), token_stream.pos_at(0))
+                        } else {
+                            Ok(false)
+                        };
                     }
-                },
+                }
                 Elem::Expr(expr_fn) => {
-                    let res = self.exec_expr(expr_fn, token_stream, result);
-                    if res {
-                        println!("Expr executed");
+                    let mut grammar = expr_fn();
+                    println!("EXPR {:?} {:?}", expr_fn, grammar.grammar);
+                    let (check_result, _) = grammar.check(token_stream, 0)?;
+                    if check_result {
+                        grammar.parse(result, token_stream)?;
+                        let expr = (grammar.collector)(result, token_stream)?;
+                        println!("Parsed Expre = {:?}", expr);
                     } else {
-                        println!("Expr Not executed");
-                        return  false;
+                        return if must {
+                            Result::ize_err(
+                                format!("Expression {} error, expected expression", self.id),
+                                token_stream.pos_at(0),
+                            )
+                        } else {
+                            Ok(false)
+                        };
                     }
-                },
+                }
                 Elem::Must => {
-                    println!("MUST");
+                    // Mark current grammar as unskipable: after this we must succeed parsing or generate an error and abort.
+                    must = true;
                 }
             }
-            print!("TOKEN STREAM = ");
-            print_token_range(token_stream, 0, token_stream.len());
         }
-        true
+        Ok(true)
     }
+    
+    // /// Parse using grammar rule set.
+    // pub fn parse(&mut self, token_stream: &mut TokenStream) -> Result<(), IzeErr> {
+    //     let mut parse_result = ParseResult::default();
+    //     if self.exec_grammar(self.grammar, token_stream, &mut parse_result) {
+    //         Ok(())
+    //     } else {
+    //         Ok(())
+    //         //Result::ize_err("Exec returned false".into(), token_stream.last_pos())
+    //     }
+    // }
 
-    fn exec_expr(&mut self, expr_fn: &GrammarFn, token_stream: &mut TokenStream, result: &mut ParseResult) -> bool {
-        println!("EXPR {:?}", expr_fn);
-        let mut grammar = expr_fn();
-        if grammar.exec_grammar(grammar.grammar, token_stream, result) {
-            if let Ok(expr) = (grammar.collector)(result, token_stream) {
-                result.add_expr(expr.pos, expr);
-            }
-            true
-        } else {
-            if let Some(next) = grammar.next {
-                self.exec_expr(&next, token_stream, result)
-            } else {
-                println!("Expr grammar didn't parse");
-                false
-            }
-        }
-    }
+    // //TODO: should this return a bool?? We probably need an IzeErr too.
+    // /// It can panic.
+    // fn exec_grammar(&mut self, grammar: &[Elem], token_stream: &mut TokenStream, result: &mut ParseResult) -> bool {
+    //     println!("EXEC GRAMMAR = {:?}", grammar);
+
+    //     for elem in grammar {
+    //         match elem {
+    //             Elem::Tk(token_kind) => {
+    //                 if token_stream.is_token(*token_kind, 0) {
+    //                     println!("TK {:?}", token_kind);
+    //                     let (_, pos) = token_stream
+    //                         .consume_token()
+    //                         .into_particle()
+    //                         .expect("The stream should contain a particle");
+    //                     result.add_token(pos, *token_kind);
+    //                 } else {
+    //                     println!("Not TK {:?}", token_kind);
+    //                     return false;
+    //                 }
+    //             }
+    //             Elem::OrTk(tokens) => {
+    //                 if token_stream.is_any_of_tokens(*tokens, 0) {
+    //                     let (token_kind, pos) = token_stream
+    //                         .consume_token()
+    //                         .into_particle()
+    //                         .expect("The stream should contain a particle");
+    //                     println!("ORTK {:?}", token_kind);
+    //                     result.add_token(pos, token_kind);
+    //                 } else {
+    //                     println!("Not ORTK {:?}", tokens);
+    //                     return false;
+    //                 }
+    //             }
+    //             Elem::Identifier => {
+    //                 if token_stream.is_ident(0) {
+    //                     let (id, pos) = token_stream
+    //                         .consume_token()
+    //                         .into_ident()
+    //                         .expect("The stream should contain an identifier");
+    //                     println!("ID {:?}", id);
+    //                     result.add_ident(pos, id);
+    //                 } else {
+    //                     println!("Not ID");
+    //                     return false;
+    //                 }
+    //             }
+    //             Elem::Literal => {
+    //                 if token_stream.is_literal(0) {
+    //                     let (lit, pos) = token_stream
+    //                         .consume_token()
+    //                         .into_literal()
+    //                         .expect("The stream should contain a literal");
+    //                     println!("LIT {:?}", lit);
+    //                     match lit {
+    //                         Literal::Integer(i) => {
+    //                             result.add_lit_int(pos, i);
+    //                         }
+    //                         Literal::Float(f) => {
+    //                             result.add_lit_flt(pos, f);
+    //                         }
+    //                         Literal::String(s) => {
+    //                             result.add_lit_str(pos, s);
+    //                         }
+    //                         Literal::Boolean(b) => {
+    //                             result.add_lit_bool(pos, b);
+    //                         }
+    //                         Literal::None => {
+    //                             result.add_lit_none(pos);
+    //                         }
+    //                         Literal::Null => {
+    //                             result.add_lit_null(pos);
+    //                         }
+    //                     }
+    //                 } else {
+    //                     println!("Not LIT");
+    //                     return false;
+    //                 }
+    //             }
+    //             //TODO: Next step implement this
+    //             Elem::Mul(grammar) => {
+    //                 println!("MUL {:?}", grammar);
+    //                 /*
+    //                 - Call check_grammar
+    //                 - If it fails, do nothing and return ok
+    //                 - If it works, parse grammar (call exec_grammar) and try again from the begining
+    //                  */
+    //                 loop {
+    //                     match self.check_grammar(token_stream, grammar, 0) {
+    //                         Ok((false, _)) | Err(_) => break,
+    //                         Ok((true, _)) => {
+    //                             self.exec_grammar(grammar, token_stream, result);
+    //                         },
+    //                     }
+    //                 }
+    //             },
+    //             Elem::Plu(grammar) => {
+    //                 println!("PLU {:?}", grammar);
+    //                 /*
+    //                 - Call check_grammar
+    //                 - If it fails, if it's the first time, return error. If not first time, do nothing and return ok.
+    //                 - If it works, parse grammar (call exec_grammar) and try again from the begining
+    //                  */
+    //                 let mut counter = 0;
+    //                 loop {
+    //                     match self.check_grammar(token_stream, grammar, 0) {
+    //                         Ok((false, _)) | Err(_) => if counter == 0 {
+    //                             println!("Plu Not found");
+    //                             return false
+    //                         } else {
+    //                             break
+    //                         },
+    //                         Ok((true, _)) => {
+    //                             println!("Plu found");
+    //                             self.exec_grammar(grammar, token_stream, result);
+    //                         },
+    //                     }
+    //                     counter += 1;
+    //                 }
+    //             },
+    //             Elem::Opt(grammar) => {
+    //                 println!("OPT {:?}", grammar);
+    //                 /*
+    //                 - Call check_grammar
+    //                 - If it fails, do nothing and return ok.
+    //                 - If it works, parse grammar (call exec_grammar) and return ok
+    //                  */
+    //                 match self.check_grammar(token_stream, grammar, 0) {
+    //                     Ok((false, _)) | Err(_) => {},
+    //                     Ok((true, _)) => {
+    //                         println!("Opt found");
+    //                         self.exec_grammar(grammar, token_stream, result);
+    //                     },
+    //                 }
+    //             },
+    //             Elem::Sel(grammars) => {
+    //                 println!("SEL {:?}", grammars);
+    //                 /*
+    //                 - Iterate over all grammars.
+    //                 - Call check_grammar
+    //                 - If it works, parse grammar and return ok
+    //                 - If iteration ends without match, return error
+    //                  */
+    //                 let mut did_match_grammar = false;
+    //                 for &grammar in grammars.iter() {
+    //                     match self.check_grammar(token_stream, grammar, 0) {
+    //                         Ok((false, _)) | Err(_) => {},
+    //                         Ok((true, _)) => {
+    //                             println!("SEL found {:?}", grammar);
+    //                             did_match_grammar = true;
+    //                             self.exec_grammar(grammar, token_stream, result);
+    //                         },
+    //                     }
+    //                 }
+    //                 if !did_match_grammar {
+    //                     println!("Not SEL");
+    //                     return false;
+    //                 }
+    //             },
+    //             Elem::Expr(expr_fn) => {
+    //                 let res = self.exec_expr(expr_fn, token_stream, result);
+    //                 if res {
+    //                     println!("Expr executed");
+    //                 } else {
+    //                     println!("Expr Not executed");
+    //                     return  false;
+    //                 }
+    //             },
+    //             Elem::Must => {
+    //                 println!("MUST");
+    //             }
+    //         }
+    //         print!("TOKEN STREAM = ");
+    //         print_token_range(token_stream, 0, token_stream.len());
+    //     }
+    //     true
+    // }
+
+    // fn exec_expr(&mut self, expr_fn: &GrammarFn, token_stream: &mut TokenStream, result: &mut ParseResult) -> bool {
+    //     println!("EXPR {:?}", expr_fn);
+    //     let mut grammar = expr_fn();
+    //     if grammar.exec_grammar(grammar.grammar, token_stream, result) {
+    //         if let Ok(expr) = (grammar.collector)(result, token_stream) {
+    //             result.add_expr(expr.pos, expr);
+    //         }
+    //         true
+    //     } else {
+    //         if let Some(next) = grammar.next {
+    //             self.exec_expr(&next, token_stream, result)
+    //         } else {
+    //             println!("Expr grammar didn't parse");
+    //             false
+    //         }
+    //     }
+    // }
 }
 
 #[derive(Default, Debug)]
@@ -545,7 +793,8 @@ impl Atom {
 ///////// TEST expression parsing \\\\\\\\\
 
 pub fn parse_expression(token_stream: &mut TokenStream) -> Result<(), IzeErr> {
-    expr().parse(token_stream)
+    let mut parse_result = ParseResult::default();
+    expr().parse(&mut parse_result, token_stream)
 }
 
 pub fn check_expression(
@@ -775,6 +1024,9 @@ fn primary_expr() -> Grammar {
         ])],
         None,
         |result, token_stream| {
+
+            println!("PRIMARY parse result {:?}", result);
+
             // Build primary expression
             let primary_atom = result.atoms.pop().unwrap();
             let pos = primary_atom.pos();
