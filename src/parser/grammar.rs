@@ -246,6 +246,7 @@ impl Grammar {
         if result {
             let result = self.parse_grammar(token_stream, parse_result, self.grammar)?;
             if result {
+                println!("Grammar parsed correctly = {:?}", self.grammar);
                 Ok(())
             } else {
                 // Try next in precedence
@@ -370,8 +371,6 @@ impl Grammar {
                                 result.add_lit_null(pos);
                             }
                         }
-
-                        println!("Result after LIT {:?}", result);
                     } else {
                         println!("Not LIT");
                         return if must {
@@ -391,9 +390,11 @@ impl Grammar {
                         let (check_result, _) =
                             self.check_grammar(token_stream, grammar, 0)?;
                         if check_result {
+                            println!("Found MUL {:?}", grammar);
                             self.parse_grammar(token_stream, result, grammar)?;
                         } else {
                             // No mor Mul checks
+                            println!("Not MUL {:?}", grammar);
                             break;
                         }
                     }
@@ -405,14 +406,17 @@ impl Grammar {
                         let (check_result, _) =
                             self.check_grammar(token_stream, grammar, 0)?;
                         if check_result {
+                            println!("Found PLU {:?}", grammar);
                             self.parse_grammar(token_stream, result, grammar)?;
                         } else {
                             // No more Plu checks
+                            println!("Not PLU {:?}", grammar);
                             break;
                         }
                         i += 1;
                     }
                     if i == 0 {
+                        println!("Not PLU {:?}", grammar);
                         return if must {
                             Result::ize_err(
                                 format!(
@@ -431,7 +435,10 @@ impl Grammar {
                     let (check_result, _) =
                         self.check_grammar(token_stream, grammar, 0)?;
                     if check_result {
+                        println!("Found OPT {:?}", grammar);
                         self.parse_grammar(token_stream, result, grammar)?;
+                    } else {
+                        println!("Not OPT {:?}", grammar);
                     }
                 }
                 Elem::Sel(grammars) => {
@@ -441,6 +448,7 @@ impl Grammar {
                         let (check_result, _) =
                             self.check_grammar(token_stream, grammar, 0)?;
                         if check_result {
+                            println!("Found SEL {:?}", grammar);
                             grammar_result = true;
                             self.parse_grammar(token_stream, result, grammar)?;
                             break;
@@ -448,6 +456,7 @@ impl Grammar {
                     }
                     // None of the grammars matched
                     if !grammar_result {
+                        println!("Not SEL {:?}", grammars);
                         return if must {
                             Result::ize_err(format!("Expression {} error, expected one of the following sequences:\n{:?}", self.id, grammars), token_stream.pos_at(0))
                         } else {
@@ -462,8 +471,9 @@ impl Grammar {
                     if check_result {
                         grammar.parse(result, token_stream)?;
                         let expr = (grammar.collector)(result, token_stream)?;
-                        println!("Parsed Expre = {:?}", expr);
+                        println!("Parsed Expr {:?} {:?} = {:?}", expr_fn, grammar.grammar, expr);
                     } else {
+                        println!("Not EXPR {:?} {:?}", expr_fn, grammar.grammar);
                         return if must {
                             Result::ize_err(
                                 format!("Expression {} error, expected expression", self.id),
@@ -475,6 +485,7 @@ impl Grammar {
                     }
                 }
                 Elem::Must => {
+                    println!("MUST");
                     // Mark current grammar as unskipable: after this we must succeed parsing or generate an error and abort.
                     must = true;
                 }
@@ -832,7 +843,16 @@ fn print_token_range(token_stream: &TokenStream, mut start: usize, end: usize) {
 }
 
 fn expr() -> Grammar {
-    chain_expr()
+    //chain_expr()
+    Grammar::new(
+        "EXPR",
+        &[Expr(chain_expr)],
+        Some(chain_expr),
+        |mut result, token_stream| {
+            println!("EXPR collector {:?}", result);
+            todo!("EXPR collect results")
+        },
+    )
 }
 
 // next_expr (";" next_expr)+
@@ -1025,7 +1045,7 @@ fn primary_expr() -> Grammar {
         None,
         |result, token_stream| {
 
-            println!("PRIMARY parse result {:?}", result);
+            println!("PRIMARY collector, parse result {:?}", result);
 
             // Build primary expression
             let primary_atom = result.atoms.pop().unwrap();
@@ -1053,8 +1073,6 @@ fn primary_expr() -> Grammar {
                 }
                 _ => Result::ize_err("Expected a primary expression".into(), pos),
             }?;
-
-            println!("PRIMARY collector result {:?}", expr);
 
             Ok(expr)
         },
