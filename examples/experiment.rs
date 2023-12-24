@@ -21,11 +21,15 @@ const CODE: &str = r#"
     let A let B let C 111
 
     let num 1234 ; num ; A ; let A let B let C 111
+
+    let num ("hello";100)
 "#;
 
 #[derive(Debug)]
 enum Token {
     Semicolon,
+    OpenParenth,
+    CloseParenth,
     Let,
     Int(i64),
     Id(String),
@@ -46,6 +50,7 @@ impl Token {
 enum Expression {
     Primary(Token),
     Chain(Vec<Expression>),
+    Group(Box<Expression>),
     Let {
         id: String,
         expr: Box<Expression>,
@@ -65,6 +70,22 @@ fn token_semicolon(input: &str) -> IResult<&str, Token> {
     let (rest, _) = trim(input)?;
     match tag::<&str, &str, _>(";")(rest) {
         Ok((rest, _)) => IResult::Ok((rest, Token::Semicolon)),
+        Err(e) => Err(e),
+    }
+}
+
+fn token_open_parenth(input: &str) -> IResult<&str, Token> {
+    let (rest, _) = trim(input)?;
+    match tag::<&str, &str, _>("(")(rest) {
+        Ok((rest, _)) => IResult::Ok((rest, Token::OpenParenth)),
+        Err(e) => Err(e),
+    }
+}
+
+fn token_close_parenth(input: &str) -> IResult<&str, Token> {
+    let (rest, _) = trim(input)?;
+    match tag::<&str, &str, _>(")")(rest) {
+        Ok((rest, _)) => IResult::Ok((rest, Token::CloseParenth)),
         Err(e) => Err(e),
     }
 }
@@ -115,16 +136,6 @@ fn expr(input: &str) -> IResult<&str, Expression> {
 }
 
 fn expr_chain(mut input: &str) -> IResult<&str, Expression> {
-    // //TODO: accept N chained expressions
-    // let (rest, expr1) = expr_let(input)?;
-    // match token_semicolon(rest) {
-    //     Ok((rest, _)) => {
-    //         let (rest, expr2) = expr_let(rest)?;
-    //         Result::Ok((rest, Expression::Chain(vec![expr1, expr2])))
-    //     },
-    //     Err(_) => Result::Ok((rest, expr1)),
-    // }
-
     let mut expressions = vec![];
     let rest: &str = loop {
         let (rest, expr) = expr_let(input)?;
@@ -150,10 +161,23 @@ fn expr_let(input: &str) -> IResult<&str, Expression> {
             IResult::Ok((rest, let_expr))
         },
         Err(_) => {
+            expr_group(input)
+        },
+    }
+}
+
+fn expr_group(input: &str) -> IResult<&str, Expression> {
+    match token_open_parenth(input) {
+        Ok((rest, _)) => {
+            let (rest, expr) = expr(rest)?;
+            let group_expr = Expression::Group(Box::new(expr));
+            let (rest, _) = token_close_parenth(rest)?;
+            IResult::Ok((rest, group_expr))
+        },
+        Err(_) => {
             expr_primary(input)
         },
     }
-
 }
 
 fn expr_primary(input: &str) -> IResult<&str, Expression> {
@@ -172,6 +196,8 @@ fn expr_primary(input: &str) -> IResult<&str, Expression> {
 fn main() {
     let rest = CODE;
 
+    let (rest, matched) = expr(rest).expect("Error parsing expr");
+    dbg!(rest, matched);
     let (rest, matched) = expr(rest).expect("Error parsing expr");
     dbg!(rest, matched);
     let (rest, matched) = expr(rest).expect("Error parsing expr");
