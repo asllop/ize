@@ -10,5 +10,10 @@ logos = "0.13.0"
 regex = "1.8.1"
 rustc-hash = "1.1.0"
 
+[dependencies.nom]
+version = "7"
+default-features = false
+features = ["alloc"]
+
 [[example]]
 name = "demo"
