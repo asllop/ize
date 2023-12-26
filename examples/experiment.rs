@@ -154,6 +154,8 @@ enum TokenKind {
     #[token("Tuple")]
     TupleType,
 
+    //TODO: can we scan complex types like Map[String, Integer] or List[Map[String, Integer]] ?
+
     // Commands
 
     #[token("model")]
@@ -191,6 +193,30 @@ fn next_token(lex: &mut Lexer<TokenKind>) -> Option<Result<(TokenPos, TokenKind)
         },
         None => {
             None
+        },
+    }
+}
+
+fn build_err(msg: &str) -> nom::Err<nom::error::Error<&str>> {
+    let e = nom::error::Error::new(msg, nom::error::ErrorKind::Fail);
+    nom::Err::Error(e)
+}
+
+fn finished_scanning_tokens(input: &str) -> bool {
+    let mut lex = TokenKind::lexer(input);
+    lex.next().is_none()
+}
+
+/// Alternative to `next_token`, can be used as a `nom` parser function.
+fn scan_token(input: &str, current_pos: TokenPos) -> IResult<&str, (TokenPos, TokenKind)> {
+    let mut lex = TokenKind::lexer_with_extras(input, current_pos);
+    match lex.next() {
+        Some(r) => match r {
+            Ok(token_kind) => IResult::Ok((lex.remainder(), (lex.extras, token_kind))),
+            Err(_) => Err(build_err("Bad token")),
+        },
+        None => {
+            Err(build_err("No more tokens"))
         },
     }
 }
@@ -382,7 +408,7 @@ fn _main() {
     dbg!(rest, matched);
 }
 
-fn main() {
+fn __main() {
     let input = CODE;
 
     let mut lex = TokenKind::lexer(input);
@@ -394,5 +420,16 @@ fn main() {
             },
             None => break,
         }
+    }
+}
+
+fn main() {
+    let mut input = CODE;
+    let mut current_pos = TokenPos::default();
+
+    while !finished_scanning_tokens(input) {
+        let token_kind;
+        (input, (current_pos, token_kind)) = scan_token(input, current_pos).expect("Error scanning token");
+        println!("{:?} at {:?}", token_kind, current_pos);
     }
 }
