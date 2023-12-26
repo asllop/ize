@@ -234,47 +234,15 @@ enum Expression {
     },
 }
 
-fn token_semicolon(input: &str) -> IResult<&str, Token> {
+fn token(token_kind: TokenKind, input: &str) -> IResult<&str, Token> {
     //TODO: get actual pos and pass it to scan_token
     match scan_token(input, Default::default()) {
-        Ok((rest, (pos, TokenKind::Semicolon))) => IResult::Ok((rest, Token::new(pos, TokenKind::Semicolon))),
-        Err(e) => Err(e),
-        _ => {
+        Ok((rest, (pos, t))) => if token_kind == t {
+            IResult::Ok((rest, Token::new(pos, TokenKind::Semicolon)))
+        } else {
             Err(build_err("Incorrect token"))
-        }
-    }
-}
-
-fn token_let(input: &str) -> IResult<&str, Token> {
-    //TODO: get actual pos and pass it to scan_token
-    match scan_token(input, Default::default()) {
-        Ok((rest, (pos, TokenKind::Let))) => IResult::Ok((rest, Token::new(pos, TokenKind::Let))),
+        },
         Err(e) => Err(e),
-        _ => {
-            Err(build_err("Incorrect token"))
-        }
-    }
-}
-
-fn token_open_parenth(input: &str) -> IResult<&str, Token> {
-    //TODO: get actual pos and pass it to scan_token
-    match scan_token(input, Default::default()) {
-        Ok((rest, (pos, TokenKind::OpenParenth))) => IResult::Ok((rest, Token::new(pos, TokenKind::OpenParenth))),
-        Err(e) => Err(e),
-        _ => {
-            Err(build_err("Incorrect token"))
-        }
-    }
-}
-
-fn token_close_parenth(input: &str) -> IResult<&str, Token> {
-    //TODO: get actual pos and pass it to scan_token
-    match scan_token(input, Default::default()) {
-        Ok((rest, (pos, TokenKind::ClosingParenth))) => IResult::Ok((rest, Token::new(pos, TokenKind::ClosingParenth))),
-        Err(e) => Err(e),
-        _ => {
-            Err(build_err("Incorrect token"))
-        }
     }
 }
 
@@ -331,7 +299,7 @@ fn expr_chain(mut input: &str) -> IResult<&str, Expression> {
     let rest: &str = loop {
         let (rest, expr) = expr_let(input)?;
         expressions.push(expr);
-        match token_semicolon(rest) {
+        match token(TokenKind::Semicolon, rest) {
             Ok((rest, _)) => input = rest,
             Err(_) => break rest,
         }
@@ -344,7 +312,7 @@ fn expr_chain(mut input: &str) -> IResult<&str, Expression> {
 }
 
 fn expr_let(input: &str) -> IResult<&str, Expression> {
-    match token_let(input) {
+    match token(TokenKind::Let, input) {
         Ok((rest, _)) => {
             let (rest, id_token) = token_id(rest)?;
             let (rest, expr) = expr_let(rest)?;
@@ -358,11 +326,11 @@ fn expr_let(input: &str) -> IResult<&str, Expression> {
 }
 
 fn expr_group(input: &str) -> IResult<&str, Expression> {
-    match token_open_parenth(input) {
+    match token(TokenKind::OpenParenth, input) {
         Ok((rest, _)) => {
             let (rest, expr) = expr(rest)?;
             let group_expr = Expression::Group(Box::new(expr));
-            let (rest, _) = token_close_parenth(rest)?;
+            let (rest, _) = token(TokenKind::ClosingParenth, rest)?;
             IResult::Ok((rest, group_expr))
         },
         Err(_) => {
@@ -394,15 +362,10 @@ fn main() {
     reader.read_to_end(&mut buf).expect("Error reading");
 
     let mut input = str::from_utf8(&buf).expect("Error converting buffer to UTF-8");
-    //let mut current_pos = Pos::default();
 
     while !finished_scanning_tokens(input) {
         let (rest, matched) = expr(input).expect("Error parsing expr");
         dbg!(rest, matched);
         input = rest;
-
-        // let token_kind;
-        // (input, (current_pos, token_kind)) = scan_token(input, current_pos).expect("Error scanning token");
-        // println!("{:?} at {:?}", token_kind, current_pos);
     }
 }
