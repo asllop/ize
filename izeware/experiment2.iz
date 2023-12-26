@@ -1,0 +1,13 @@
+    // The program starts here
+
+    100
+    "Hello world"
+    myVar true false
+
+    let salute "Hello World"
+
+    let A let B let C 111
+
+    let num 1234 ; num ; A ; let A let B let C 111
+
+    let num ("hello";100)

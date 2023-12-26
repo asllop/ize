@@ -5,7 +5,9 @@
 
 use std::{
     str::FromStr,
-    fmt::Debug,
+    str::{self},
+    fmt::Debug, fs::File,
+    io::{prelude::*, BufReader},
 };
 use nom::{
     IResult,
@@ -16,40 +18,30 @@ use nom::{
 };
 use logos::{Lexer, Logos, Skip};
 
-const CODE: &str = r#"
-    // The program starts here
-    
-    100
-    "Hello world"
-    myVar true false
-
-    let salute "Hello World"
-
-    let A let B let C 111
-
-    let num 1234 ; num ; A ; let A let B let C 111
-
-    let num ("hello";100)
-"#;
-
 fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
     lex.slice().parse().ok().unwrap()
 }
 
+//PROBLEM:  because we construct multiple lexers, we don't have a common reference for the input, the origin
+//          of &str changes every time we build a new lexer object.
+// We have to use a different type for extras, something that carries the offset of the current &str to be able to calculate columns.
+
 fn newline_callback(lex: &mut Lexer<TokenKind>) -> Skip {
     lex.extras.line += 1;
-    lex.extras.column = lex.span().end;
+    //TODO: compute pos
+    //lex.extras.start_col = lex.span().end;
     Skip
 }
 
 #[derive(Default, Debug, Clone, Copy)]
-struct TokenPos {
+struct Pos {
     line: usize,
-    column: usize,
+    start_col: usize,
+    end_col: usize,
 }
 
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(extras = TokenPos, skip r"[ \t]+", skip r"//.*")]
+#[logos(extras = Pos, skip r"[ \t]+", skip r"//.*")]
 /// List of recognized tokens, requiered by [logos].
 enum TokenKind {
     #[regex(r"\n", newline_callback)]
@@ -181,42 +173,55 @@ enum TokenKind {
     Unwrap,
 }
 
-fn next_token(lex: &mut Lexer<TokenKind>) -> Option<Result<(TokenPos, TokenKind), &'static str>> {
+fn build_err(msg: &str) -> nom::Err<nom::error::Error<&str>> {
+    let e = nom::error::Error::new(msg, nom::error::ErrorKind::Fail);
+    nom::Err::Error(e)
+}
+
+fn finished_scanning_tokens(input: &str) -> bool {
+    let mut lex = TokenKind::lexer(input);
+    lex.next().is_none()
+}
+
+/// Alternative to `next_token`, can be used as a `nom` parser function.
+fn scan_token(input: &str, current_pos: Pos) -> IResult<&str, (Pos, TokenKind)> {
+    let mut lex = TokenKind::lexer_with_extras(input, current_pos);
     match lex.next() {
         Some(r) => match r {
             Ok(token_kind) => {
-                Some(Result::Ok((lex.extras, token_kind)))
+                //TODO: compute pos
+                IResult::Ok((lex.remainder(), (lex.extras, token_kind)))
             },
-            Err(_) => {
-                Some(Result::Err("Unrecognized token"))
-            },
+            Err(_) => Err(build_err("Bad token")),
         },
         None => {
-            None
+            Err(build_err("No more tokens"))
         },
     }
 }
 
 #[derive(Debug)]
-enum Token {
-    Semicolon,
-    OpenParenth,
-    CloseParenth,
-    Let,
-    Int(i64),
-    Id(String),
-    Str(String),
+struct Token {
+    kind: TokenKind,
+    pos: Pos,
 }
 
 impl Token {
+    fn new(pos: Pos, kind: TokenKind) -> Self {
+        Self {
+            kind, pos
+        }
+    }
+
     fn as_id(self) -> String {
-        if let Token::Id(s) = self {
+        if let TokenKind::Ident(s) = self.kind {
             s
         } else {
             panic!("Token is not an Id")
         }
     }
 }
+
 
 #[derive(Debug)]
 enum Expression {
@@ -229,78 +234,92 @@ enum Expression {
     },
 }
 
-// Skip spaces, tabs and newlines
-fn trim(input: &str) -> IResult<&str, &str> {
-    //TODO: update pos while scan chars
-    multispace0(input)
-}
-
-//TODO: use Logos to parse tokens in a more generic way. Instead of generatic a custom method to parse wach token,
-//      use the lexer to generate a Token enum for each recognized token automatically.
-
 fn token_semicolon(input: &str) -> IResult<&str, Token> {
-    let (rest, _) = trim(input)?;
-    match tag::<&str, &str, _>(";")(rest) {
-        Ok((rest, _)) => IResult::Ok((rest, Token::Semicolon)),
+    //TODO: get actual pos and pass it to scan_token
+    match scan_token(input, Default::default()) {
+        Ok((rest, (pos, TokenKind::Semicolon))) => IResult::Ok((rest, Token::new(pos, TokenKind::Semicolon))),
         Err(e) => Err(e),
-    }
-}
-
-fn token_open_parenth(input: &str) -> IResult<&str, Token> {
-    let (rest, _) = trim(input)?;
-    match tag::<&str, &str, _>("(")(rest) {
-        Ok((rest, _)) => IResult::Ok((rest, Token::OpenParenth)),
-        Err(e) => Err(e),
-    }
-}
-
-fn token_close_parenth(input: &str) -> IResult<&str, Token> {
-    let (rest, _) = trim(input)?;
-    match tag::<&str, &str, _>(")")(rest) {
-        Ok((rest, _)) => IResult::Ok((rest, Token::CloseParenth)),
-        Err(e) => Err(e),
+        _ => {
+            Err(build_err("Incorrect token"))
+        }
     }
 }
 
 fn token_let(input: &str) -> IResult<&str, Token> {
-    let (rest, _) = trim(input)?;
-    match tag::<&str, &str, _>("let")(rest) {
-        Ok((rest, _)) => IResult::Ok((rest, Token::Let)),
+    //TODO: get actual pos and pass it to scan_token
+    match scan_token(input, Default::default()) {
+        Ok((rest, (pos, TokenKind::Let))) => IResult::Ok((rest, Token::new(pos, TokenKind::Let))),
         Err(e) => Err(e),
+        _ => {
+            Err(build_err("Incorrect token"))
+        }
     }
 }
 
-// naive ID, only ascii chars
-fn token_id(input: &str) -> IResult<&str, Token> {
-    let (rest, _) = trim(input)?;
-    match alpha1(rest) {
-        Ok((rest, matched)) => IResult::Ok((rest, Token::Id(matched.into()))),
+fn token_open_parenth(input: &str) -> IResult<&str, Token> {
+    //TODO: get actual pos and pass it to scan_token
+    match scan_token(input, Default::default()) {
+        Ok((rest, (pos, TokenKind::OpenParenth))) => IResult::Ok((rest, Token::new(pos, TokenKind::OpenParenth))),
         Err(e) => Err(e),
+        _ => {
+            Err(build_err("Incorrect token"))
+        }
+    }
+}
+
+fn token_close_parenth(input: &str) -> IResult<&str, Token> {
+    //TODO: get actual pos and pass it to scan_token
+    match scan_token(input, Default::default()) {
+        Ok((rest, (pos, TokenKind::ClosingParenth))) => IResult::Ok((rest, Token::new(pos, TokenKind::ClosingParenth))),
+        Err(e) => Err(e),
+        _ => {
+            Err(build_err("Incorrect token"))
+        }
+    }
+}
+
+fn token_id(input: &str) -> IResult<&str, Token> {
+    //TODO: get actual pos and pass it to scan_token
+    match scan_token(input, Default::default()) {
+        Ok((rest, (pos, TokenKind::Ident(id)))) => IResult::Ok((rest, Token::new(pos, TokenKind::Ident(id)))),
+        Err(e) => Err(e),
+        _ => {
+            Err(build_err("Incorrect token"))
+        }
     }
 }
 
 fn token_int(input: &str) -> IResult<&str, Token> {
-    let (rest, _) = trim(input)?;
-    match recognize(
-        many1(
-            one_of("0123456789")
-        )
-    )(rest) {
-        Ok((rest, matched)) => {
-            let i: i64 = matched.parse().unwrap();
-            IResult::Ok((rest, Token::Int(i)))
-        }
+    //TODO: get actual pos and pass it to scan_token
+    match scan_token(input, Default::default()) {
+        Ok((rest, (pos, TokenKind::IntegerLiteral(i)))) => IResult::Ok((rest, Token::new(pos, TokenKind::IntegerLiteral(i)))),
         Err(e) => Err(e),
+        _ => {
+            Err(build_err("Incorrect token"))
+        }
     }
 }
 
-// naive str, without scape sequences
+fn token_bool(input: &str) -> IResult<&str, Token> {
+    //TODO: get actual pos and pass it to scan_token
+    match scan_token(input, Default::default()) {
+        Ok((rest, (pos, TokenKind::BooleanLiteral(b)))) => IResult::Ok((rest, Token::new(pos, TokenKind::BooleanLiteral(b)))),
+        Err(e) => Err(e),
+        _ => {
+            Err(build_err("Incorrect token"))
+        }
+    }
+}
+
 fn token_str(input: &str) -> IResult<&str, Token> {
-    let (rest, _) = trim(input)?;
-    let (rest, _) = tag("\"")(rest)?;
-    let (rest, the_str) = many0(is_not("\""))(rest)?;
-    let (rest, _) = tag("\"")(rest)?;
-    IResult::Ok((rest, Token::Str(the_str.into_iter().collect())))
+    //TODO: get actual pos and pass it to scan_token
+    match scan_token(input, Default::default()) {
+        Ok((rest, (pos, TokenKind::StringLiteral(s)))) => IResult::Ok((rest, Token::new(pos, TokenKind::StringLiteral(s)))),
+        Err(e) => Err(e),
+        _ => {
+            Err(build_err("Incorrect token"))
+        }
+    }
 }
 
 fn expr(input: &str) -> IResult<&str, Expression> {
@@ -359,42 +378,31 @@ fn expr_primary(input: &str) -> IResult<&str, Expression> {
         Result::Ok((rest, Expression::Primary(token)))
     } else if let Ok((rest, token)) = token_str(input) {
         Result::Ok((rest, Expression::Primary(token)))
+    } else if let Ok((rest, token)) = token_bool(input) {
+        Result::Ok((rest, Expression::Primary(token)))
     } else {
         let e = nom::error::Error::new("Error parsing primary expr'", nom::error::ErrorKind::Fail);
         Err(nom::Err::Error(e))
     }
 }
 
-fn _main() {
-    let rest = CODE;
-
-    let (rest, matched) = expr(rest).expect("Error parsing expr");
-    dbg!(rest, matched);
-    let (rest, matched) = expr(rest).expect("Error parsing expr");
-    dbg!(rest, matched);
-    let (rest, matched) = expr(rest).expect("Error parsing expr");
-    dbg!(rest, matched);
-    let (rest, matched) = expr(rest).expect("Error parsing expr");
-    dbg!(rest, matched);
-    let (rest, matched) = expr(rest).expect("Error parsing expr");
-    dbg!(rest, matched);
-    let (rest, matched) = expr(rest).expect("Error parsing expr");
-    dbg!(rest, matched);
-    let (rest, matched) = expr(rest).expect("Error parsing expr");
-    dbg!(rest, matched);
-}
-
 fn main() {
-    let input = CODE;
+    let file_path = "izeware/experiment2.iz";
+    let file = File::open(file_path).expect("Error opening file");
+    let mut reader = BufReader::new(file);
+    let mut buf = Vec::<u8>::new();
+    reader.read_to_end(&mut buf).expect("Error reading");
 
-    let mut lex = TokenKind::lexer(input);
-    loop {
-        match next_token(&mut lex) {
-            Some(r) => {
-                let (token_pos, token_kind) = r.expect("Bad token");
-                println!("{:?} at {:?}", token_kind , token_pos);
-            },
-            None => break,
-        }
+    let mut input = str::from_utf8(&buf).expect("Error converting buffer to UTF-8");
+    //let mut current_pos = Pos::default();
+
+    while !finished_scanning_tokens(input) {
+        let (rest, matched) = expr(input).expect("Error parsing expr");
+        dbg!(rest, matched);
+        input = rest;
+
+        // let token_kind;
+        // (input, (current_pos, token_kind)) = scan_token(input, current_pos).expect("Error scanning token");
+        // println!("{:?} at {:?}", token_kind, current_pos);
     }
 }
