@@ -9,13 +9,7 @@ use std::{
     fmt::Debug, fs::File,
     io::{prelude::*, BufReader},
 };
-use nom::{
-    IResult,
-    multi::{many1, many0},
-    combinator::recognize,
-    character::complete::{one_of, multispace0, alpha1},
-    bytes::complete::{tag, is_not},
-};
+use nom::IResult;
 use logos::{Lexer, Logos, Skip};
 
 fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
@@ -183,7 +177,6 @@ fn finished_scanning_tokens(input: &str) -> bool {
     lex.next().is_none()
 }
 
-/// Alternative to `next_token`, can be used as a `nom` parser function.
 fn scan_token(input: &str, current_pos: Pos) -> IResult<&str, (Pos, TokenKind)> {
     let mut lex = TokenKind::lexer_with_extras(input, current_pos);
     match lex.next() {
@@ -213,15 +206,27 @@ impl Token {
         }
     }
 
-    fn as_id(self) -> String {
+    fn as_ident(self) -> Option<String> {
         if let TokenKind::Ident(s) = self.kind {
-            s
+            Some(s)
         } else {
-            panic!("Token is not an Id")
+            None
         }
     }
 }
 
+/* TODO: Grammar type for recursive descendent parsers (RDP)
+
+Els parsers d'expressions RDP es poden dividir en dos tipus:
+1. Els que tenen un (o més) token a l'inici i si no hi és, fallback a la següent en precedència. Exemples: let, if-else, select, group.
+2. Els parsen una expressió (la següent en precedència) i després esperen algun token i si no hi és, retornen l'expressió parsada com a fallback. Exemples: chain, binary operators.
+
+Podem crear un tipus Grammar per definir parsers d'expressions d'aquests dos tipus. Aquest tipus ens ha de permetre:
+- Definir quina mena de parse és, dels enumerats anterioirment.
+- Definir una gramàtica que ens permeti parsar una expressió. Definint els camins esmentats segons el tipus.
+- Definir la següent expressió en precedència.
+- Definir un col·lector, que genera l'expressió a partir dels tokens llegits.
+*/
 
 #[derive(Debug)]
 enum Expression {
@@ -229,7 +234,7 @@ enum Expression {
     Chain(Vec<Expression>),
     Group(Box<Expression>),
     Let {
-        id: String,
+        ident: String,
         expr: Box<Expression>,
     },
 }
@@ -246,7 +251,7 @@ fn token(token_kind: TokenKind, input: &str) -> IResult<&str, Token> {
     }
 }
 
-fn token_id(input: &str) -> IResult<&str, Token> {
+fn token_ident(input: &str) -> IResult<&str, Token> {
     //TODO: get actual pos and pass it to scan_token
     match scan_token(input, Default::default()) {
         Ok((rest, (pos, TokenKind::Ident(id)))) => IResult::Ok((rest, Token::new(pos, TokenKind::Ident(id)))),
@@ -314,9 +319,9 @@ fn expr_chain(mut input: &str) -> IResult<&str, Expression> {
 fn expr_let(input: &str) -> IResult<&str, Expression> {
     match token(TokenKind::Let, input) {
         Ok((rest, _)) => {
-            let (rest, id_token) = token_id(rest)?;
+            let (rest, ident_token) = token_ident(rest)?;
             let (rest, expr) = expr_let(rest)?;
-            let let_expr = Expression::Let { id: id_token.as_id(), expr: Box::new(expr) };
+            let let_expr = Expression::Let { ident: ident_token.as_ident().unwrap(), expr: Box::new(expr) };
             IResult::Ok((rest, let_expr))
         },
         Err(_) => {
@@ -340,7 +345,8 @@ fn expr_group(input: &str) -> IResult<&str, Expression> {
 }
 
 fn expr_primary(input: &str) -> IResult<&str, Expression> {
-    if let Ok((rest, token)) = token_id(input) {
+    //TODO: parse the rest of literals (None, Null).
+    if let Ok((rest, token)) = token_ident(input) {
         Result::Ok((rest, Expression::Primary(token)))
     } else if let Ok((rest, token)) = token_int(input) {
         Result::Ok((rest, Expression::Primary(token)))
@@ -365,7 +371,7 @@ fn main() {
 
     while !finished_scanning_tokens(input) {
         let (rest, matched) = expr(input).expect("Error parsing expr");
-        dbg!(rest, matched);
+        println!("Expression = {:#?}", matched);
         input = rest;
     }
 }
