@@ -3,6 +3,10 @@
 //! Parser experiment, using `nom` instead of a manual recursive descendant parser.
 //! 
 
+use std::{
+    str::FromStr,
+    fmt::Debug,
+};
 use nom::{
     IResult,
     multi::{many1, many0},
@@ -10,11 +14,14 @@ use nom::{
     character::complete::{one_of, multispace0, alpha1},
     bytes::complete::{tag, is_not},
 };
+use logos::{Lexer, Logos, Skip};
 
 const CODE: &str = r#"
+    // The program starts here
+    
     100
     "Hello world"
-    myVar
+    myVar true false
 
     let salute "Hello World"
 
@@ -24,6 +31,169 @@ const CODE: &str = r#"
 
     let num ("hello";100)
 "#;
+
+fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
+    lex.slice().parse().ok().unwrap()
+}
+
+fn newline_callback(lex: &mut Lexer<TokenKind>) -> Skip {
+    lex.extras.line += 1;
+    lex.extras.column = lex.span().end;
+    Skip
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+struct TokenPos {
+    line: usize,
+    column: usize,
+}
+
+#[derive(Logos, Debug, PartialEq, Clone)]
+#[logos(extras = TokenPos, skip r"[ \t]+", skip r"//.*")]
+/// List of recognized tokens, requiered by [logos].
+enum TokenKind {
+    #[regex(r"\n", newline_callback)]
+    Newline,
+
+    #[token("(")]
+    OpenParenth,
+    #[token(")")]
+    ClosingParenth,
+    #[token("[")]
+    OpenClause,
+    #[token("]")]
+    ClosingClause,
+    #[token(",")]
+    Comma,
+    #[token(":")]
+    Colon,
+    #[token(";")]
+    Semicolon,
+    #[token("+")]
+    Plus,
+    #[token("-")]
+    Minus,
+    #[token("*")]
+    Star,
+    #[token("/")]
+    Slash,
+    #[token("%")]
+    Percent,
+    #[token("<")]
+    LesserThan,
+    #[token(">")]
+    GreaterThan,
+    #[token(">=")]
+    GtEqual,
+    #[token("<=")]
+    LtEqual,
+    #[token("&")]
+    And,
+    #[token("&&")]
+    TwoAnds,
+    #[token("|")]
+    Or,
+    #[token("||")]
+    TwoOrs,
+    #[token("!")]
+    Not,
+    #[token("==")]
+    TwoEquals,
+    #[token("!=")]
+    NotEqual,
+    #[token(".")]
+    Dot,
+    #[token("...")]
+    ThreeDots,
+    #[token("as")]
+    As,
+    #[token("->")]
+    Arrow,
+    #[token("let")]
+    Let,
+
+    // Primaries
+
+    #[regex("-?[0-9]+", parse_callback::<i64>)]
+    IntegerLiteral(i64),
+    //TODO: scientific notation: -9.09E-3, 9.09E+3
+    #[regex(r#"-?[0-9]+\.[0-9]+"#, parse_callback::<f64>)]
+    FloatLiteral(f64),
+    #[regex("true", parse_callback::<bool>)]
+    #[regex("false", parse_callback::<bool>)]
+    BooleanLiteral(bool),
+    #[token("none")]
+    NoneLiteral,
+    #[token("null")]
+    NullLiteral,
+    #[regex(r#""([^"\\]|\\"|\\)*""#, parse_callback::<String>)]
+    StringLiteral(String),
+    #[regex(r#"[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#, parse_callback::<String>)]
+    Ident(String),
+
+    // Types
+
+    #[token("Integer")]
+    IntegerType,
+    #[token("Float")]
+    FloatType,
+    #[token("Boolean")]
+    BooleanType,
+    #[token("String")]
+    StringType,
+    #[token("Null")]
+    NullType,
+    #[token("None")]
+    NoneType,
+    #[token("Map")]
+    MapType,
+    #[token("List")]
+    ListType,
+    #[token("Mux")]
+    MuxType,
+    #[token("Tuple")]
+    TupleType,
+
+    // Commands
+
+    #[token("model")]
+    Model,
+    #[token("transfer")]
+    Transfer,
+    #[token("pipe")]
+    Pipe,
+    #[token("run")]
+    Run,
+    #[token("import")]
+    Import,
+
+    // Decision
+
+    #[token("if")]
+    If,
+    #[token("else")]
+    Else,
+    #[token("select")]
+    Select,
+    #[token("unwrap")]
+    Unwrap,
+}
+
+fn next_token(lex: &mut Lexer<TokenKind>) -> Option<Result<(TokenPos, TokenKind), &'static str>> {
+    match lex.next() {
+        Some(r) => match r {
+            Ok(token_kind) => {
+                Some(Result::Ok((lex.extras, token_kind)))
+            },
+            Err(_) => {
+                Some(Result::Err("Unrecognized token"))
+            },
+        },
+        None => {
+            None
+        },
+    }
+}
 
 #[derive(Debug)]
 enum Token {
@@ -193,7 +363,7 @@ fn expr_primary(input: &str) -> IResult<&str, Expression> {
     }
 }
 
-fn main() {
+fn _main() {
     let rest = CODE;
 
     let (rest, matched) = expr(rest).expect("Error parsing expr");
@@ -210,4 +380,19 @@ fn main() {
     dbg!(rest, matched);
     let (rest, matched) = expr(rest).expect("Error parsing expr");
     dbg!(rest, matched);
+}
+
+fn main() {
+    let input = CODE;
+
+    let mut lex = TokenKind::lexer(input);
+    loop {
+        match next_token(&mut lex) {
+            Some(r) => {
+                let (token_pos, token_kind) = r.expect("Bad token");
+                println!("{:?} at {:?}", token_kind , token_pos);
+            },
+            None => break,
+        }
+    }
 }
