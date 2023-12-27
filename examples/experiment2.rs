@@ -1,6 +1,6 @@
-//! # Nom Experiment
+//! # Parse Composer Experiment
 //! 
-//! Parser experiment, using `nom` instead of a manual recursive descendant parser.
+//! Use a parser composed inspired by `nom`.
 //! 
 
 use std::{
@@ -9,8 +9,10 @@ use std::{
     fmt::Debug, fs::File,
     io::{prelude::*, BufReader},
 };
-use nom::IResult;
+use ize::IzeErr;
 use logos::{Lexer, Logos, Skip};
+
+pub type IzeResult<I, O> = Result<(I, O), IzeErr>;
 
 fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
     lex.slice().parse().ok().unwrap()
@@ -22,20 +24,22 @@ fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
 
 fn newline_callback(lex: &mut Lexer<TokenKind>) -> Skip {
     lex.extras.line += 1;
+    lex.extras.last_token_end = lex.span().end + lex.extras.offset;
+    //println!("Update extras = {:?}", lex.extras);
     //TODO: compute pos
     //lex.extras.start_col = lex.span().end;
     Skip
 }
 
 #[derive(Default, Debug, Clone, Copy)]
-struct Pos {
+struct LexExtras {
     line: usize,
-    start_col: usize,
-    end_col: usize,
+    offset: usize,
+    last_token_end: usize,
 }
 
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(extras = Pos, skip r"[ \t]+", skip r"//.*")]
+#[logos(extras = LexExtras, skip r"[ \t]+", skip r"//.*")]
 /// List of recognized tokens, requiered by [logos].
 enum TokenKind {
     #[regex(r"\n", newline_callback)]
@@ -167,9 +171,9 @@ enum TokenKind {
     Unwrap,
 }
 
-fn build_err(msg: &str) -> nom::Err<nom::error::Error<&str>> {
-    let e = nom::error::Error::new(msg, nom::error::ErrorKind::Fail);
-    nom::Err::Error(e)
+//TODO: token pos
+fn build_err(msg: &str) -> IzeErr {
+    IzeErr { message: msg.into(), pos: Default::default() }
 }
 
 fn finished_scanning_tokens(input: &str) -> bool {
@@ -177,13 +181,13 @@ fn finished_scanning_tokens(input: &str) -> bool {
     lex.next().is_none()
 }
 
-fn scan_token(input: &str, current_pos: Pos) -> IResult<&str, (Pos, TokenKind)> {
-    let mut lex = TokenKind::lexer_with_extras(input, current_pos);
+fn scan_token(input: &str, extras: LexExtras) -> IzeResult<&str, (LexExtras, TokenKind)> {
+    let mut lex = TokenKind::lexer_with_extras(input, extras);
     match lex.next() {
         Some(r) => match r {
             Ok(token_kind) => {
                 //TODO: compute pos
-                IResult::Ok((lex.remainder(), (lex.extras, token_kind)))
+                IzeResult::Ok((lex.remainder(), (lex.extras, token_kind)))
             },
             Err(_) => Err(build_err("Bad token")),
         },
@@ -191,6 +195,13 @@ fn scan_token(input: &str, current_pos: Pos) -> IResult<&str, (Pos, TokenKind)> 
             Err(build_err("No more tokens"))
         },
     }
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+struct Pos {
+    line: usize,
+    start_col: usize,
+    end_col: usize,
 }
 
 #[derive(Debug)]
@@ -239,11 +250,11 @@ enum Expression {
     },
 }
 
-fn token(token_kind: TokenKind, input: &str) -> IResult<&str, Token> {
+fn token(token_kind: TokenKind, input: &str) -> IzeResult<&str, Token> {
     //TODO: get actual pos and pass it to scan_token
     match scan_token(input, Default::default()) {
-        Ok((rest, (pos, t))) => if token_kind == t {
-            IResult::Ok((rest, Token::new(pos, TokenKind::Semicolon)))
+        Ok((rest, (extras, t))) => if token_kind == t {
+            IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::Semicolon)))
         } else {
             Err(build_err("Incorrect token"))
         },
@@ -251,10 +262,10 @@ fn token(token_kind: TokenKind, input: &str) -> IResult<&str, Token> {
     }
 }
 
-fn token_ident(input: &str) -> IResult<&str, Token> {
+fn token_ident(input: &str) -> IzeResult<&str, Token> {
     //TODO: get actual pos and pass it to scan_token
     match scan_token(input, Default::default()) {
-        Ok((rest, (pos, TokenKind::Ident(id)))) => IResult::Ok((rest, Token::new(pos, TokenKind::Ident(id)))),
+        Ok((rest, (extras, TokenKind::Ident(id)))) => IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::Ident(id)))),
         Err(e) => Err(e),
         _ => {
             Err(build_err("Incorrect token"))
@@ -262,10 +273,10 @@ fn token_ident(input: &str) -> IResult<&str, Token> {
     }
 }
 
-fn token_int(input: &str) -> IResult<&str, Token> {
+fn token_int(input: &str) -> IzeResult<&str, Token> {
     //TODO: get actual pos and pass it to scan_token
     match scan_token(input, Default::default()) {
-        Ok((rest, (pos, TokenKind::IntegerLiteral(i)))) => IResult::Ok((rest, Token::new(pos, TokenKind::IntegerLiteral(i)))),
+        Ok((rest, (extras, TokenKind::IntegerLiteral(i)))) => IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::IntegerLiteral(i)))),
         Err(e) => Err(e),
         _ => {
             Err(build_err("Incorrect token"))
@@ -273,10 +284,10 @@ fn token_int(input: &str) -> IResult<&str, Token> {
     }
 }
 
-fn token_bool(input: &str) -> IResult<&str, Token> {
+fn token_bool(input: &str) -> IzeResult<&str, Token> {
     //TODO: get actual pos and pass it to scan_token
     match scan_token(input, Default::default()) {
-        Ok((rest, (pos, TokenKind::BooleanLiteral(b)))) => IResult::Ok((rest, Token::new(pos, TokenKind::BooleanLiteral(b)))),
+        Ok((rest, (extras, TokenKind::BooleanLiteral(b)))) => IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::BooleanLiteral(b)))),
         Err(e) => Err(e),
         _ => {
             Err(build_err("Incorrect token"))
@@ -284,10 +295,10 @@ fn token_bool(input: &str) -> IResult<&str, Token> {
     }
 }
 
-fn token_str(input: &str) -> IResult<&str, Token> {
+fn token_str(input: &str) -> IzeResult<&str, Token> {
     //TODO: get actual pos and pass it to scan_token
     match scan_token(input, Default::default()) {
-        Ok((rest, (pos, TokenKind::StringLiteral(s)))) => IResult::Ok((rest, Token::new(pos, TokenKind::StringLiteral(s)))),
+        Ok((rest, (extras, TokenKind::StringLiteral(s)))) => IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::StringLiteral(s)))),
         Err(e) => Err(e),
         _ => {
             Err(build_err("Incorrect token"))
@@ -295,11 +306,11 @@ fn token_str(input: &str) -> IResult<&str, Token> {
     }
 }
 
-fn expr(input: &str) -> IResult<&str, Expression> {
+fn expr(input: &str) -> IzeResult<&str, Expression> {
     expr_chain(input)
 }
 
-fn expr_chain(mut input: &str) -> IResult<&str, Expression> {
+fn expr_chain(mut input: &str) -> IzeResult<&str, Expression> {
     let mut expressions = vec![];
     let rest: &str = loop {
         let (rest, expr) = expr_let(input)?;
@@ -310,19 +321,19 @@ fn expr_chain(mut input: &str) -> IResult<&str, Expression> {
         }
     };
     if expressions.len() == 1 {
-        IResult::Ok((rest, expressions.pop().unwrap()))
+        IzeResult::Ok((rest, expressions.pop().unwrap()))
     } else {
         Result::Ok((rest, Expression::Chain(expressions)))
     }
 }
 
-fn expr_let(input: &str) -> IResult<&str, Expression> {
+fn expr_let(input: &str) -> IzeResult<&str, Expression> {
     match token(TokenKind::Let, input) {
         Ok((rest, _)) => {
             let (rest, ident_token) = token_ident(rest)?;
             let (rest, expr) = expr_let(rest)?;
             let let_expr = Expression::Let { ident: ident_token.as_ident().unwrap(), expr: Box::new(expr) };
-            IResult::Ok((rest, let_expr))
+            IzeResult::Ok((rest, let_expr))
         },
         Err(_) => {
             expr_group(input)
@@ -330,13 +341,13 @@ fn expr_let(input: &str) -> IResult<&str, Expression> {
     }
 }
 
-fn expr_group(input: &str) -> IResult<&str, Expression> {
+fn expr_group(input: &str) -> IzeResult<&str, Expression> {
     match token(TokenKind::OpenParenth, input) {
         Ok((rest, _)) => {
             let (rest, expr) = expr(rest)?;
             let group_expr = Expression::Group(Box::new(expr));
             let (rest, _) = token(TokenKind::ClosingParenth, rest)?;
-            IResult::Ok((rest, group_expr))
+            IzeResult::Ok((rest, group_expr))
         },
         Err(_) => {
             expr_primary(input)
@@ -344,7 +355,7 @@ fn expr_group(input: &str) -> IResult<&str, Expression> {
     }
 }
 
-fn expr_primary(input: &str) -> IResult<&str, Expression> {
+fn expr_primary(input: &str) -> IzeResult<&str, Expression> {
     //TODO: parse the rest of literals (None, Null).
     if let Ok((rest, token)) = token_ident(input) {
         Result::Ok((rest, Expression::Primary(token)))
@@ -355,9 +366,16 @@ fn expr_primary(input: &str) -> IResult<&str, Expression> {
     } else if let Ok((rest, token)) = token_bool(input) {
         Result::Ok((rest, Expression::Primary(token)))
     } else {
-        let e = nom::error::Error::new("Error parsing primary expr'", nom::error::ErrorKind::Fail);
-        Err(nom::Err::Error(e))
+        Err(build_err("Error parsing primary expr"))
     }
+}
+
+//TODO: use ParseInput instead of &str to hold the parser input. This way we can keep track of the offset respect to the original str
+//      every time we slice it.
+
+struct ParserInput<'a> {
+    slice: &'a str,
+    offset: usize,
 }
 
 fn main() {
