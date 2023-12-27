@@ -9,33 +9,33 @@ use std::{
     fmt::Debug, fs::File,
     io::{prelude::*, BufReader},
 };
-use ize::IzeErr;
 use logos::{Lexer, Logos, Skip};
 
-pub type IzeResult<I, O> = Result<(I, O), IzeErr>;
+type IzeResult<I, O> = Result<(I, O), IzeErr>;
+
+#[derive(Debug)]
+/// Compiler error.
+struct IzeErr {
+    /// Error message.
+    message: String,
+    /// Position where the error was found.
+    pos: Pos,
+}
 
 fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
     lex.slice().parse().ok().unwrap()
 }
 
-//PROBLEM:  because we construct multiple lexers, we don't have a common reference for the input, the origin
-//          of &str changes every time we build a new lexer object.
-// We have to use a different type for extras, something that carries the offset of the current &str to be able to calculate columns.
-
 fn newline_callback(lex: &mut Lexer<TokenKind>) -> Skip {
     lex.extras.line += 1;
-    lex.extras.last_token_end = lex.span().end + lex.extras.offset;
-    //println!("Update extras = {:?}", lex.extras);
-    //TODO: compute pos
-    //lex.extras.start_col = lex.span().end;
+    lex.extras.pos_last_eol = lex.span().end;
     Skip
 }
 
 #[derive(Default, Debug, Clone, Copy)]
 struct LexExtras {
     line: usize,
-    offset: usize,
-    last_token_end: usize,
+    pos_last_eol: usize,
 }
 
 #[derive(Logos, Debug, PartialEq, Clone)]
@@ -171,30 +171,8 @@ enum TokenKind {
     Unwrap,
 }
 
-//TODO: token pos
-fn build_err(msg: &str) -> IzeErr {
-    IzeErr { message: msg.into(), pos: Default::default() }
-}
-
-fn finished_scanning_tokens(input: &str) -> bool {
-    let mut lex = TokenKind::lexer(input);
-    lex.next().is_none()
-}
-
-fn scan_token(input: &str, extras: LexExtras) -> IzeResult<&str, (LexExtras, TokenKind)> {
-    let mut lex = TokenKind::lexer_with_extras(input, extras);
-    match lex.next() {
-        Some(r) => match r {
-            Ok(token_kind) => {
-                //TODO: compute pos
-                IzeResult::Ok((lex.remainder(), (lex.extras, token_kind)))
-            },
-            Err(_) => Err(build_err("Bad token")),
-        },
-        None => {
-            Err(build_err("No more tokens"))
-        },
-    }
+fn build_err(msg: &str, pos: Pos) -> IzeErr {
+    IzeErr { message: msg.into(), pos: pos }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -202,6 +180,12 @@ struct Pos {
     line: usize,
     start_col: usize,
     end_col: usize,
+}
+
+impl Pos {
+    fn new(line: usize, start_col: usize, end_col: usize) -> Self {
+        Self { line, start_col, end_col }
+    }
 }
 
 #[derive(Debug)]
@@ -250,69 +234,88 @@ enum Expression {
     },
 }
 
-fn token(token_kind: TokenKind, input: &str) -> IzeResult<&str, Token> {
-    //TODO: get actual pos and pass it to scan_token
-    match scan_token(input, Default::default()) {
-        Ok((rest, (extras, t))) => if token_kind == t {
-            IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::Semicolon)))
+fn token(token_kind: TokenKind, input: &[Token]) -> IzeResult<&[Token], Token> {
+    if !input.is_empty() {
+        let pos: Pos = input[0].pos;
+        if token_kind == input[0].kind {
+            let token = Token::new(pos, input[0].kind.clone());
+            let rest = &input[1..];
+            Ok((rest, token))
         } else {
-            Err(build_err("Incorrect token"))
-        },
-        Err(e) => Err(e),
-    }
-}
-
-fn token_ident(input: &str) -> IzeResult<&str, Token> {
-    //TODO: get actual pos and pass it to scan_token
-    match scan_token(input, Default::default()) {
-        Ok((rest, (extras, TokenKind::Ident(id)))) => IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::Ident(id)))),
-        Err(e) => Err(e),
-        _ => {
-            Err(build_err("Incorrect token"))
+            Err(build_err(format!("Token is not {:?}", token_kind).as_str(), pos))
         }
+    } else {
+        Err(build_err("Input is empty", Default::default()))
     }
 }
 
-fn token_int(input: &str) -> IzeResult<&str, Token> {
-    //TODO: get actual pos and pass it to scan_token
-    match scan_token(input, Default::default()) {
-        Ok((rest, (extras, TokenKind::IntegerLiteral(i)))) => IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::IntegerLiteral(i)))),
-        Err(e) => Err(e),
-        _ => {
-            Err(build_err("Incorrect token"))
+fn token_ident(input: &[Token]) -> IzeResult<&[Token], Token> {
+    if !input.is_empty() {
+        let pos = input[0].pos;
+        if let TokenKind::Ident(_) = &input[0].kind {
+            let token = Token::new(pos, input[0].kind.clone());
+            let rest = &input[1..];
+            Ok((rest, token))
+        } else {
+            Err(build_err("Token is not an identifier", pos))
         }
+    } else {
+        Err(build_err("Input is empty", Default::default()))
     }
 }
 
-fn token_bool(input: &str) -> IzeResult<&str, Token> {
-    //TODO: get actual pos and pass it to scan_token
-    match scan_token(input, Default::default()) {
-        Ok((rest, (extras, TokenKind::BooleanLiteral(b)))) => IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::BooleanLiteral(b)))),
-        Err(e) => Err(e),
-        _ => {
-            Err(build_err("Incorrect token"))
+fn token_int(input: &[Token]) -> IzeResult<&[Token], Token> {
+    if !input.is_empty() {
+        let pos = input[0].pos;
+        if let TokenKind::IntegerLiteral(_) = &input[0].kind {
+            let token = Token::new(pos, input[0].kind.clone());
+            let rest = &input[1..];
+            Ok((rest, token))
+        } else {
+            Err(build_err("Token is not an integer", pos))
         }
+    } else {
+        Err(build_err("Input is empty", Default::default()))
     }
 }
 
-fn token_str(input: &str) -> IzeResult<&str, Token> {
-    //TODO: get actual pos and pass it to scan_token
-    match scan_token(input, Default::default()) {
-        Ok((rest, (extras, TokenKind::StringLiteral(s)))) => IzeResult::Ok((rest, Token::new(Default::default(), TokenKind::StringLiteral(s)))),
-        Err(e) => Err(e),
-        _ => {
-            Err(build_err("Incorrect token"))
+fn token_bool(input: &[Token]) -> IzeResult<&[Token], Token> {
+    if !input.is_empty() {
+        let pos = input[0].pos;
+        if let TokenKind::BooleanLiteral(_) = &input[0].kind {
+            let token = Token::new(pos, input[0].kind.clone());
+            let rest = &input[1..];
+            Ok((rest, token))
+        } else {
+            Err(build_err("Token is not a boolean", pos))
         }
+    } else {
+        Err(build_err("Input is empty", Default::default()))
     }
 }
 
-fn expr(input: &str) -> IzeResult<&str, Expression> {
+fn token_str(input: &[Token]) -> IzeResult<&[Token], Token> {
+    if !input.is_empty() {
+        let pos = input[0].pos;
+        if let TokenKind::StringLiteral(_) = &input[0].kind {
+            let token = Token::new(pos, input[0].kind.clone());
+            let rest = &input[1..];
+            Ok((rest, token))
+        } else {
+            Err(build_err("Token is not a string", pos))
+        }
+    } else {
+        Err(build_err("Input is empty", Default::default()))
+    }
+}
+
+fn expr(input: &[Token]) -> IzeResult<&[Token], Expression> {
     expr_chain(input)
 }
 
-fn expr_chain(mut input: &str) -> IzeResult<&str, Expression> {
+fn expr_chain(mut input: &[Token]) -> IzeResult<&[Token], Expression> {
     let mut expressions = vec![];
-    let rest: &str = loop {
+    let rest: &[Token] = loop {
         let (rest, expr) = expr_let(input)?;
         expressions.push(expr);
         match token(TokenKind::Semicolon, rest) {
@@ -327,7 +330,7 @@ fn expr_chain(mut input: &str) -> IzeResult<&str, Expression> {
     }
 }
 
-fn expr_let(input: &str) -> IzeResult<&str, Expression> {
+fn expr_let(input: &[Token]) -> IzeResult<&[Token], Expression> {
     match token(TokenKind::Let, input) {
         Ok((rest, _)) => {
             let (rest, ident_token) = token_ident(rest)?;
@@ -341,7 +344,7 @@ fn expr_let(input: &str) -> IzeResult<&str, Expression> {
     }
 }
 
-fn expr_group(input: &str) -> IzeResult<&str, Expression> {
+fn expr_group(input: &[Token]) -> IzeResult<&[Token], Expression> {
     match token(TokenKind::OpenParenth, input) {
         Ok((rest, _)) => {
             let (rest, expr) = expr(rest)?;
@@ -355,27 +358,41 @@ fn expr_group(input: &str) -> IzeResult<&str, Expression> {
     }
 }
 
-fn expr_primary(input: &str) -> IzeResult<&str, Expression> {
-    //TODO: parse the rest of literals (None, Null).
-    if let Ok((rest, token)) = token_ident(input) {
-        Result::Ok((rest, Expression::Primary(token)))
-    } else if let Ok((rest, token)) = token_int(input) {
-        Result::Ok((rest, Expression::Primary(token)))
-    } else if let Ok((rest, token)) = token_str(input) {
-        Result::Ok((rest, Expression::Primary(token)))
-    } else if let Ok((rest, token)) = token_bool(input) {
-        Result::Ok((rest, Expression::Primary(token)))
+fn expr_primary(input: &[Token]) -> IzeResult<&[Token], Expression> {
+    if !input.is_empty() {
+        //TODO: parse the rest of literals (None, Null).
+        if let Ok((rest, token)) = token_ident(input) {
+            Result::Ok((rest, Expression::Primary(token)))
+        } else if let Ok((rest, token)) = token_int(input) {
+            Result::Ok((rest, Expression::Primary(token)))
+        } else if let Ok((rest, token)) = token_str(input) {
+            Result::Ok((rest, Expression::Primary(token)))
+        } else if let Ok((rest, token)) = token_bool(input) {
+            Result::Ok((rest, Expression::Primary(token)))
+        } else {
+            Err(build_err("Error parsing primary expr", input[0].pos))
+        }
     } else {
-        Err(build_err("Error parsing primary expr"))
+        Err(build_err("Input is empty", Default::default()))
     }
 }
 
-//TODO: use ParseInput instead of &str to hold the parser input. This way we can keep track of the offset respect to the original str
-//      every time we slice it.
-
-struct ParserInput<'a> {
-    slice: &'a str,
-    offset: usize,
+fn tokenize(input: &str) -> Result<Vec<Token>, IzeErr> {
+    let mut lex = TokenKind::lexer(input);
+    let mut tokens = vec![];
+    while let Some(r) = lex.next() {
+        if let Ok(token_kind) = r {
+            let line = lex.extras.line;
+            let start_col = lex.span().start - lex.extras.pos_last_eol;
+            let end_col = lex.span().end - lex.extras.pos_last_eol;
+            let pos = Pos::new(line, start_col, end_col);
+            tokens.push(Token::new(pos, token_kind));
+        } else {
+            //TODO: build Pos for failed lexeme
+            return Err(build_err("Bad token", Default::default()));
+        }
+    }
+    Ok(tokens)
 }
 
 fn main() {
@@ -385,9 +402,12 @@ fn main() {
     let mut buf = Vec::<u8>::new();
     reader.read_to_end(&mut buf).expect("Error reading");
 
-    let mut input = str::from_utf8(&buf).expect("Error converting buffer to UTF-8");
+    let code = str::from_utf8(&buf).expect("Error converting buffer to UTF-8");
+    let tokens = tokenize(code).expect("Bad token");
 
-    while !finished_scanning_tokens(input) {
+    let mut input = tokens.as_slice();
+
+    while !input.is_empty() {
         let (rest, matched) = expr(input).expect("Error parsing expr");
         println!("Expression = {:#?}", matched);
         input = rest;
