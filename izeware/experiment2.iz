@@ -4,6 +4,8 @@
     "Hello world"
     myVar true false
 
+    var + 100.5 - 10
+
     let salute "Hello World"
 
     let A let B let C 111

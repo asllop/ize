@@ -14,13 +14,13 @@ use logos::{Lexer, Logos, Skip};
 /// Result type alias for parsers.
 type IzeResult<'a, O> = Result<(&'a [Token], O), IzeErr>;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 /// Compiler error.
 struct IzeErr {
     /// Error message.
     message: String,
     /// Position where the error was found.
-    pos: Pos,
+    pos: TokenPos,
 }
 
 fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
@@ -173,41 +173,39 @@ enum TokenKind {
     Unwrap,
 }
 
-fn build_err(msg: &str, pos: Pos) -> IzeErr {
+fn build_err(msg: &str, pos: TokenPos) -> IzeErr {
     IzeErr { message: msg.into(), pos: pos }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
-struct Pos {
+/// Position of a token in the code.
+struct TokenPos {
+    /// Line.
     line: usize,
+    /// Starting column.
     start_col: usize,
+    /// Ending column.
     end_col: usize,
+    /// Absolute position from start of file.
+    seek: usize,
 }
 
-impl Pos {
-    fn new(line: usize, start_col: usize, end_col: usize) -> Self {
-        Self { line, start_col, end_col }
+impl TokenPos {
+    fn new(line: usize, start_col: usize, end_col: usize, seek: usize) -> Self {
+        Self { line, start_col, end_col, seek }
     }
 }
 
 #[derive(Debug)]
 struct Token {
     kind: TokenKind,
-    pos: Pos,
+    pos: TokenPos,
 }
 
 impl Token {
-    fn new(pos: Pos, kind: TokenKind) -> Self {
+    fn new(pos: TokenPos, kind: TokenKind) -> Self {
         Self {
             kind, pos
-        }
-    }
-
-    fn as_ident(self) -> Option<String> {
-        if let TokenKind::Ident(s) = self.kind {
-            Some(s)
-        } else {
-            None
         }
     }
 }
@@ -228,15 +226,24 @@ Podem crear un tipus Grammar per definir parsers d'expressions d'aquests dos tip
 #[derive(Debug)]
 struct Expression {
     expr: Expr,
-    start_pos: Pos,
-    end_pos: Pos,
+    start_pos: TokenPos,
+    end_pos: TokenPos,
 }
 
 impl Expression {
-    fn new_let(ident: String, expr: Expression, start_pos: Pos) -> Self {
+    fn new_let(ident: Token, expr: Expression, start_pos: TokenPos) -> Self {
         let end_pos = expr.end_pos;
         Self {
             expr: Expr::Let { ident, expr: Box::new(expr) },
+            start_pos, end_pos,
+        }
+    }
+
+    fn new_binary(op: Token, left_expr: Expression, right_expr: Expression) -> Self {
+        let start_pos = left_expr.start_pos;
+        let end_pos = right_expr.end_pos;
+        Self {
+            expr: Expr::Binary { op, left_expr: Box::new(left_expr), right_expr: Box::new(right_expr) },
             start_pos, end_pos,
         }
     }
@@ -250,7 +257,7 @@ impl Expression {
         }
     }
 
-    fn new_group(expr: Expression, start_pos: Pos, end_pos: Pos) -> Self {
+    fn new_group(expr: Expression, start_pos: TokenPos, end_pos: TokenPos) -> Self {
         Self {
             expr: Expr::Group(Box::new(expr)),
             start_pos, end_pos,
@@ -272,8 +279,13 @@ enum Expr {
     Primary(Token),
     Chain(Vec<Expression>),
     Group(Box<Expression>),
+    Binary {
+        op: Token,
+        left_expr: Box<Expression>,
+        right_expr: Box<Expression>,
+    },
     Let {
-        ident: String,
+        ident: Token,
         expr: Box<Expression>,
     },
 }
@@ -293,10 +305,10 @@ fn token_match<'a>(matches: fn(&TokenKind) -> bool, err_msg: &'a str, input: &'a
     }
 }
 
-fn token(token_kind: TokenKind, input: &[Token]) -> IzeResult<Token> {
+fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a, Token> {
     if !input.is_empty() {
-        let pos: Pos = input[0].pos;
-        if token_kind == input[0].kind {
+        let pos: TokenPos = input[0].pos;
+        if token_kind == &input[0].kind {
             let token = Token::new(pos, input[0].kind.clone());
             let rest = &input[1..];
             Ok((rest, token))
@@ -328,6 +340,17 @@ fn token_str(input: &[Token]) -> IzeResult<Token> {
     token_match(|t| matches!(t, TokenKind::StringLiteral(_)), "Token is not a string", input)
 }
 
+fn one_of_tokens<'a>(tokens: &'a [TokenKind], input: &'a [Token]) -> IzeResult<'a, Token> {
+    let mut err = Default::default();
+    for t in tokens {
+        match token(t, input) {
+            Ok(r) => return Ok(r),
+            Err(e) => err = e,
+        }
+    }
+    Err(err)
+}
+
 fn expr(input: &[Token]) -> IzeResult<Expression> {
     expr_chain(input)
 }
@@ -335,25 +358,40 @@ fn expr(input: &[Token]) -> IzeResult<Expression> {
 fn expr_chain(mut input: &[Token]) -> IzeResult<Expression> {
     let mut expressions = vec![];
     let rest: &[Token] = loop {
-        let (rest, expr) = expr_let(input)?;
+        let (rest, expr) = expr_term(input)?;
         expressions.push(expr);
-        match token(TokenKind::Semicolon, rest) {
+        match token(&TokenKind::Semicolon, rest) {
             Ok((rest, _)) => input = rest,
             Err(_) => break rest,
         }
     };
+    // If we are here, `expressions` Vec contains at least one element.
     if expressions.len() == 1 {
-        IzeResult::Ok((rest, expressions.pop().unwrap()))
+        Ok((rest, expressions.pop().unwrap()))
     } else {
-        Result::Ok((rest, Expression::new_chain(expressions)))
+        Ok((rest, Expression::new_chain(expressions)))
     }
 }
 
+fn expr_term(mut input: &[Token]) -> IzeResult<Expression> {
+    let (rest, mut expr) = expr_let(input)?;
+    input = rest;
+    loop {
+        if let Ok((rest, op)) = one_of_tokens(&[TokenKind::Plus, TokenKind::Minus], input) {
+            let (rest, right) = expr_let(rest)?;
+            expr = Expression::new_binary(op, expr, right);
+            input = rest;
+        } else {
+            break;
+        }
+    }
+    Ok((input, expr))
+}
+
 fn expr_let(input: &[Token]) -> IzeResult<Expression> {
-    match token(TokenKind::Let, input) {
+    match token(&TokenKind::Let, input) {
         Ok((rest, let_token)) => {
             let (rest, ident_token) = token_ident(rest)?;
-            let ident_token = ident_token.as_ident().unwrap();
             let (rest, expr) = expr_let(rest)?;
             let let_expr = Expression::new_let(ident_token, expr, let_token.pos);
             IzeResult::Ok((rest, let_expr))
@@ -365,10 +403,10 @@ fn expr_let(input: &[Token]) -> IzeResult<Expression> {
 }
 
 fn expr_group(input: &[Token]) -> IzeResult<Expression> {
-    match token(TokenKind::OpenParenth, input) {
+    match token(&TokenKind::OpenParenth, input) {
         Ok((rest, open_parenth_token)) => {
             let (rest, expr) = expr(rest)?;
-            let (rest, close_parenth_token) = token(TokenKind::ClosingParenth, rest)?;
+            let (rest, close_parenth_token) = token(&TokenKind::ClosingParenth, rest)?;
             let start = open_parenth_token.pos;
             let end = close_parenth_token.pos;
             let group_expr = Expression::new_group(expr, start, end);
@@ -391,9 +429,9 @@ fn expr_primary(input: &[Token]) -> IzeResult<Expression> {
         Result::Ok((rest, Expression::new_primary(token)))
     } else if let Ok((rest, token)) = token_bool(input) {
         Result::Ok((rest, Expression::new_primary(token)))
-    } else if let Ok((rest, token)) = token(TokenKind::NoneLiteral, input) {
+    } else if let Ok((rest, token)) = token(&TokenKind::NoneLiteral, input) {
         Result::Ok((rest, Expression::new_primary(token)))
-    } else if let Ok((rest, token)) = token(TokenKind::NullLiteral, input) {
+    } else if let Ok((rest, token)) = token(&TokenKind::NullLiteral, input) {
         Result::Ok((rest, Expression::new_primary(token)))
     } else {
         let pos = if input.len() > 0 {
@@ -409,15 +447,14 @@ fn tokenize(input: &str) -> Result<Vec<Token>, IzeErr> {
     let mut lex = TokenKind::lexer(input);
     let mut tokens = vec![];
     while let Some(r) = lex.next() {
+        let line = lex.extras.line;
+        let start_col = lex.span().start - lex.extras.pos_last_eol;
+        let end_col = lex.span().end - lex.extras.pos_last_eol;
+        let pos = TokenPos::new(line, start_col, end_col, lex.span().start);
         if let Ok(token_kind) = r {
-            let line = lex.extras.line;
-            let start_col = lex.span().start - lex.extras.pos_last_eol;
-            let end_col = lex.span().end - lex.extras.pos_last_eol;
-            let pos = Pos::new(line, start_col, end_col);
             tokens.push(Token::new(pos, token_kind));
         } else {
-            //TODO: build Pos for failed lexeme
-            return Err(build_err("Bad token", Default::default()));
+            return Err(build_err("Bad token", pos));
         }
     }
     Ok(tokens)
@@ -437,7 +474,7 @@ fn main() {
 
     while !input.is_empty() {
         let (rest, matched) = expr(input).expect("Error parsing expr");
-        println!("Expression = {:#?}", matched);
+        println!("-------------------------\n{:#?}", matched);
         input = rest;
     }
 }
