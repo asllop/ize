@@ -11,7 +11,8 @@ use std::{
 };
 use logos::{Lexer, Logos, Skip};
 
-type IzeResult<I, O> = Result<(I, O), IzeErr>;
+/// Result type alias for parsers.
+type IzeResult<'a, O> = Result<(&'a [Token], O), IzeErr>;
 
 #[derive(Debug)]
 /// Compiler error.
@@ -122,6 +123,7 @@ enum TokenKind {
     Ident(String),
 
     // Types
+    // TODO: do we really need this? We could just have Ident and check for types during the semantic analysis.
 
     #[token("Integer")]
     IntegerType,
@@ -276,7 +278,22 @@ enum Expr {
     },
 }
 
-fn token(token_kind: TokenKind, input: &[Token]) -> IzeResult<&[Token], Token> {
+fn token_match<'a>(matches: fn(&TokenKind) -> bool, err_msg: &'a str, input: &'a [Token]) -> IzeResult<'a, Token> {
+    if !input.is_empty() {
+        let pos = input[0].pos;
+        if matches(&input[0].kind) {
+            let token = Token::new(pos, input[0].kind.clone());
+            let rest = &input[1..];
+            Ok((rest, token))
+        } else {
+            Err(build_err(err_msg, pos))
+        }
+    } else {
+        Err(build_err("Input is empty", Default::default()))
+    }
+}
+
+fn token(token_kind: TokenKind, input: &[Token]) -> IzeResult<Token> {
     if !input.is_empty() {
         let pos: Pos = input[0].pos;
         if token_kind == input[0].kind {
@@ -291,86 +308,31 @@ fn token(token_kind: TokenKind, input: &[Token]) -> IzeResult<&[Token], Token> {
     }
 }
 
-fn token_ident(input: &[Token]) -> IzeResult<&[Token], Token> {
-    if !input.is_empty() {
-        let pos = input[0].pos;
-        if let TokenKind::Ident(_) = &input[0].kind {
-            let token = Token::new(pos, input[0].kind.clone());
-            let rest = &input[1..];
-            Ok((rest, token))
-        } else {
-            Err(build_err("Token is not an identifier", pos))
-        }
-    } else {
-        Err(build_err("Input is empty", Default::default()))
-    }
+fn token_ident(input: &[Token]) -> IzeResult<Token> {
+    token_match(|t| matches!(t, TokenKind::Ident(_)), "Token is not an identifier", input)
 }
 
-fn token_int(input: &[Token]) -> IzeResult<&[Token], Token> {
-    if !input.is_empty() {
-        let pos = input[0].pos;
-        if let TokenKind::IntegerLiteral(_) = &input[0].kind {
-            let token = Token::new(pos, input[0].kind.clone());
-            let rest = &input[1..];
-            Ok((rest, token))
-        } else {
-            Err(build_err("Token is not an integer", pos))
-        }
-    } else {
-        Err(build_err("Input is empty", Default::default()))
-    }
+fn token_int(input: &[Token]) -> IzeResult<Token> {
+    token_match(|t| matches!(t, TokenKind::IntegerLiteral(_)), "Token is not an integer", input)
 }
 
-fn token_flt(input: &[Token]) -> IzeResult<&[Token], Token> {
-    if !input.is_empty() {
-        let pos = input[0].pos;
-        if let TokenKind::FloatLiteral(_) = &input[0].kind {
-            let token = Token::new(pos, input[0].kind.clone());
-            let rest = &input[1..];
-            Ok((rest, token))
-        } else {
-            Err(build_err("Token is not an integer", pos))
-        }
-    } else {
-        Err(build_err("Input is empty", Default::default()))
-    }
+fn token_flt(input: &[Token]) -> IzeResult<Token> {
+    token_match(|t| matches!(t, TokenKind::FloatLiteral(_)), "Token is not a float", input)
 }
 
-fn token_bool(input: &[Token]) -> IzeResult<&[Token], Token> {
-    if !input.is_empty() {
-        let pos = input[0].pos;
-        if let TokenKind::BooleanLiteral(_) = &input[0].kind {
-            let token = Token::new(pos, input[0].kind.clone());
-            let rest = &input[1..];
-            Ok((rest, token))
-        } else {
-            Err(build_err("Token is not a boolean", pos))
-        }
-    } else {
-        Err(build_err("Input is empty", Default::default()))
-    }
+fn token_bool(input: &[Token]) -> IzeResult<Token> {
+    token_match(|t| matches!(t, TokenKind::BooleanLiteral(_)), "Token is not a boolean", input)
 }
 
-fn token_str(input: &[Token]) -> IzeResult<&[Token], Token> {
-    if !input.is_empty() {
-        let pos = input[0].pos;
-        if let TokenKind::StringLiteral(_) = &input[0].kind {
-            let token = Token::new(pos, input[0].kind.clone());
-            let rest = &input[1..];
-            Ok((rest, token))
-        } else {
-            Err(build_err("Token is not a string", pos))
-        }
-    } else {
-        Err(build_err("Input is empty", Default::default()))
-    }
+fn token_str(input: &[Token]) -> IzeResult<Token> {
+    token_match(|t| matches!(t, TokenKind::StringLiteral(_)), "Token is not a string", input)
 }
 
-fn expr(input: &[Token]) -> IzeResult<&[Token], Expression> {
+fn expr(input: &[Token]) -> IzeResult<Expression> {
     expr_chain(input)
 }
 
-fn expr_chain(mut input: &[Token]) -> IzeResult<&[Token], Expression> {
+fn expr_chain(mut input: &[Token]) -> IzeResult<Expression> {
     let mut expressions = vec![];
     let rest: &[Token] = loop {
         let (rest, expr) = expr_let(input)?;
@@ -387,7 +349,7 @@ fn expr_chain(mut input: &[Token]) -> IzeResult<&[Token], Expression> {
     }
 }
 
-fn expr_let(input: &[Token]) -> IzeResult<&[Token], Expression> {
+fn expr_let(input: &[Token]) -> IzeResult<Expression> {
     match token(TokenKind::Let, input) {
         Ok((rest, let_token)) => {
             let (rest, ident_token) = token_ident(rest)?;
@@ -402,7 +364,7 @@ fn expr_let(input: &[Token]) -> IzeResult<&[Token], Expression> {
     }
 }
 
-fn expr_group(input: &[Token]) -> IzeResult<&[Token], Expression> {
+fn expr_group(input: &[Token]) -> IzeResult<Expression> {
     match token(TokenKind::OpenParenth, input) {
         Ok((rest, open_parenth_token)) => {
             let (rest, expr) = expr(rest)?;
@@ -418,24 +380,28 @@ fn expr_group(input: &[Token]) -> IzeResult<&[Token], Expression> {
     }
 }
 
-fn expr_primary(input: &[Token]) -> IzeResult<&[Token], Expression> {
-    if !input.is_empty() {
-        //TODO: parse the rest of literals (None, Null).
-        if let Ok((rest, token)) = token_ident(input) {
-            Result::Ok((rest, Expression::new_primary(token)))
-        } else if let Ok((rest, token)) = token_int(input) {
-            Result::Ok((rest, Expression::new_primary(token)))
-        } else if let Ok((rest, token)) = token_flt(input) {
-            Result::Ok((rest, Expression::new_primary(token)))
-        } else if let Ok((rest, token)) = token_str(input) {
-            Result::Ok((rest, Expression::new_primary(token)))
-        } else if let Ok((rest, token)) = token_bool(input) {
-            Result::Ok((rest, Expression::new_primary(token)))
-        } else {
-            Err(build_err("Error parsing primary expr", input[0].pos))
-        }
+fn expr_primary(input: &[Token]) -> IzeResult<Expression> {
+    if let Ok((rest, token)) = token_ident(input) {
+        Result::Ok((rest, Expression::new_primary(token)))
+    } else if let Ok((rest, token)) = token_int(input) {
+        Result::Ok((rest, Expression::new_primary(token)))
+    } else if let Ok((rest, token)) = token_flt(input) {
+        Result::Ok((rest, Expression::new_primary(token)))
+    } else if let Ok((rest, token)) = token_str(input) {
+        Result::Ok((rest, Expression::new_primary(token)))
+    } else if let Ok((rest, token)) = token_bool(input) {
+        Result::Ok((rest, Expression::new_primary(token)))
+    } else if let Ok((rest, token)) = token(TokenKind::NoneLiteral, input) {
+        Result::Ok((rest, Expression::new_primary(token)))
+    } else if let Ok((rest, token)) = token(TokenKind::NullLiteral, input) {
+        Result::Ok((rest, Expression::new_primary(token)))
     } else {
-        Err(build_err("Input is empty", Default::default()))
+        let pos = if input.len() > 0 {
+            input[0].pos
+        } else {
+            Default::default()
+        };
+        Err(build_err("Error parsing primary expr", pos))
     }
 }
 
