@@ -224,7 +224,49 @@ Podem crear un tipus Grammar per definir parsers d'expressions d'aquests dos tip
 */
 
 #[derive(Debug)]
-enum Expression {
+struct Expression {
+    expr: Expr,
+    start_pos: Pos,
+    end_pos: Pos,
+}
+
+impl Expression {
+    fn new_let(ident: String, expr: Expression, start_pos: Pos) -> Self {
+        let end_pos = expr.end_pos;
+        Self {
+            expr: Expr::Let { ident, expr: Box::new(expr) },
+            start_pos, end_pos,
+        }
+    }
+
+    fn new_chain(chain: Vec<Expression>) -> Self {
+        let start_pos = chain.first().unwrap().start_pos;
+        let end_pos = chain.last().unwrap().end_pos;
+        Self {
+            expr: Expr::Chain(chain),
+            start_pos, end_pos,
+        }
+    }
+
+    fn new_group(expr: Expression, start_pos: Pos, end_pos: Pos) -> Self {
+        Self {
+            expr: Expr::Group(Box::new(expr)),
+            start_pos, end_pos,
+        }
+    }
+
+    fn new_primary(token: Token) -> Self {
+        let start_pos = token.pos;
+        let end_pos = token.pos;
+        Self {
+            expr: Expr::Primary(token),
+            start_pos, end_pos,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Expr {
     Primary(Token),
     Chain(Vec<Expression>),
     Group(Box<Expression>),
@@ -268,6 +310,21 @@ fn token_int(input: &[Token]) -> IzeResult<&[Token], Token> {
     if !input.is_empty() {
         let pos = input[0].pos;
         if let TokenKind::IntegerLiteral(_) = &input[0].kind {
+            let token = Token::new(pos, input[0].kind.clone());
+            let rest = &input[1..];
+            Ok((rest, token))
+        } else {
+            Err(build_err("Token is not an integer", pos))
+        }
+    } else {
+        Err(build_err("Input is empty", Default::default()))
+    }
+}
+
+fn token_flt(input: &[Token]) -> IzeResult<&[Token], Token> {
+    if !input.is_empty() {
+        let pos = input[0].pos;
+        if let TokenKind::FloatLiteral(_) = &input[0].kind {
             let token = Token::new(pos, input[0].kind.clone());
             let rest = &input[1..];
             Ok((rest, token))
@@ -326,16 +383,17 @@ fn expr_chain(mut input: &[Token]) -> IzeResult<&[Token], Expression> {
     if expressions.len() == 1 {
         IzeResult::Ok((rest, expressions.pop().unwrap()))
     } else {
-        Result::Ok((rest, Expression::Chain(expressions)))
+        Result::Ok((rest, Expression::new_chain(expressions)))
     }
 }
 
 fn expr_let(input: &[Token]) -> IzeResult<&[Token], Expression> {
     match token(TokenKind::Let, input) {
-        Ok((rest, _)) => {
+        Ok((rest, let_token)) => {
             let (rest, ident_token) = token_ident(rest)?;
+            let ident_token = ident_token.as_ident().unwrap();
             let (rest, expr) = expr_let(rest)?;
-            let let_expr = Expression::Let { ident: ident_token.as_ident().unwrap(), expr: Box::new(expr) };
+            let let_expr = Expression::new_let(ident_token, expr, let_token.pos);
             IzeResult::Ok((rest, let_expr))
         },
         Err(_) => {
@@ -346,10 +404,12 @@ fn expr_let(input: &[Token]) -> IzeResult<&[Token], Expression> {
 
 fn expr_group(input: &[Token]) -> IzeResult<&[Token], Expression> {
     match token(TokenKind::OpenParenth, input) {
-        Ok((rest, _)) => {
+        Ok((rest, open_parenth_token)) => {
             let (rest, expr) = expr(rest)?;
-            let group_expr = Expression::Group(Box::new(expr));
-            let (rest, _) = token(TokenKind::ClosingParenth, rest)?;
+            let (rest, close_parenth_token) = token(TokenKind::ClosingParenth, rest)?;
+            let start = open_parenth_token.pos;
+            let end = close_parenth_token.pos;
+            let group_expr = Expression::new_group(expr, start, end);
             IzeResult::Ok((rest, group_expr))
         },
         Err(_) => {
@@ -362,13 +422,15 @@ fn expr_primary(input: &[Token]) -> IzeResult<&[Token], Expression> {
     if !input.is_empty() {
         //TODO: parse the rest of literals (None, Null).
         if let Ok((rest, token)) = token_ident(input) {
-            Result::Ok((rest, Expression::Primary(token)))
+            Result::Ok((rest, Expression::new_primary(token)))
         } else if let Ok((rest, token)) = token_int(input) {
-            Result::Ok((rest, Expression::Primary(token)))
+            Result::Ok((rest, Expression::new_primary(token)))
+        } else if let Ok((rest, token)) = token_flt(input) {
+            Result::Ok((rest, Expression::new_primary(token)))
         } else if let Ok((rest, token)) = token_str(input) {
-            Result::Ok((rest, Expression::Primary(token)))
+            Result::Ok((rest, Expression::new_primary(token)))
         } else if let Ok((rest, token)) = token_bool(input) {
-            Result::Ok((rest, Expression::Primary(token)))
+            Result::Ok((rest, Expression::new_primary(token)))
         } else {
             Err(build_err("Error parsing primary expr", input[0].pos))
         }

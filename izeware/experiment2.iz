@@ -8,6 +8,7 @@
 
     let A let B let C 111
 
-    let num 1234 ; num ; A ; let A let B let C 111
+    let num 1234.001 ; num ; A ; let A let B let C 111
 
-    let num ("hello";100)
+    let num
+        ("hello";100)
