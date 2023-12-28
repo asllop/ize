@@ -1,15 +1,16 @@
 //! # Parse Composer Experiment
-//! 
+//!
 //! Use a parser composed inspired by `nom`.
-//! 
+//!
 
+use logos::{Lexer, Logos, Skip};
 use std::{
+    fmt::Debug,
+    fs::File,
+    io::{prelude::*, BufReader},
     str::FromStr,
     str::{self},
-    fmt::Debug, fs::File,
-    io::{prelude::*, BufReader},
 };
-use logos::{Lexer, Logos, Skip};
 
 /// Result type alias for parsers.
 type IzeResult<'a, O> = Result<(&'a [Token], O), IzeErr>;
@@ -23,7 +24,10 @@ struct IzeErr {
     pos: TokenPos,
 }
 
-fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
+fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T
+where
+    T: FromStr + Debug,
+{
     lex.slice().parse().ok().unwrap()
 }
 
@@ -104,7 +108,6 @@ enum TokenKind {
     Let,
 
     // Primaries
-
     #[regex("-?[0-9]+", parse_callback::<i64>)]
     IntegerLiteral(i64),
     //TODO: scientific notation: -9.09E-3, 9.09E+3
@@ -124,7 +127,6 @@ enum TokenKind {
 
     // Types
     // TODO: do we really need this? We could just have Ident and check for types during the semantic analysis.
-
     #[token("Integer")]
     IntegerType,
     #[token("Float")]
@@ -149,7 +151,6 @@ enum TokenKind {
     //TODO: can we scan complex types like Map[String, Integer] or List[Map[String, Integer]] ?
 
     // Commands
-
     #[token("model")]
     Model,
     #[token("transfer")]
@@ -162,7 +163,6 @@ enum TokenKind {
     Import,
 
     // Decision
-
     #[token("if")]
     If,
     #[token("else")]
@@ -174,7 +174,10 @@ enum TokenKind {
 }
 
 fn build_err(msg: &str, pos: TokenPos) -> IzeErr {
-    IzeErr { message: msg.into(), pos: pos }
+    IzeErr {
+        message: msg.into(),
+        pos: pos,
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -192,7 +195,12 @@ struct TokenPos {
 
 impl TokenPos {
     fn new(line: usize, start_col: usize, end_col: usize, seek: usize) -> Self {
-        Self { line, start_col, end_col, seek }
+        Self {
+            line,
+            start_col,
+            end_col,
+            seek,
+        }
     }
 }
 
@@ -204,9 +212,7 @@ struct Token {
 
 impl Token {
     fn new(pos: TokenPos, kind: TokenKind) -> Self {
-        Self {
-            kind, pos
-        }
+        Self { kind, pos }
     }
 }
 
@@ -234,8 +240,12 @@ impl Expression {
     fn new_let(ident: Token, expr: Expression, start_pos: TokenPos) -> Self {
         let end_pos = expr.end_pos;
         Self {
-            expr: Expr::Let { ident, expr: Box::new(expr) },
-            start_pos, end_pos,
+            expr: Expr::Let {
+                ident,
+                expr: Box::new(expr),
+            },
+            start_pos,
+            end_pos,
         }
     }
 
@@ -243,8 +253,13 @@ impl Expression {
         let start_pos = left_expr.start_pos;
         let end_pos = right_expr.end_pos;
         Self {
-            expr: Expr::Binary { op, left_expr: Box::new(left_expr), right_expr: Box::new(right_expr) },
-            start_pos, end_pos,
+            expr: Expr::Binary {
+                op,
+                left_expr: Box::new(left_expr),
+                right_expr: Box::new(right_expr),
+            },
+            start_pos,
+            end_pos,
         }
     }
 
@@ -253,14 +268,16 @@ impl Expression {
         let end_pos = chain.last().unwrap().end_pos;
         Self {
             expr: Expr::Chain(chain),
-            start_pos, end_pos,
+            start_pos,
+            end_pos,
         }
     }
 
     fn new_group(expr: Expression, start_pos: TokenPos, end_pos: TokenPos) -> Self {
         Self {
             expr: Expr::Group(Box::new(expr)),
-            start_pos, end_pos,
+            start_pos,
+            end_pos,
         }
     }
 
@@ -269,7 +286,8 @@ impl Expression {
         let end_pos = token.pos;
         Self {
             expr: Expr::Primary(token),
-            start_pos, end_pos,
+            start_pos,
+            end_pos,
         }
     }
 }
@@ -290,7 +308,20 @@ enum Expr {
     },
 }
 
-fn token_match<'a>(matches: fn(&TokenKind) -> bool, err_msg: &'a str, input: &'a [Token]) -> IzeResult<'a, Token> {
+enum AnyToken {
+    Ident,
+    Str,
+    Int,
+    Flt,
+    Bool,
+    Any(TokenKind),
+}
+
+fn token_match<'a>(
+    matches: fn(&TokenKind) -> bool,
+    err_msg: &'a str,
+    input: &'a [Token],
+) -> IzeResult<'a, Token> {
     if !input.is_empty() {
         let pos = input[0].pos;
         if matches(&input[0].kind) {
@@ -313,7 +344,10 @@ fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a, Tok
             let rest = &input[1..];
             Ok((rest, token))
         } else {
-            Err(build_err(format!("Token is not {:?}", token_kind).as_str(), pos))
+            Err(build_err(
+                format!("Token is not {:?}", token_kind).as_str(),
+                pos,
+            ))
         }
     } else {
         Err(build_err("Input is empty", Default::default()))
@@ -321,29 +355,70 @@ fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a, Tok
 }
 
 fn token_ident(input: &[Token]) -> IzeResult<Token> {
-    token_match(|t| matches!(t, TokenKind::Ident(_)), "Token is not an identifier", input)
+    token_match(
+        |t| matches!(t, TokenKind::Ident(_)),
+        "Token is not an identifier",
+        input,
+    )
 }
 
 fn token_int(input: &[Token]) -> IzeResult<Token> {
-    token_match(|t| matches!(t, TokenKind::IntegerLiteral(_)), "Token is not an integer", input)
+    token_match(
+        |t| matches!(t, TokenKind::IntegerLiteral(_)),
+        "Token is not an integer",
+        input,
+    )
 }
 
 fn token_flt(input: &[Token]) -> IzeResult<Token> {
-    token_match(|t| matches!(t, TokenKind::FloatLiteral(_)), "Token is not a float", input)
+    token_match(
+        |t| matches!(t, TokenKind::FloatLiteral(_)),
+        "Token is not a float",
+        input,
+    )
 }
 
 fn token_bool(input: &[Token]) -> IzeResult<Token> {
-    token_match(|t| matches!(t, TokenKind::BooleanLiteral(_)), "Token is not a boolean", input)
+    token_match(
+        |t| matches!(t, TokenKind::BooleanLiteral(_)),
+        "Token is not a boolean",
+        input,
+    )
 }
 
 fn token_str(input: &[Token]) -> IzeResult<Token> {
-    token_match(|t| matches!(t, TokenKind::StringLiteral(_)), "Token is not a string", input)
+    token_match(
+        |t| matches!(t, TokenKind::StringLiteral(_)),
+        "Token is not a string",
+        input,
+    )
 }
 
-fn one_of_tokens<'a>(tokens: &'a [TokenKind], input: &'a [Token]) -> IzeResult<'a, Token> {
+fn one_of_kinds<'a>(tokens: &'a [TokenKind], input: &'a [Token]) -> IzeResult<'a, Token> {
     let mut err = Default::default();
     for t in tokens {
         match token(t, input) {
+            Ok(r) => return Ok(r),
+            Err(e) => err = e,
+        }
+    }
+    Err(err)
+}
+
+fn one_of<'a>(list: &'a [AnyToken], input: &'a [Token]) -> IzeResult<'a, Token> {
+    let mut err = IzeErr {
+        message: "None of the tokens matched".into(),
+        pos: Default::default(),
+    };
+    for any_token in list {
+        match match any_token {
+            AnyToken::Ident => token_ident(input),
+            AnyToken::Str => token_str(input),
+            AnyToken::Int => token_int(input),
+            AnyToken::Flt => token_flt(input),
+            AnyToken::Bool => token_bool(input),
+            AnyToken::Any(t) => token(t, input),
+        } {
             Ok(r) => return Ok(r),
             Err(e) => err = e,
         }
@@ -377,7 +452,7 @@ fn expr_term(mut input: &[Token]) -> IzeResult<Expression> {
     let (rest, mut expr) = expr_let(input)?;
     input = rest;
     loop {
-        if let Ok((rest, op)) = one_of_tokens(&[TokenKind::Plus, TokenKind::Minus], input) {
+        if let Ok((rest, op)) = one_of_kinds(&[TokenKind::Plus, TokenKind::Minus], input) {
             let (rest, right) = expr_let(rest)?;
             expr = Expression::new_binary(op, expr, right);
             input = rest;
@@ -395,10 +470,8 @@ fn expr_let(input: &[Token]) -> IzeResult<Expression> {
             let (rest, expr) = expr_let(rest)?;
             let let_expr = Expression::new_let(ident_token, expr, let_token.pos);
             IzeResult::Ok((rest, let_expr))
-        },
-        Err(_) => {
-            expr_group(input)
-        },
+        }
+        Err(_) => expr_group(input),
     }
 }
 
@@ -411,27 +484,24 @@ fn expr_group(input: &[Token]) -> IzeResult<Expression> {
             let end = close_parenth_token.pos;
             let group_expr = Expression::new_group(expr, start, end);
             IzeResult::Ok((rest, group_expr))
-        },
-        Err(_) => {
-            expr_primary(input)
-        },
+        }
+        Err(_) => expr_primary(input),
     }
 }
 
 fn expr_primary(input: &[Token]) -> IzeResult<Expression> {
-    if let Ok((rest, token)) = token_ident(input) {
-        Result::Ok((rest, Expression::new_primary(token)))
-    } else if let Ok((rest, token)) = token_int(input) {
-        Result::Ok((rest, Expression::new_primary(token)))
-    } else if let Ok((rest, token)) = token_flt(input) {
-        Result::Ok((rest, Expression::new_primary(token)))
-    } else if let Ok((rest, token)) = token_str(input) {
-        Result::Ok((rest, Expression::new_primary(token)))
-    } else if let Ok((rest, token)) = token_bool(input) {
-        Result::Ok((rest, Expression::new_primary(token)))
-    } else if let Ok((rest, token)) = token(&TokenKind::NoneLiteral, input) {
-        Result::Ok((rest, Expression::new_primary(token)))
-    } else if let Ok((rest, token)) = token(&TokenKind::NullLiteral, input) {
+    if let Ok((rest, token)) = one_of(
+        &[
+            AnyToken::Ident,
+            AnyToken::Int,
+            AnyToken::Flt,
+            AnyToken::Str,
+            AnyToken::Bool,
+            AnyToken::Any(TokenKind::NoneLiteral),
+            AnyToken::Any(TokenKind::NullLiteral),
+        ],
+        input,
+    ) {
         Result::Ok((rest, Expression::new_primary(token)))
     } else {
         let pos = if input.len() > 0 {

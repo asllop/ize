@@ -1,20 +1,17 @@
 //! # Nom Experiment
-//! 
+//!
 //! Parser experiment, using `nom` instead of a manual recursive descendant parser.
-//! 
+//!
 
-use std::{
-    str::FromStr,
-    fmt::Debug,
-};
-use nom::{
-    IResult,
-    multi::{many1, many0},
-    combinator::recognize,
-    character::complete::{one_of, multispace0, alpha1},
-    bytes::complete::{tag, is_not},
-};
 use logos::{Lexer, Logos, Skip};
+use nom::{
+    bytes::complete::{is_not, tag},
+    character::complete::{alpha1, multispace0, one_of},
+    combinator::recognize,
+    multi::{many0, many1},
+    IResult,
+};
+use std::{fmt::Debug, str::FromStr};
 
 const CODE: &str = r#"
     // The program starts here
@@ -32,7 +29,10 @@ const CODE: &str = r#"
     let num ("hello";100)
 "#;
 
-fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T where T: FromStr + Debug {
+fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T
+where
+    T: FromStr + Debug,
+{
     lex.slice().parse().ok().unwrap()
 }
 
@@ -113,7 +113,6 @@ enum TokenKind {
     Let,
 
     // Primaries
-
     #[regex("-?[0-9]+", parse_callback::<i64>)]
     IntegerLiteral(i64),
     //TODO: scientific notation: -9.09E-3, 9.09E+3
@@ -132,7 +131,6 @@ enum TokenKind {
     Ident(String),
 
     // Types
-
     #[token("Integer")]
     IntegerType,
     #[token("Float")]
@@ -157,7 +155,6 @@ enum TokenKind {
     //TODO: can we scan complex types like Map[String, Integer] or List[Map[String, Integer]] ?
 
     // Commands
-
     #[token("model")]
     Model,
     #[token("transfer")]
@@ -170,7 +167,6 @@ enum TokenKind {
     Import,
 
     // Decision
-
     #[token("if")]
     If,
     #[token("else")]
@@ -184,16 +180,10 @@ enum TokenKind {
 fn next_token(lex: &mut Lexer<TokenKind>) -> Option<Result<(TokenPos, TokenKind), &'static str>> {
     match lex.next() {
         Some(r) => match r {
-            Ok(token_kind) => {
-                Some(Result::Ok((lex.extras, token_kind)))
-            },
-            Err(_) => {
-                Some(Result::Err("Unrecognized token"))
-            },
+            Ok(token_kind) => Some(Result::Ok((lex.extras, token_kind))),
+            Err(_) => Some(Result::Err("Unrecognized token")),
         },
-        None => {
-            None
-        },
+        None => None,
     }
 }
 
@@ -223,10 +213,7 @@ enum Expression {
     Primary(Token),
     Chain(Vec<Expression>),
     Group(Box<Expression>),
-    Let {
-        id: String,
-        expr: Box<Expression>,
-    },
+    Let { id: String, expr: Box<Expression> },
 }
 
 // Skip spaces, tabs and newlines
@@ -281,11 +268,7 @@ fn token_id(input: &str) -> IResult<&str, Token> {
 
 fn token_int(input: &str) -> IResult<&str, Token> {
     let (rest, _) = trim(input)?;
-    match recognize(
-        many1(
-            one_of("0123456789")
-        )
-    )(rest) {
+    match recognize(many1(one_of("0123456789")))(rest) {
         Ok((rest, matched)) => {
             let i: i64 = matched.parse().unwrap();
             IResult::Ok((rest, Token::Int(i)))
@@ -329,12 +312,13 @@ fn expr_let(input: &str) -> IResult<&str, Expression> {
         Ok((rest, _)) => {
             let (rest, id_token) = token_id(rest)?;
             let (rest, expr) = expr_let(rest)?;
-            let let_expr = Expression::Let { id: id_token.as_id(), expr: Box::new(expr) };
+            let let_expr = Expression::Let {
+                id: id_token.as_id(),
+                expr: Box::new(expr),
+            };
             IResult::Ok((rest, let_expr))
-        },
-        Err(_) => {
-            expr_group(input)
-        },
+        }
+        Err(_) => expr_group(input),
     }
 }
 
@@ -345,10 +329,8 @@ fn expr_group(input: &str) -> IResult<&str, Expression> {
             let group_expr = Expression::Group(Box::new(expr));
             let (rest, _) = token_close_parenth(rest)?;
             IResult::Ok((rest, group_expr))
-        },
-        Err(_) => {
-            expr_primary(input)
-        },
+        }
+        Err(_) => expr_primary(input),
     }
 }
 
@@ -392,8 +374,8 @@ fn main() {
         match next_token(&mut lex) {
             Some(r) => {
                 let (token_pos, token_kind) = r.expect("Bad token");
-                println!("{:?} at {:?}", token_kind , token_pos);
-            },
+                println!("{:?} at {:?}", token_kind, token_pos);
+            }
             None => break,
         }
     }

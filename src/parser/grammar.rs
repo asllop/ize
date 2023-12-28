@@ -2,11 +2,11 @@ use std::result;
 
 use crate::{
     ast::{Expr, ExprSet, Literal},
-    parser::common::FromToken,
     lexer::{
         TokenKind::{self, *},
         TokenStream,
     },
+    parser::common::FromToken,
     BuildErr, IzeErr, Pos,
 };
 use alloc::{string::String, vec::Vec};
@@ -162,7 +162,7 @@ impl Grammar {
                         }
                         index = new_index;
                     }
-                },
+                }
                 Elem::Plu(grammar) => {
                     let mut i = 0;
                     loop {
@@ -241,7 +241,11 @@ impl Grammar {
     }
 
     /// Parse using grammar rule set.
-    pub fn parse(&mut self, parse_result: &mut ParseResult, token_stream: &mut TokenStream) -> Result<(), IzeErr> {
+    pub fn parse(
+        &mut self,
+        parse_result: &mut ParseResult,
+        token_stream: &mut TokenStream,
+    ) -> Result<(), IzeErr> {
         let (result, index) = self.check(token_stream, 0)?;
         if result {
             let result = self.parse_grammar(token_stream, parse_result, self.grammar)?;
@@ -255,13 +259,11 @@ impl Grammar {
                         println!("Run Next in precedence");
                         self.parse_grammar(token_stream, parse_result, &[Expr(next)])?;
                         Ok(())
-                    },
-                    None => {
-                        Result::ize_err(
-                            format!("Couldn't parse a valid expression"),
-                            token_stream.pos_at(index),
-                        )
                     }
+                    None => Result::ize_err(
+                        format!("Couldn't parse a valid expression"),
+                        token_stream.pos_at(index),
+                    ),
                 }
             }
         } else {
@@ -387,8 +389,7 @@ impl Grammar {
                     // Find zero or more times the grammar
                     println!("MUL {:?}", grammar);
                     loop {
-                        let (check_result, _) =
-                            self.check_grammar(token_stream, grammar, 0)?;
+                        let (check_result, _) = self.check_grammar(token_stream, grammar, 0)?;
                         if check_result {
                             println!("Found MUL {:?}", grammar);
                             self.parse_grammar(token_stream, result, grammar)?;
@@ -398,13 +399,12 @@ impl Grammar {
                             break;
                         }
                     }
-                },
+                }
                 Elem::Plu(grammar) => {
                     println!("PLU {:?}", grammar);
                     let mut i = 0;
                     loop {
-                        let (check_result, _) =
-                            self.check_grammar(token_stream, grammar, 0)?;
+                        let (check_result, _) = self.check_grammar(token_stream, grammar, 0)?;
                         if check_result {
                             println!("Found PLU {:?}", grammar);
                             self.parse_grammar(token_stream, result, grammar)?;
@@ -432,8 +432,7 @@ impl Grammar {
                 }
                 Elem::Opt(grammar) => {
                     println!("OPT {:?}", grammar);
-                    let (check_result, _) =
-                        self.check_grammar(token_stream, grammar, 0)?;
+                    let (check_result, _) = self.check_grammar(token_stream, grammar, 0)?;
                     if check_result {
                         println!("Found OPT {:?}", grammar);
                         self.parse_grammar(token_stream, result, grammar)?;
@@ -445,8 +444,7 @@ impl Grammar {
                     println!("SEL {:?}", grammars);
                     let mut grammar_result = false;
                     for &grammar in grammars.iter() {
-                        let (check_result, _) =
-                            self.check_grammar(token_stream, grammar, 0)?;
+                        let (check_result, _) = self.check_grammar(token_stream, grammar, 0)?;
                         if check_result {
                             println!("Found SEL {:?}", grammar);
                             grammar_result = true;
@@ -471,7 +469,10 @@ impl Grammar {
                     if check_result {
                         grammar.parse(result, token_stream)?;
                         let expr = (grammar.collector)(result, token_stream)?;
-                        println!("Parsed Expr {:?} {:?} = {:?}", expr_fn, grammar.grammar, expr);
+                        println!(
+                            "Parsed Expr {:?} {:?} = {:?}",
+                            expr_fn, grammar.grammar, expr
+                        );
                     } else {
                         println!("Not EXPR {:?} {:?}", expr_fn, grammar.grammar);
                         return if must {
@@ -493,7 +494,7 @@ impl Grammar {
         }
         Ok(true)
     }
-    
+
     // /// Parse using grammar rule set.
     // pub fn parse(&mut self, token_stream: &mut TokenStream) -> Result<(), IzeErr> {
     //     let mut parse_result = ParseResult::default();
@@ -710,7 +711,10 @@ pub struct ParseResult {
 
 impl ParseResult {
     pub fn add_token(&mut self, pos: Pos, token_kind: TokenKind) {
-        self.atoms.push(Atom::Token { pos, val: token_kind })
+        self.atoms.push(Atom::Token {
+            pos,
+            val: token_kind,
+        })
     }
 
     pub fn add_ident(&mut self, pos: Pos, ident: String) {
@@ -1044,7 +1048,6 @@ fn primary_expr() -> Grammar {
         ])],
         None,
         |result, token_stream| {
-
             println!("PRIMARY collector, parse result {:?}", result);
 
             // Build primary expression
@@ -1065,12 +1068,8 @@ fn primary_expr() -> Grammar {
                 Atom::BoolLiteral { pos, val } => {
                     Ok(Expr::new(ExprSet::Literal(Literal::Boolean(val)), pos))
                 }
-                Atom::NoneLiteral { pos } => {
-                    Ok(Expr::new(ExprSet::Literal(Literal::None), pos))
-                }
-                Atom::NullLiteral { pos } => {
-                    Ok(Expr::new(ExprSet::Literal(Literal::Null), pos))
-                }
+                Atom::NoneLiteral { pos } => Ok(Expr::new(ExprSet::Literal(Literal::None), pos)),
+                Atom::NullLiteral { pos } => Ok(Expr::new(ExprSet::Literal(Literal::Null), pos)),
                 _ => Result::ize_err("Expected a primary expression".into(), pos),
             }?;
 
