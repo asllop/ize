@@ -14,3 +14,8 @@
 
     let num
         ("hello";null)
+
+    if (isTrue)
+        let var a+b ; var 
+    else
+        a + b
