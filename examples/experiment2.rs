@@ -24,6 +24,14 @@ struct IzeErr {
     pos: TokenPos,
 }
 
+impl IzeErr {
+    fn new(message: String, pos: TokenPos) -> Self {
+        IzeErr {
+            message, pos,
+        }
+    }
+}
+
 fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T
 where
     T: FromStr + Debug,
@@ -123,7 +131,7 @@ enum TokenKind {
     #[regex(r#""([^"\\]|\\"|\\)*""#, parse_callback::<String>)]
     StringLiteral(String),
     #[regex(r#"[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#, parse_callback::<String>)]
-    Ident(String),
+    Identifier(String),
 
     // Types
     // TODO: do we really need this? We could just have Ident and check for types during the semantic analysis.
@@ -171,13 +179,6 @@ enum TokenKind {
     Select,
     #[token("unwrap")]
     Unwrap,
-}
-
-fn build_err(msg: &str, pos: TokenPos) -> IzeErr {
-    IzeErr {
-        message: msg.into(),
-        pos: pos,
-    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -331,12 +332,15 @@ enum AnyToken {
     Any(TokenKind),
 }
 
-//TODO: build combinators: one_of, optional, concat, etc.
+//TODO: build combinators: one_of, either, optional, zero_or_more, once_at_least, concat, etc.
 //  - Create a generic type AstNode that can be either a Token or a Expression. This way combinators can be generic.
-//
+//  - Expr will contain AstNode instead of Expression and Token.
+
 // enum AstNode {
 //     Token(Token),
 //     Expression(Expression),
+//     //Statement(Statement),
+//     Array(Vec<AstNode>),
 // }
 
 fn token_match<'a>(
@@ -351,10 +355,10 @@ fn token_match<'a>(
             let rest = &input[1..];
             Ok((rest, token))
         } else {
-            Err(build_err(err_msg, pos))
+            Err(IzeErr::new(err_msg.into(), pos))
         }
     } else {
-        Err(build_err("Input is empty", Default::default()))
+        Err(IzeErr::new("Input is empty".into(), Default::default()))
     }
 }
 
@@ -366,19 +370,19 @@ fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a, Tok
             let rest = &input[1..];
             Ok((rest, token))
         } else {
-            Err(build_err(
-                format!("Expected token {:?}", token_kind).as_str(),
+            Err(IzeErr::new(
+                format!("Expected token {:?}", token_kind),
                 pos,
             ))
         }
     } else {
-        Err(build_err("Input is empty", Default::default()))
+        Err(IzeErr::new("Input is empty".into(), Default::default()))
     }
 }
 
 fn token_ident(input: &[Token]) -> IzeResult<Token> {
     token_match(
-        |t| matches!(t, TokenKind::Ident(_)),
+        |t| matches!(t, TokenKind::Identifier(_)),
         "Expected token identifier",
         input,
     )
@@ -546,7 +550,7 @@ fn expr_primary(input: &[Token]) -> IzeResult<Expression> {
         } else {
             Default::default()
         };
-        Err(build_err("Error parsing primary expr", pos))
+        Err(IzeErr::new("Error parsing primary expr".into(), pos))
     }
 }
 
@@ -561,7 +565,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, IzeErr> {
         if let Ok(token_kind) = r {
             tokens.push(Token::new(pos, token_kind));
         } else {
-            return Err(build_err("Bad token", pos));
+            return Err(IzeErr::new("Bad token".into(), pos));
         }
     }
     Ok(tokens)
