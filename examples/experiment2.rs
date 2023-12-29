@@ -13,7 +13,7 @@ use std::{
 };
 
 /// Result type alias for parsers.
-type IzeResult<'a, O> = Result<(&'a [Token], O), IzeErr>;
+type IzeResult<'a> = Result<(&'a [Token], AstNode), IzeErr>;
 
 #[derive(Debug, Default)]
 /// Compiler error.
@@ -26,9 +26,7 @@ struct IzeErr {
 
 impl IzeErr {
     fn new(message: String, pos: TokenPos) -> Self {
-        IzeErr {
-            message, pos,
-        }
+        IzeErr { message, pos }
     }
 }
 
@@ -238,54 +236,67 @@ struct Expression {
 }
 
 impl Expression {
-    fn new_ifelse(cond: Expression, if_expr: Expression, else_expr: Expression, start_pos: TokenPos) -> Self {
+    fn new_ifelse(
+        cond: Box<Expression>,
+        if_expr: Box<Expression>,
+        else_expr: Box<Expression>,
+        start_pos: TokenPos,
+    ) -> Self {
         let end_pos = else_expr.end_pos;
         Self {
-            expr: Expr::IfElse { cond_expr: Box::new(cond), if_expr: Box::new(if_expr), else_expr: Box::new(else_expr) },
-            start_pos,
-            end_pos,
-        }
-    }
-
-    fn new_let(ident: Token, expr: Expression, start_pos: TokenPos) -> Self {
-        let end_pos = expr.end_pos;
-        Self {
-            expr: Expr::Let {
-                ident,
-                expr: Box::new(expr),
+            expr: Expr::IfElse {
+                cond_expr: cond.into(),
+                if_expr: if_expr.into(),
+                else_expr: else_expr.into(),
             },
             start_pos,
             end_pos,
         }
     }
 
-    fn new_binary(op: Token, left_expr: Expression, right_expr: Expression) -> Self {
+    fn new_let(ident: Token, expr: Box<Expression>, start_pos: TokenPos) -> Self {
+        let end_pos = expr.end_pos;
+        Self {
+            expr: Expr::Let {
+                ident_token: ident.into(),
+                expr: expr.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
+    fn new_binary(op: Token, left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
         let start_pos = left_expr.start_pos;
         let end_pos = right_expr.end_pos;
         Self {
             expr: Expr::Binary {
-                op,
-                left_expr: Box::new(left_expr),
-                right_expr: Box::new(right_expr),
+                op_token: op.into(),
+                left_expr: left_expr.into(),
+                right_expr: right_expr.into(),
             },
             start_pos,
             end_pos,
         }
     }
 
-    fn new_chain(chain: Vec<Expression>) -> Self {
-        let start_pos = chain.first().unwrap().start_pos;
-        let end_pos = chain.last().unwrap().end_pos;
+    fn new_chain(chain: Vec<AstNode>) -> Self {
+        let start_pos = chain.first().unwrap().unwrap_expr_ref().start_pos;
+        let end_pos = chain.last().unwrap().unwrap_expr_ref().end_pos;
         Self {
-            expr: Expr::Chain(chain),
+            expr: Expr::Chain {
+                expr_vec: AstNode::Vec(chain),
+            },
             start_pos,
             end_pos,
         }
     }
 
-    fn new_group(expr: Expression, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+    fn new_group(expr: Box<Expression>, start_pos: TokenPos, end_pos: TokenPos) -> Self {
         Self {
-            expr: Expr::Group(Box::new(expr)),
+            expr: Expr::Group {
+                expr: AstNode::Expression(expr),
+            },
             start_pos,
             end_pos,
         }
@@ -295,7 +306,9 @@ impl Expression {
         let start_pos = token.pos;
         let end_pos = token.pos;
         Self {
-            expr: Expr::Primary(token),
+            expr: Expr::Primary {
+                expr: AstNode::Token(token),
+            },
             start_pos,
             end_pos,
         }
@@ -304,56 +317,173 @@ impl Expression {
 
 #[derive(Debug)]
 enum Expr {
-    Primary(Token),
-    Chain(Vec<Expression>),
-    Group(Box<Expression>),
+    Primary {
+        expr: AstNode,
+    },
+    Chain {
+        expr_vec: AstNode,
+    },
+    Group {
+        expr: AstNode,
+    },
     IfElse {
-        cond_expr: Box<Expression>,
-        if_expr: Box<Expression>,
-        else_expr: Box<Expression>,
+        cond_expr: AstNode,
+        if_expr: AstNode,
+        else_expr: AstNode,
     },
     Binary {
-        op: Token,
-        left_expr: Box<Expression>,
-        right_expr: Box<Expression>,
+        op_token: AstNode,
+        left_expr: AstNode,
+        right_expr: AstNode,
     },
     Let {
-        ident: Token,
-        expr: Box<Expression>,
+        ident_token: AstNode,
+        expr: AstNode,
     },
 }
 
-enum AnyToken {
-    Ident,
-    Str,
-    Int,
-    Flt,
-    Bool,
-    Any(TokenKind),
+//TODO: build combinators: select, either, optional, zero_more, one_more, concat, etc.
+
+#[derive(Clone)]
+enum Parser<'a> {
+    Fn(fn(&[Token]) -> IzeResult),
+    Tk(TokenKind),
+    Sel(&'a [Parser<'a>]),
+    Opt(&'a Parser<'a>),
 }
 
-//TODO: build combinators: one_of, either, optional, zero_or_more, once_at_least, concat, etc.
-//  - Create a generic type AstNode that can be either a Token or a Expression. This way combinators can be generic.
-//  - Expr will contain AstNode instead of Expression and Token.
+impl<'a> Parser<'a> {
+    fn run(&self, input: &'a [Token]) -> IzeResult {
+        match self {
+            Parser::Fn(parser_fn) => parser_fn(input),
+            Parser::Tk(token_kind) => token(token_kind, input),
+            Parser::Sel(parsers) => select(parsers, input),
+            Parser::Opt(parser) => optional(parser, input),
+        }
+    }
+}
 
-// enum AstNode {
-//     Token(Token),
-//     Expression(Expression),
-//     //Statement(Statement),
-//     Array(Vec<AstNode>),
-// }
+/// Select a parser from a list, the first that sucseeds.
+fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
+    for parser in parsers {
+        if let Ok(r) = parser.run(input) {
+            return Ok(r);
+        }
+    }
+    // None of the parsers succeed, return an error
+    let pos = if let Some(t) = input.first() {
+        t.pos
+    } else {
+        Default::default()
+    };
+    Err(IzeErr::new(
+        "None of the parsers passed to 'one_of' succeed".into(),
+        pos,
+    ))
+}
+
+fn optional<'a>(parser: &'a Parser<'a>, input: &'a [Token]) -> IzeResult<'a> {
+    if let Ok(r) = parser.run(input) {
+        Ok(r)
+    } else {
+        // TODO: Com fem per no retornar res quan el parser retorna Err?
+        Err(IzeErr::default())
+    }
+}
+
+#[derive(Debug)]
+enum AstNode {
+    Token(Token),
+    //TODO: Statement variant
+    Expression(Box<Expression>),
+    Vec(Vec<AstNode>),
+}
+
+impl AstNode {
+    fn unwrap_token(self) -> Token {
+        if let Self::Token(token) = self {
+            token
+        } else {
+            panic!("AstNode is not a token")
+        }
+    }
+
+    fn unwrap_expr(self) -> Box<Expression> {
+        if let Self::Expression(expr) = self {
+            expr
+        } else {
+            panic!("AstNode is not an expression")
+        }
+    }
+
+    fn unwrap_vec(self) -> Vec<AstNode> {
+        if let Self::Vec(vec) = self {
+            vec
+        } else {
+            panic!("AstNode is not a vector")
+        }
+    }
+
+    fn unwrap_token_ref(&self) -> &Token {
+        if let Self::Token(token) = self {
+            token
+        } else {
+            panic!("AstNode ref is not a token")
+        }
+    }
+
+    fn unwrap_expr_ref(&self) -> &Box<Expression> {
+        if let Self::Expression(expr) = self {
+            expr
+        } else {
+            panic!("AstNode ref is not an expression")
+        }
+    }
+
+    fn unwrap_vec_ref(&self) -> &Vec<AstNode> {
+        if let Self::Vec(vec) = self {
+            vec
+        } else {
+            panic!("AstNode ref is not a vector")
+        }
+    }
+}
+
+impl From<Token> for AstNode {
+    fn from(value: Token) -> Self {
+        Self::Token(value)
+    }
+}
+
+impl From<Expression> for AstNode {
+    fn from(value: Expression) -> Self {
+        Self::Expression(Box::new(value))
+    }
+}
+
+impl From<Box<Expression>> for AstNode {
+    fn from(value: Box<Expression>) -> Self {
+        Self::Expression(value)
+    }
+}
+
+impl From<Vec<AstNode>> for AstNode {
+    fn from(value: Vec<AstNode>) -> Self {
+        Self::Vec(value)
+    }
+}
 
 fn token_match<'a>(
     matches: fn(&TokenKind) -> bool,
     err_msg: &'a str,
     input: &'a [Token],
-) -> IzeResult<'a, Token> {
+) -> IzeResult<'a> {
     if !input.is_empty() {
         let pos = input[0].pos;
         if matches(&input[0].kind) {
             let token = Token::new(pos, input[0].kind.clone());
             let rest = &input[1..];
-            Ok((rest, token))
+            Ok((rest, token.into()))
         } else {
             Err(IzeErr::new(err_msg.into(), pos))
         }
@@ -362,25 +492,22 @@ fn token_match<'a>(
     }
 }
 
-fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a, Token> {
+fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a> {
     if !input.is_empty() {
         let pos: TokenPos = input[0].pos;
         if token_kind == &input[0].kind {
             let token = Token::new(pos, input[0].kind.clone());
             let rest = &input[1..];
-            Ok((rest, token))
+            Ok((rest, token.into()))
         } else {
-            Err(IzeErr::new(
-                format!("Expected token {:?}", token_kind),
-                pos,
-            ))
+            Err(IzeErr::new(format!("Expected token {:?}", token_kind), pos))
         }
     } else {
         Err(IzeErr::new("Input is empty".into(), Default::default()))
     }
 }
 
-fn token_ident(input: &[Token]) -> IzeResult<Token> {
+fn token_ident(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::Identifier(_)),
         "Expected token identifier",
@@ -388,7 +515,7 @@ fn token_ident(input: &[Token]) -> IzeResult<Token> {
     )
 }
 
-fn token_int(input: &[Token]) -> IzeResult<Token> {
+fn token_int(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::IntegerLiteral(_)),
         "Expected token integer",
@@ -396,7 +523,7 @@ fn token_int(input: &[Token]) -> IzeResult<Token> {
     )
 }
 
-fn token_flt(input: &[Token]) -> IzeResult<Token> {
+fn token_flt(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::FloatLiteral(_)),
         "Expected token float",
@@ -404,7 +531,7 @@ fn token_flt(input: &[Token]) -> IzeResult<Token> {
     )
 }
 
-fn token_bool(input: &[Token]) -> IzeResult<Token> {
+fn token_bool(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::BooleanLiteral(_)),
         "Expected token boolean",
@@ -412,7 +539,7 @@ fn token_bool(input: &[Token]) -> IzeResult<Token> {
     )
 }
 
-fn token_str(input: &[Token]) -> IzeResult<Token> {
+fn token_str(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::StringLiteral(_)),
         "Expected token string",
@@ -420,43 +547,11 @@ fn token_str(input: &[Token]) -> IzeResult<Token> {
     )
 }
 
-fn one_of_kinds<'a>(tokens: &'a [TokenKind], input: &'a [Token]) -> IzeResult<'a, Token> {
-    let mut err = Default::default();
-    for t in tokens {
-        match token(t, input) {
-            Ok(r) => return Ok(r),
-            Err(e) => err = e,
-        }
-    }
-    Err(err)
-}
-
-fn one_of<'a>(list: &'a [AnyToken], input: &'a [Token]) -> IzeResult<'a, Token> {
-    let mut err = IzeErr {
-        message: "None of the tokens matched".into(),
-        pos: Default::default(),
-    };
-    for any_token in list {
-        match match any_token {
-            AnyToken::Ident => token_ident(input),
-            AnyToken::Str => token_str(input),
-            AnyToken::Int => token_int(input),
-            AnyToken::Flt => token_flt(input),
-            AnyToken::Bool => token_bool(input),
-            AnyToken::Any(t) => token(t, input),
-        } {
-            Ok(r) => return Ok(r),
-            Err(e) => err = e,
-        }
-    }
-    Err(err)
-}
-
-fn expr(input: &[Token]) -> IzeResult<Expression> {
+fn expr(input: &[Token]) -> IzeResult {
     expr_chain(input)
 }
 
-fn expr_chain(mut input: &[Token]) -> IzeResult<Expression> {
+fn expr_chain(mut input: &[Token]) -> IzeResult {
     let mut expressions = vec![];
     let rest: &[Token] = loop {
         let (rest, expr) = expr_let(input)?;
@@ -471,22 +566,26 @@ fn expr_chain(mut input: &[Token]) -> IzeResult<Expression> {
     if expressions.len() == 1 {
         Ok((rest, expressions.pop().unwrap()))
     } else {
-        Ok((rest, Expression::new_chain(expressions)))
+        Ok((rest, Expression::new_chain(expressions).into()))
     }
 }
 
-fn expr_let(input: &[Token]) -> IzeResult<Expression> {
+fn expr_let(input: &[Token]) -> IzeResult {
     if let Ok((rest, let_token)) = token(&TokenKind::Let, input) {
         let (rest, ident_token) = token_ident(rest)?;
         let (rest, expr) = expr_let(rest)?;
-        let let_expr = Expression::new_let(ident_token, expr, let_token.pos);
-        IzeResult::Ok((rest, let_expr))
+        let let_expr = Expression::new_let(
+            ident_token.unwrap_token(),
+            expr.unwrap_expr(),
+            let_token.unwrap_token().pos,
+        );
+        IzeResult::Ok((rest, let_expr.into()))
     } else {
         expr_ifelse(input)
     }
 }
 
-fn expr_ifelse(input: &[Token]) -> IzeResult<Expression> {
+fn expr_ifelse(input: &[Token]) -> IzeResult {
     if let Ok((rest, if_token)) = token(&TokenKind::If, input) {
         let (rest, _) = token(&TokenKind::OpenParenth, rest)?;
         let (rest, cond_expr) = expr(rest)?;
@@ -494,20 +593,30 @@ fn expr_ifelse(input: &[Token]) -> IzeResult<Expression> {
         let (rest, if_expr) = expr(rest)?;
         let (rest, _) = token(&TokenKind::Else, rest)?;
         let (rest, else_expr) = expr(rest)?;
-        let ifelse_expr = Expression::new_ifelse(cond_expr, if_expr, else_expr, if_token.pos);
-        Ok((rest, ifelse_expr))
+        let ifelse_expr = Expression::new_ifelse(
+            cond_expr.unwrap_expr(),
+            if_expr.unwrap_expr(),
+            else_expr.unwrap_expr(),
+            if_token.unwrap_token().pos,
+        );
+        Ok((rest, ifelse_expr.into()))
     } else {
         expr_term(input)
     }
 }
 
-fn expr_term(mut input: &[Token]) -> IzeResult<Expression> {
+fn expr_term(mut input: &[Token]) -> IzeResult {
     let (rest, mut expr) = expr_group(input)?;
     input = rest;
     loop {
-        if let Ok((rest, op)) = one_of_kinds(&[TokenKind::Plus, TokenKind::Minus], input) {
+        if let Ok((rest, op)) = select(
+            &[Parser::Tk(TokenKind::Plus), Parser::Tk(TokenKind::Minus)],
+            input,
+        ) {
             let (rest, right) = expr_group(rest)?;
-            expr = Expression::new_binary(op, expr, right);
+            expr =
+                Expression::new_binary(op.unwrap_token(), expr.unwrap_expr(), right.unwrap_expr())
+                    .into();
             input = rest;
         } else {
             break;
@@ -516,34 +625,33 @@ fn expr_term(mut input: &[Token]) -> IzeResult<Expression> {
     Ok((input, expr))
 }
 
-
-fn expr_group(input: &[Token]) -> IzeResult<Expression> {
+fn expr_group(input: &[Token]) -> IzeResult {
     if let Ok((rest, open_parenth_token)) = token(&TokenKind::OpenParenth, input) {
         let (rest, expr) = expr(rest)?;
         let (rest, close_parenth_token) = token(&TokenKind::ClosingParenth, rest)?;
-        let start = open_parenth_token.pos;
-        let end = close_parenth_token.pos;
-        let group_expr = Expression::new_group(expr, start, end);
-        IzeResult::Ok((rest, group_expr))
+        let start = open_parenth_token.unwrap_token().pos;
+        let end = close_parenth_token.unwrap_token().pos;
+        let group_expr = Expression::new_group(expr.unwrap_expr(), start, end);
+        IzeResult::Ok((rest, group_expr.into()))
     } else {
         expr_primary(input)
     }
 }
 
-fn expr_primary(input: &[Token]) -> IzeResult<Expression> {
-    if let Ok((rest, token)) = one_of(
+fn expr_primary(input: &[Token]) -> IzeResult {
+    if let Ok((rest, token)) = select(
         &[
-            AnyToken::Ident,
-            AnyToken::Int,
-            AnyToken::Flt,
-            AnyToken::Str,
-            AnyToken::Bool,
-            AnyToken::Any(TokenKind::NoneLiteral),
-            AnyToken::Any(TokenKind::NullLiteral),
+            Parser::Fn(token_ident),
+            Parser::Fn(token_int),
+            Parser::Fn(token_flt),
+            Parser::Fn(token_str),
+            Parser::Fn(token_bool),
+            Parser::Tk(TokenKind::NoneLiteral),
+            Parser::Tk(TokenKind::NullLiteral),
         ],
         input,
     ) {
-        Result::Ok((rest, Expression::new_primary(token)))
+        Result::Ok((rest, Expression::new_primary(token.unwrap_token()).into()))
     } else {
         let pos = if input.len() > 0 {
             input[0].pos
