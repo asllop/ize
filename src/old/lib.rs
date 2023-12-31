@@ -24,16 +24,26 @@
 //! - Go
 //! - TypeScript
 
-#![no_std]
+//TODO: uncomment this
+//#![no_std]
 
 #[macro_use]
 extern crate alloc;
 
-/// Common types.
-pub mod common;
+/* IMPROVEMENTS
+- Put Pos on every AST component, not only top level ones (Command and Expr).
+- Modify the AST and parser to better fit the structure of the code.
+    - Each sintactic component needs a separate AST component and a Pos.
+    - Separate the AST from the symbol table.
+    - Separate Import from Command. Import is not a command.
+*/
 
-/// Error type.
-pub mod err;
+// Common types, used by all parts of the crate.
+mod common;
+pub use common::{BuildErr, IzeErr, Pos};
+
+mod compiler;
+pub use compiler::build;
 
 /// Lexical analyzer.
 pub mod lexer;
@@ -41,8 +51,13 @@ pub mod lexer;
 /// Abstract Syntax Tree.
 pub mod ast;
 
-/// Parser combinator primitives.
+/// Parser (syntactic analyzer).
 pub mod parser;
 
-/// Grammar rules to parse the IZE language.
-pub mod grammar;
+/// Semantic analyzer.
+pub mod semanter;
+
+/// Interface for creating Extensions / Plugins.
+pub mod ext;
+
+//TODO: tests

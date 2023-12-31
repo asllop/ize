@@ -1,35 +1,23 @@
-use alloc::string::String;
-
-#[derive(Debug)]
-/// Compiler error.
-pub struct IzeErr {
-    /// Error message.
-    pub message: String,
-    /// Position where the error was found.
-    pub pos: Pos,
+#[derive(Default, Debug, Clone, Copy)]
+/// Position of a token in the code.
+pub struct TokenPos {
+    /// Line.
+    pub line: usize,
+    /// Starting column.
+    pub start_col: usize,
+    /// Ending column.
+    pub end_col: usize,
+    /// Absolute position from start of file.
+    pub seek: usize,
 }
 
-/// Build an ize error for any generic result type.
-pub trait BuildErr {
-    /// Build ize error.
-    fn ize_err(message: String, pos: Pos) -> Self;
-}
-
-impl<T> BuildErr for Result<T, IzeErr> {
-    fn ize_err(message: String, pos: Pos) -> Self {
-        Err(IzeErr { message, pos })
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone)]
-/// Position of language element in the code.
-pub struct Pos {
-    pub row: usize,
-    pub col: usize,
-}
-
-impl Pos {
-    pub fn new(row: usize, col: usize) -> Self {
-        Self { row, col }
+impl TokenPos {
+    pub fn new(line: usize, start_col: usize, end_col: usize, seek: usize) -> Self {
+        Self {
+            line,
+            start_col,
+            end_col,
+            seek,
+        }
     }
 }

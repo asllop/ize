@@ -1,20 +1,35 @@
-//! # IZE Lexer
-//!
-//! The lexer reads raw source code and converts it into a vector of [Token](crate::lexer::Token)s.
+use crate::common::TokenPos;
+use crate::err::IzeErr;
+use alloc::{string::String, vec::Vec};
+use core::fmt::Debug;
+use core::str::FromStr;
+use logos::{Lexer, Logos, Skip};
 
-use crate::{common::BuildErr, IzeErr, Pos};
-use alloc::{collections::VecDeque, string::String, vec::Vec};
-use logos::Logos;
+fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T
+where
+    T: FromStr + Debug,
+{
+    lex.slice().parse().ok().unwrap()
+}
 
-#[derive(Logos, Debug, PartialEq, Copy, Clone)]
-#[logos(skip r"[ \t]+")]
+fn newline_callback(lex: &mut Lexer<TokenKind>) -> Skip {
+    lex.extras.line += 1;
+    lex.extras.pos_last_eol = lex.span().end;
+    Skip
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct LexExtras {
+    line: usize,
+    pos_last_eol: usize,
+}
+
+#[derive(Logos, Debug, PartialEq, Clone)]
+#[logos(extras = LexExtras, skip r"[ \t]+", skip r"//.*")]
 /// List of recognized tokens, requiered by [logos].
 pub enum TokenKind {
-    #[regex("//.*")]
-    Comment,
-
-    #[token("\n")]
-    EOL,
+    #[regex(r"\n", newline_callback)]
+    Newline,
 
     #[token("(")]
     OpenParenth,
@@ -73,23 +88,26 @@ pub enum TokenKind {
     #[token("let")]
     Let,
 
-    // Literals
-    #[regex("-?[0-9]+")]
-    IntegerLiteral,
+    // Primaries
+    #[regex("-?[0-9]+", parse_callback::<i64>)]
+    IntegerLiteral(i64),
     //TODO: scientific notation: -9.09E-3, 9.09E+3
-    #[regex(r#"-?[0-9]+\.[0-9]+"#)]
-    FloatLiteral,
-    #[token("true")]
-    #[token("false")]
-    BooleanLiteral,
+    #[regex(r#"-?[0-9]+\.[0-9]+"#, parse_callback::<f64>)]
+    FloatLiteral(f64),
+    #[regex("true", parse_callback::<bool>)]
+    #[regex("false", parse_callback::<bool>)]
+    BooleanLiteral(bool),
     #[token("none")]
     NoneLiteral,
     #[token("null")]
     NullLiteral,
-    #[regex(r#""([^"\\]|\\"|\\)*""#)]
-    StringLiteral,
+    #[regex(r#""([^"\\]|\\"|\\)*""#, parse_callback::<String>)]
+    StringLiteral(String),
+    #[regex(r#"[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#, parse_callback::<String>)]
+    Identifier(String),
 
     // Types
+    // TODO: do we really need this? We could just have Ident and check for types during the semantic analysis.
     #[token("Integer")]
     IntegerType,
     #[token("Float")]
@@ -110,6 +128,8 @@ pub enum TokenKind {
     MuxType,
     #[token("Tuple")]
     TupleType,
+
+    //TODO: can we scan complex types like Map[String, Integer] or List[Map[String, Integer]] ?
 
     // Commands
     #[token("model")]
@@ -132,276 +152,33 @@ pub enum TokenKind {
     Select,
     #[token("unwrap")]
     Unwrap,
-
-    #[regex(r#"[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#)]
-    Ident,
-}
-
-#[derive(Debug, PartialEq)]
-/// A lexical element, the actual token. [Token] is just a wrapper that contains this and a position.
-pub enum Lexeme {
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-    String(String),
-    Ident(String),
-    Particle(TokenKind),
-    EOF,
-    Nothing,
 }
 
 #[derive(Debug)]
-/// A token is a lexical element and its position in the source code.
 pub struct Token {
-    pub lexeme: Lexeme,
-    //TODO: rename to "start"
-    pub pos: Pos,
-    //TODO: add end position
+    pub kind: TokenKind,
+    pub pos: TokenPos,
 }
 
 impl Token {
-    /// Create a new token.
-    pub fn new(lexeme: Lexeme, pos: Pos) -> Self {
-        Self { lexeme, pos }
+    pub fn new(pos: TokenPos, kind: TokenKind) -> Self {
+        Self { kind, pos }
     }
 }
 
-#[derive(Debug)]
-/// Stream of tokens returned by the lexer.
-pub struct TokenStream {
-    tokens: VecDeque<Token>,
-}
-
-impl TokenStream {
-    /// Check if parser ended processing tokens.
-    pub fn ended(&self) -> bool {
-        self.tokens.is_empty()
-    }
-
-    /// Stream length.
-    pub fn len(&self) -> usize {
-        self.tokens.len()
-    }
-
-    /// Return position of next token in the stream.
-    pub fn last_pos(&self) -> Pos {
-        if !self.ended() {
-            self.tokens[0].pos
+pub fn tokenize(input: &str) -> Result<Vec<Token>, IzeErr> {
+    let mut lex = TokenKind::lexer(input);
+    let mut tokens = vec![];
+    while let Some(r) = lex.next() {
+        let line = lex.extras.line;
+        let start_col = lex.span().start - lex.extras.pos_last_eol;
+        let end_col = lex.span().end - lex.extras.pos_last_eol;
+        let pos = TokenPos::new(line, start_col, end_col, lex.span().start);
+        if let Ok(token_kind) = r {
+            tokens.push(Token::new(pos, token_kind));
         } else {
-            Default::default()
+            return Err(IzeErr::new("Bad token".into(), pos));
         }
     }
-
-    /// Consume token.
-    pub fn consume_token(&mut self) -> Option<Token> {
-        self.tokens.pop_front()
-    }
-
-    /// Check if token at offset is of given type.
-    pub fn is_token(&self, token_kind: TokenKind, offset: usize) -> bool {
-        // Check if token exist at the specified offset
-        if let Some(token) = self.tokens.get(offset) {
-            match token.lexeme {
-                Lexeme::Float(_) => token_kind == TokenKind::FloatLiteral,
-                Lexeme::Int(_) => token_kind == TokenKind::IntegerLiteral,
-                Lexeme::Bool(_) => token_kind == TokenKind::BooleanLiteral,
-                Lexeme::String(_) => token_kind == TokenKind::StringLiteral,
-                Lexeme::Ident(_) => token_kind == TokenKind::Ident,
-                Lexeme::Particle(tt) => token_kind == tt,
-                _ => false,
-            }
-        } else {
-            false
-        }
-    }
-
-    /// Check if token is a literal.
-    pub fn is_literal(&self, offset: usize) -> bool {
-        // Check if token exist at the specified offset
-        if let Some(token) = self.tokens.get(offset) {
-            match token.lexeme {
-                Lexeme::Float(_)
-                | Lexeme::Int(_)
-                | Lexeme::Bool(_)
-                | Lexeme::String(_)
-                | Lexeme::Particle(TokenKind::NullLiteral)
-                | Lexeme::Particle(TokenKind::NoneLiteral) => true,
-                _ => false,
-            }
-        } else {
-            false
-        }
-    }
-
-    /// Check if token is an identifier.
-    pub fn is_ident(&self, offset: usize) -> bool {
-        // Check if token exist at the specified offset
-        if let Some(token) = self.tokens.get(offset) {
-            if let Lexeme::Ident(_) = token.lexeme {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    }
-
-    /// Check for a list of tokens.
-    pub fn is_any_of_tokens(&self, token_types: &[TokenKind], offset: usize) -> bool {
-        // Check if token exist at the specified offset
-        for t in token_types {
-            if self.is_token(*t, offset) {
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Token at index
-    pub fn at(&self, index: usize) -> Option<&Token> {
-        self.tokens.get(index)
-    }
-
-    /// Token Pos at index
-    pub fn pos_at(&self, index: usize) -> Pos {
-        if let Some(t) = self.tokens.get(index) {
-            t.pos
-        } else {
-            if self.tokens.len() == 0 {
-                Pos::default()
-            } else {
-                self.tokens[self.tokens.len() - 1].pos
-            }
-        }
-    }
-
-    //TODO: extract, check empty, check token type, etc
-}
-
-impl From<Vec<Token>> for TokenStream {
-    fn from(value: Vec<Token>) -> Self {
-        Self {
-            tokens: VecDeque::from(value),
-        }
-    }
-}
-
-/// Lexer.
-pub struct Lexer<'a> {
-    current_code: &'a str,
-    last_pos: Pos,
-}
-
-impl<'a> Lexer<'a> {
-    /// Create a new lexer with source code.
-    pub fn new(code: &'a str) -> Self {
-        Self {
-            current_code: code,
-            last_pos: Pos::default(),
-        }
-    }
-
-    /// Position of last read token.
-    pub fn pos(&self) -> Pos {
-        self.last_pos
-    }
-
-    /// Scan all tokens
-    pub fn tokenize(&mut self) -> Result<TokenStream, IzeErr> {
-        Ok(self.tokenize_vec()?.into())
-    }
-
-    //TODO: remove this and keep only "tokenize"
-    /// Scan all tokens
-    pub fn tokenize_vec(&mut self) -> Result<Vec<Token>, IzeErr> {
-        let mut tokens = Vec::new();
-        loop {
-            let token = self.scan_token()?;
-            match token.lexeme {
-                Lexeme::EOF => break,
-                Lexeme::Nothing => {}
-                _ => tokens.push(token),
-            }
-        }
-        Ok(tokens)
-    }
-
-    /// Scan next token from the source code.
-    pub fn scan_token(&mut self) -> Result<Token, IzeErr> {
-        if let Some((lexeme, lex_offs)) = TokenKind::lexer(self.current_code).spanned().next() {
-            let fragment = &self.current_code[lex_offs.start..lex_offs.end];
-            self.current_code = &self.current_code[lex_offs.end..];
-
-            let col = lex_offs.start + self.last_pos.col;
-            let mut next_pos = Pos::new(self.last_pos.row, col);
-
-            if let Ok(lexeme) = lexeme {
-                match lexeme {
-                    TokenKind::Comment => {
-                        let token = Token::new(Lexeme::Nothing, next_pos);
-                        next_pos.col += lex_offs.end - lex_offs.start;
-                        self.last_pos = next_pos;
-                        Ok(token)
-                    }
-                    TokenKind::EOL => {
-                        let token = Token::new(Lexeme::Nothing, next_pos);
-                        next_pos.row += 1;
-                        next_pos.col = 0;
-                        self.last_pos = next_pos;
-                        Ok(token)
-                    }
-                    TokenKind::IntegerLiteral => match str::parse(fragment) {
-                        Ok(n) => {
-                            let token = Token::new(Lexeme::Int(n), next_pos);
-                            next_pos.col += lex_offs.end - lex_offs.start;
-                            self.last_pos = next_pos;
-                            Ok(token)
-                        }
-                        Err(err) => Result::ize_err(format!("{:?}", err), next_pos),
-                    },
-                    TokenKind::FloatLiteral => match str::parse(fragment) {
-                        Ok(n) => {
-                            let token = Token::new(Lexeme::Float(n), next_pos);
-                            next_pos.col += lex_offs.end - lex_offs.start;
-                            self.last_pos = next_pos;
-                            Ok(token)
-                        }
-                        Err(err) => Result::ize_err(format!("{:?}", err), next_pos),
-                    },
-                    TokenKind::StringLiteral => {
-                        let literal_str = fragment[1..fragment.len() - 1].into();
-                        let token = Token::new(Lexeme::String(literal_str), next_pos);
-                        next_pos.col += lex_offs.end - lex_offs.start;
-                        self.last_pos = next_pos;
-                        Ok(token)
-                    }
-                    TokenKind::BooleanLiteral => {
-                        let token = Token::new(Lexeme::Bool(fragment == "true"), next_pos);
-                        next_pos.col += lex_offs.end - lex_offs.start;
-                        self.last_pos = next_pos;
-                        Ok(token)
-                    }
-                    TokenKind::Ident => {
-                        let token = Token::new(Lexeme::Ident(fragment.into()), next_pos);
-                        next_pos.col += lex_offs.end - lex_offs.start;
-                        self.last_pos = next_pos;
-                        Ok(token)
-                    }
-                    _ => {
-                        let token = Token::new(Lexeme::Particle(lexeme), next_pos);
-                        next_pos.col += lex_offs.end - lex_offs.start;
-                        self.last_pos = next_pos;
-                        Ok(token)
-                    }
-                }
-            } else {
-                return Result::ize_err(format!("Unrecognized lexeme: '{}'", fragment), next_pos);
-            }
-        } else {
-            // EOF
-            let token = Token::new(Lexeme::EOF, self.last_pos);
-            Ok(token)
-        }
-    }
+    Ok(tokens)
 }
