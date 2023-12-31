@@ -1,6 +1,6 @@
-//! # Parse Composer Experiment
+//! # Parse Combinator Experiment
 //!
-//! Use a parser composed inspired by `nom`.
+//! Use a parser combinator inspired by `nom`.
 //!
 
 use logos::{Lexer, Logos, Skip};
@@ -15,6 +15,15 @@ use std::{
 /// Result type alias for parsers.
 type IzeResult<'a> = Result<(&'a [Token], AstNode), IzeErr>;
 
+/// Result type alias for parsers with optional result.
+type IzeOptResult<'a> = Result<Option<(&'a [Token], AstNode)>, IzeErr>;
+
+/// Convert [`IzeResult`] into [`IzeOptResult`].
+fn into_opt_res(value: IzeResult) -> IzeOptResult {
+    let res_tuple = value?;
+    Ok(Some(res_tuple))
+}
+
 #[derive(Debug, Default)]
 /// Compiler error.
 struct IzeErr {
@@ -25,6 +34,7 @@ struct IzeErr {
 }
 
 impl IzeErr {
+    /// Build a new error from message and the token position that caused the error.
     fn new(message: String, pos: TokenPos) -> Self {
         IzeErr { message, pos }
     }
@@ -281,8 +291,8 @@ impl Expression {
     }
 
     fn new_chain(chain: Vec<AstNode>) -> Self {
-        let start_pos = chain.first().unwrap().unwrap_expr_ref().start_pos;
-        let end_pos = chain.last().unwrap().unwrap_expr_ref().end_pos;
+        let start_pos = chain.first().unwrap().expr_ref().unwrap().start_pos;
+        let end_pos = chain.last().unwrap().expr_ref().unwrap().end_pos;
         Self {
             expr: Expr::Chain {
                 expr_vec: AstNode::Vec(chain),
@@ -342,23 +352,36 @@ enum Expr {
     },
 }
 
-//TODO: build combinators: select, either, optional, zero_more, one_more, concat, etc.
-
+/// Parser element.
 #[derive(Clone)]
 enum Parser<'a> {
+    /// Generic parser function.
     Fn(fn(&[Token]) -> IzeResult),
+    /// Token parser.
     Tk(TokenKind),
+    /// Select parser composer. Executes one from a list of parsers, the first that matches.
     Sel(&'a [Parser<'a>]),
+    /// Concatenate parser composers. Executes a list of parsers.
+    Con(&'a [Parser<'a>]),
+    /// Optional parser composer. Optionally executes a parser.
     Opt(&'a Parser<'a>),
+    /// Zero-plus parser composer. Executes a parser zero or more times.
+    Zpl(&'a Parser<'a>),
+    /// One-plus parser composer. Executes a parser one or more times.
+    Opl(&'a Parser<'a>),
 }
 
 impl<'a> Parser<'a> {
-    fn run(&self, input: &'a [Token]) -> IzeResult {
+    /// Run a parser element.
+    fn run(&self, input: &'a [Token]) -> IzeOptResult {
         match self {
-            Parser::Fn(parser_fn) => parser_fn(input),
-            Parser::Tk(token_kind) => token(token_kind, input),
-            Parser::Sel(parsers) => select(parsers, input),
+            Parser::Fn(parser_fn) => into_opt_res(parser_fn(input)),
+            Parser::Tk(token_kind) => into_opt_res(token(token_kind, input)),
+            Parser::Sel(parsers) => into_opt_res(select(parsers, input)),
+            Parser::Con(parsers) => into_opt_res(concat(parsers, input)),
             Parser::Opt(parser) => optional(parser, input),
+            Parser::Zpl(parser) => into_opt_res(zero_plus(parser, input)),
+            Parser::Opl(parser) => into_opt_res(one_plus(parser, input)),
         }
     }
 }
@@ -366,85 +389,138 @@ impl<'a> Parser<'a> {
 /// Select a parser from a list, the first that sucseeds.
 fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     for parser in parsers {
-        if let Ok(r) = parser.run(input) {
-            return Ok(r);
+        if let Ok(Some((rest, node))) = parser.run(input) {
+            return Ok((rest, node));
         }
     }
-    // None of the parsers succeed, return an error
+    // None of the parsers succeeded, return an error
     let pos = if let Some(t) = input.first() {
         t.pos
     } else {
         Default::default()
     };
     Err(IzeErr::new(
-        "None of the parsers passed to 'one_of' succeed".into(),
+        "None of the parsers passed to 'select' succeeded".into(),
         pos,
     ))
 }
 
-fn optional<'a>(parser: &'a Parser<'a>, input: &'a [Token]) -> IzeResult<'a> {
+/// Optionally execute a parser.
+fn optional<'a>(parser: &'a Parser<'a>, input: &'a [Token]) -> IzeOptResult<'a> {
     if let Ok(r) = parser.run(input) {
         Ok(r)
     } else {
-        // TODO: Com fem per no retornar res quan el parser retorna Err?
-        Err(IzeErr::default())
+        Ok(None)
+    }
+}
+
+/// Execute an array of parsers and return the result in a vector. It fails if any of the parsers fail.
+fn concat<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<'a> {
+    let mut results = vec![];
+    for parser in parsers {
+        if let Some((result, node)) = parser.run(input)? {
+            results.push(node);
+            input = result;
+        }
+    }
+    Ok((input, results.into()))
+}
+
+// Execute a parser zero or more times and return the result in a vector.
+fn zero_plus<'a>(parser: &'a Parser<'a>, mut input: &'a [Token]) -> IzeResult<'a> {
+    let mut results = vec![];
+    while let Ok(result) = parser.run(input) {
+        if let Some((rest, node)) = result {
+            results.push(node);
+            input = rest;
+        } else {
+            break;
+        }
+    }
+    Ok((input, results.into()))
+}
+
+// Execute a parser one or more times and return the result in a vector.
+fn one_plus<'a>(parser: &'a Parser<'a>, mut input: &'a [Token]) -> IzeResult<'a> {
+    let mut results = vec![];
+    while let Ok(result) = parser.run(input) {
+        if let Some((rest, node)) = result {
+            results.push(node);
+            input = rest;
+        } else {
+            break;
+        }
+    }
+    if results.len() > 0 {
+        Ok((input, results.into()))
+    } else {
+        // The parsers must succeed at least once, return an error
+        let pos = if let Some(t) = input.first() {
+            t.pos
+        } else {
+            Default::default()
+        };
+        Err(IzeErr::new(
+            "A parser passed to 'one_more' must succeed at least once".into(),
+            pos,
+        ))
     }
 }
 
 #[derive(Debug)]
 enum AstNode {
     Token(Token),
-    //TODO: Statement variant
+    //TODO: Command/Statement variant
     Expression(Box<Expression>),
     Vec(Vec<AstNode>),
 }
 
 impl AstNode {
-    fn unwrap_token(self) -> Token {
+    fn token(self) -> Option<Token> {
         if let Self::Token(token) = self {
-            token
+            Some(token)
         } else {
-            panic!("AstNode is not a token")
+            None
         }
     }
 
-    fn unwrap_expr(self) -> Box<Expression> {
+    fn expr(self) -> Option<Box<Expression>> {
         if let Self::Expression(expr) = self {
-            expr
+            Some(expr)
         } else {
-            panic!("AstNode is not an expression")
+            None
         }
     }
 
-    fn unwrap_vec(self) -> Vec<AstNode> {
+    fn vec(self) -> Option<Vec<AstNode>> {
         if let Self::Vec(vec) = self {
-            vec
+            Some(vec)
         } else {
-            panic!("AstNode is not a vector")
+            None
         }
     }
 
-    fn unwrap_token_ref(&self) -> &Token {
+    fn token_ref(&self) -> Option<&Token> {
         if let Self::Token(token) = self {
-            token
+            Some(token)
         } else {
-            panic!("AstNode ref is not a token")
+            None
         }
     }
 
-    fn unwrap_expr_ref(&self) -> &Box<Expression> {
+    fn expr_ref(&self) -> Option<&Box<Expression>> {
         if let Self::Expression(expr) = self {
-            expr
+            Some(expr)
         } else {
-            panic!("AstNode ref is not an expression")
+            None
         }
     }
 
-    fn unwrap_vec_ref(&self) -> &Vec<AstNode> {
+    fn vec_ref(&self) -> Option<&Vec<AstNode>> {
         if let Self::Vec(vec) = self {
-            vec
+            Some(vec)
         } else {
-            panic!("AstNode ref is not a vector")
+            None
         }
     }
 }
@@ -553,6 +629,7 @@ fn expr(input: &[Token]) -> IzeResult {
 
 fn expr_chain(mut input: &[Token]) -> IzeResult {
     let mut expressions = vec![];
+    //TODO: aquí podem emprar el composer "zero_more"
     let rest: &[Token] = loop {
         let (rest, expr) = expr_let(input)?;
         expressions.push(expr);
@@ -571,13 +648,14 @@ fn expr_chain(mut input: &[Token]) -> IzeResult {
 }
 
 fn expr_let(input: &[Token]) -> IzeResult {
+    //TODO: aquí podem emprar el composer "concat"
     if let Ok((rest, let_token)) = token(&TokenKind::Let, input) {
         let (rest, ident_token) = token_ident(rest)?;
         let (rest, expr) = expr_let(rest)?;
         let let_expr = Expression::new_let(
-            ident_token.unwrap_token(),
-            expr.unwrap_expr(),
-            let_token.unwrap_token().pos,
+            ident_token.token().unwrap(),
+            expr.expr().unwrap(),
+            let_token.token().unwrap().pos,
         );
         IzeResult::Ok((rest, let_expr.into()))
     } else {
@@ -586,6 +664,7 @@ fn expr_let(input: &[Token]) -> IzeResult {
 }
 
 fn expr_ifelse(input: &[Token]) -> IzeResult {
+    //TODO: aquí podem emprar el composer "concat"
     if let Ok((rest, if_token)) = token(&TokenKind::If, input) {
         let (rest, _) = token(&TokenKind::OpenParenth, rest)?;
         let (rest, cond_expr) = expr(rest)?;
@@ -594,10 +673,10 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
         let (rest, _) = token(&TokenKind::Else, rest)?;
         let (rest, else_expr) = expr(rest)?;
         let ifelse_expr = Expression::new_ifelse(
-            cond_expr.unwrap_expr(),
-            if_expr.unwrap_expr(),
-            else_expr.unwrap_expr(),
-            if_token.unwrap_token().pos,
+            cond_expr.expr().unwrap(),
+            if_expr.expr().unwrap(),
+            else_expr.expr().unwrap(),
+            if_token.token().unwrap().pos,
         );
         Ok((rest, ifelse_expr.into()))
     } else {
@@ -608,15 +687,19 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
 fn expr_term(mut input: &[Token]) -> IzeResult {
     let (rest, mut expr) = expr_group(input)?;
     input = rest;
+    //TODO: aquí podem emprar el composer "zero_more"
     loop {
         if let Ok((rest, op)) = select(
             &[Parser::Tk(TokenKind::Plus), Parser::Tk(TokenKind::Minus)],
             input,
         ) {
             let (rest, right) = expr_group(rest)?;
-            expr =
-                Expression::new_binary(op.unwrap_token(), expr.unwrap_expr(), right.unwrap_expr())
-                    .into();
+            expr = Expression::new_binary(
+                op.token().unwrap(),
+                expr.expr().unwrap(),
+                right.expr().unwrap(),
+            )
+            .into();
             input = rest;
         } else {
             break;
@@ -626,20 +709,31 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
 }
 
 fn expr_group(input: &[Token]) -> IzeResult {
-    if let Ok((rest, open_parenth_token)) = token(&TokenKind::OpenParenth, input) {
-        let (rest, expr) = expr(rest)?;
-        let (rest, close_parenth_token) = token(&TokenKind::ClosingParenth, rest)?;
-        let start = open_parenth_token.unwrap_token().pos;
-        let end = close_parenth_token.unwrap_token().pos;
-        let group_expr = Expression::new_group(expr.unwrap_expr(), start, end);
-        IzeResult::Ok((rest, group_expr.into()))
+    let grammar = concat(
+        &[
+            Parser::Tk(TokenKind::OpenParenth),
+            Parser::Fn(expr),
+            Parser::Tk(TokenKind::ClosingParenth),
+        ],
+        input,
+    );
+    if let Ok((rest, node_vec)) = grammar {
+        // Collector
+        let mut node_vec = node_vec.vec().unwrap();
+        let end = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
+        let expr = node_vec.pop().unwrap().expr().unwrap();
+        let start = node_vec.pop().unwrap().token().unwrap().pos; // Token "("
+
+        let group_expr = Expression::new_group(expr, start, end);
+        Ok((rest, group_expr.into()))
     } else {
+        // Precedence
         expr_primary(input)
     }
 }
 
 fn expr_primary(input: &[Token]) -> IzeResult {
-    if let Ok((rest, token)) = select(
+    let grammar = select(
         &[
             Parser::Fn(token_ident),
             Parser::Fn(token_int),
@@ -650,9 +744,14 @@ fn expr_primary(input: &[Token]) -> IzeResult {
             Parser::Tk(TokenKind::NullLiteral),
         ],
         input,
-    ) {
-        Result::Ok((rest, Expression::new_primary(token.unwrap_token()).into()))
+    );
+    if let Ok((rest, node)) = grammar {
+        // Collector
+        let token = node.token().unwrap();
+        let primary_expr = Expression::new_primary(token);
+        Ok((rest, primary_expr.into()))
     } else {
+        // Precedence
         let pos = if input.len() > 0 {
             input[0].pos
         } else {
