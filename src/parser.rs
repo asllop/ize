@@ -19,6 +19,17 @@ pub fn into_opt_res(value: IzeResult) -> IzeOptResult {
     Ok(Some(value?))
 }
 
+/* TODO:
+    Crea una nova variant de Parser que podríem anomenar "Key". Aquesta variant fa que si aquesta part del parser
+    funciona però la resta no, vol dir que és l'expressió correcta però amb un error i per tant cal no seguir amb
+    la precedència, sinó generar un error adient.
+
+    Per exemple, "let var 100". La key aquí és el token "let", si hi és, però la resta del parser falla, hem de generar
+    un error d'expressió let mal formada.
+    
+    Un altre exemple, "100 + var". Aquí la keu és el token "+".
+*/
+
 /// Parser element.
 #[derive(Clone)]
 pub enum Parser<'a> {

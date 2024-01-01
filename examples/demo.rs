@@ -4,7 +4,7 @@ use std::{
     str::{self},
 };
 
-use ize::{grammar::expr, lexer::tokenize};
+use ize::{grammar, lexer};
 
 fn main() {
     let file_path = "izeware/experiment.iz";
@@ -14,12 +14,12 @@ fn main() {
     reader.read_to_end(&mut buf).expect("Error reading");
 
     let code = str::from_utf8(&buf).expect("Error converting buffer to UTF-8");
-    let tokens = tokenize(code).expect("Bad token");
+    let tokens = lexer::tokenize(code).expect("Bad token");
 
     let mut input = tokens.as_slice();
 
     while !input.is_empty() {
-        let (rest, matched) = expr(input).expect("Error parsing expr");
+        let (rest, matched) = grammar::expr(input).expect("Error parsing expr");
         println!("-------------------------\n{:#?}", matched);
         input = rest;
     }

@@ -122,6 +122,7 @@ fn expr_group(input: &[Token]) -> IzeResult {
 fn expr_primary(input: &[Token]) -> IzeResult {
     let grammar = select(
         &[
+            //TODO: parse type
             Parser::Fn(token_ident),
             Parser::Fn(token_int),
             Parser::Fn(token_flt),
