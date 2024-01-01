@@ -29,9 +29,6 @@
 #[macro_use]
 extern crate alloc;
 
-/// Common types.
-pub mod common;
-
 /// Error type.
 pub mod err;
 
@@ -46,3 +43,6 @@ pub mod parser;
 
 /// Grammar rules to parse the IZE language.
 pub mod grammar;
+
+#[cfg(test)]
+mod tests;

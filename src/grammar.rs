@@ -1,3 +1,7 @@
+//! # Grammar
+//!
+//! Contains the grammar rules to parse the IZE language.
+
 use crate::{
     ast::Expression,
     err::IzeErr,
@@ -5,6 +9,7 @@ use crate::{
     parser::*,
 };
 
+/// Parse an expression.
 pub fn expr(input: &[Token]) -> IzeResult {
     expr_chain(input)
 }

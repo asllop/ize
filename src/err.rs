@@ -1,4 +1,4 @@
-use crate::common::TokenPos;
+use crate::lexer::TokenPos;
 use alloc::string::String;
 
 #[derive(Debug, Default)]

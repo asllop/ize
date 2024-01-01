@@ -1,8 +1,10 @@
-use crate::common::TokenPos;
+//! # Lexer
+//!
+//! Lexical analyzer. Generate [Token](crate::lexer::Token)s from the raw source code.
+
 use crate::err::IzeErr;
 use alloc::{string::String, vec::Vec};
-use core::fmt::Debug;
-use core::str::FromStr;
+use core::{fmt::Debug, str::FromStr};
 use logos::{Lexer, Logos, Skip};
 
 fn parse_callback<T>(lex: &mut Lexer<TokenKind>) -> T
@@ -19,6 +21,7 @@ fn newline_callback(lex: &mut Lexer<TokenKind>) -> Skip {
 }
 
 #[derive(Default, Debug, Clone, Copy)]
+/// Extra data for the lexer.
 pub struct LexExtras {
     line: usize,
     pos_last_eol: usize,
@@ -26,7 +29,7 @@ pub struct LexExtras {
 
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(extras = LexExtras, skip r"[ \t]+", skip r"//.*")]
-/// List of recognized tokens, requiered by [logos].
+/// List of recognized tokens.
 pub enum TokenKind {
     #[regex(r"\n", newline_callback)]
     Newline,
@@ -106,31 +109,6 @@ pub enum TokenKind {
     #[regex(r#"[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#, parse_callback::<String>)]
     Identifier(String),
 
-    // Types
-    // TODO: do we really need this? We could just have Ident and check for types during the semantic analysis.
-    #[token("Integer")]
-    IntegerType,
-    #[token("Float")]
-    FloatType,
-    #[token("Boolean")]
-    BooleanType,
-    #[token("String")]
-    StringType,
-    #[token("Null")]
-    NullType,
-    #[token("None")]
-    NoneType,
-    #[token("Map")]
-    MapType,
-    #[token("List")]
-    ListType,
-    #[token("Mux")]
-    MuxType,
-    #[token("Tuple")]
-    TupleType,
-
-    //TODO: can we scan complex types like Map[String, Integer] or List[Map[String, Integer]] ?
-
     // Commands
     #[token("model")]
     Model,
@@ -154,18 +132,48 @@ pub enum TokenKind {
     Unwrap,
 }
 
+#[derive(Default, Debug, Clone, Copy)]
+/// Position of a token in the code.
+pub struct TokenPos {
+    /// Line.
+    pub line: usize,
+    /// Starting column.
+    pub start_col: usize,
+    /// Ending column.
+    pub end_col: usize,
+    /// Absolute position from start of file.
+    pub seek: usize,
+}
+
+impl TokenPos {
+    /// New token position.
+    pub fn new(line: usize, start_col: usize, end_col: usize, seek: usize) -> Self {
+        Self {
+            line,
+            start_col,
+            end_col,
+            seek,
+        }
+    }
+}
+
 #[derive(Debug)]
+/// Token type.
 pub struct Token {
+    /// Token kind.
     pub kind: TokenKind,
+    /// Token position.
     pub pos: TokenPos,
 }
 
 impl Token {
+    /// New token from position and kind.
     pub fn new(pos: TokenPos, kind: TokenKind) -> Self {
         Self { kind, pos }
     }
 }
 
+/// Tokenize. Convert string containing source code into a vector of [Token](crate::lexer::Token)s.
 pub fn tokenize(input: &str) -> Result<Vec<Token>, IzeErr> {
     let mut lex = TokenKind::lexer(input);
     let mut tokens = vec![];

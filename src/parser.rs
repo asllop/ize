@@ -1,8 +1,11 @@
+//! # Parser
+//!
+//! Parser combinator infrastructure, used to generate the parser for the IZE language. Inspired by [Nom](https://github.com/rust-bakery/nom).
+
 use crate::{
     ast::AstNode,
-    common::TokenPos,
     err::IzeErr,
-    lexer::{Token, TokenKind},
+    lexer::{Token, TokenKind, TokenPos},
 };
 
 /// Result type alias for parsers.
@@ -11,10 +14,9 @@ pub type IzeResult<'a> = Result<(&'a [Token], AstNode), IzeErr>;
 /// Result type alias for parsers with optional result.
 pub type IzeOptResult<'a> = Result<Option<(&'a [Token], AstNode)>, IzeErr>;
 
-/// Convert [`IzeResult`] into [`IzeOptResult`].
+/// Convert [IzeResult](crate::parser::IzeResult) into [IzeOptResult](crate::parser::IzeOptResult).
 pub fn into_opt_res(value: IzeResult) -> IzeOptResult {
-    let res_tuple = value?;
-    Ok(Some(res_tuple))
+    Ok(Some(value?))
 }
 
 /// Parser element.
@@ -132,6 +134,7 @@ pub fn one_plus<'a>(parser: &'a Parser<'a>, mut input: &'a [Token]) -> IzeResult
     }
 }
 
+/// Matches one token usign a function to match. Used by [token_ident](crate::parser::token_ident), [token_int](crate::parser::token_int), etc.
 pub fn token_match<'a>(
     matches: fn(&TokenKind) -> bool,
     err_msg: &'a str,
@@ -151,6 +154,7 @@ pub fn token_match<'a>(
     }
 }
 
+/// Parse a token matching by a [TokenKind](crate::lexer::TokenKind).
 pub fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a> {
     if !input.is_empty() {
         let pos: TokenPos = input[0].pos;
@@ -166,6 +170,7 @@ pub fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a>
     }
 }
 
+/// Parse an identifier token.
 pub fn token_ident(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::Identifier(_)),
@@ -174,6 +179,7 @@ pub fn token_ident(input: &[Token]) -> IzeResult {
     )
 }
 
+/// Parse an integer literal token.
 pub fn token_int(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::IntegerLiteral(_)),
@@ -182,6 +188,7 @@ pub fn token_int(input: &[Token]) -> IzeResult {
     )
 }
 
+/// Parse a float literal token.
 pub fn token_flt(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::FloatLiteral(_)),
@@ -190,6 +197,7 @@ pub fn token_flt(input: &[Token]) -> IzeResult {
     )
 }
 
+/// Parse a boolean literal token.
 pub fn token_bool(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::BooleanLiteral(_)),
@@ -198,6 +206,7 @@ pub fn token_bool(input: &[Token]) -> IzeResult {
     )
 }
 
+/// Parse a string literal token.
 pub fn token_str(input: &[Token]) -> IzeResult {
     token_match(
         |t| matches!(t, TokenKind::StringLiteral(_)),
