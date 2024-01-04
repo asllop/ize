@@ -19,7 +19,7 @@ fn main() {
     let mut input = tokens.as_slice();
 
     while !input.is_empty() {
-        let (rest, matched) = grammar::expr(input).expect("Error parsing expr");
+        let (rest, matched, _) = grammar::expr(input).expect("Error parsing expr");
         println!("-------------------------\n{:#?}", matched);
         input = rest;
     }
