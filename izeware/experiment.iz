@@ -19,3 +19,5 @@
         let var a+b ; var 
     else
         a + b
+
+    (a - b)

@@ -54,23 +54,43 @@ fn expr_let(input: &[Token]) -> IzeResult {
 
 /// Parse an If-Else expression.
 fn expr_ifelse(input: &[Token]) -> IzeResult {
-    //TODO: aquí podem emprar el composer "concat"
-    if let Ok((rest, if_token, _)) = token(&TokenKind::If, input) {
-        let (rest, _, _) = token(&TokenKind::OpenParenth, rest)?;
-        let (rest, cond_expr, _) = expr(rest)?;
-        let (rest, _, _) = token(&TokenKind::ClosingParenth, rest)?;
-        let (rest, if_expr, _) = expr(rest)?;
-        let (rest, _, _) = token(&TokenKind::Else, rest)?;
-        let (rest, else_expr, _) = expr(rest)?;
-        let ifelse_expr = Expression::new_ifelse(
-            cond_expr.expr().unwrap(),
-            if_expr.expr().unwrap(),
-            else_expr.expr().unwrap(),
-            if_token.token().unwrap().pos,
-        );
-        Ok((rest, ifelse_expr.into(), false))
-    } else {
-        expr_term(input)
+    let grammar = concat(
+        &[
+            Parser::Key(&Parser::Tk(TokenKind::If)),
+            Parser::Tk(TokenKind::OpenParenth),
+            Parser::Fn(expr),
+            Parser::Tk(TokenKind::ClosingParenth),
+            Parser::Fn(expr),
+            Parser::Tk(TokenKind::Else),
+            Parser::Fn(expr),
+        ],
+        input,
+    );
+    match grammar {
+        Ok((rest, node_vec, _)) => {
+            // Collector
+            let mut node_vec = node_vec.vec().unwrap();
+
+            let else_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // Token "else"
+            let if_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // Token ")"
+            let cond_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // Token "("
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // Token "if"
+
+            let ifelse_expr = Expression::new_ifelse(cond_expr, if_expr, else_expr, start_pos);
+            Ok((rest, ifelse_expr.into(), false))
+        }
+        Err(e) => {
+            if e.after_key {
+                // If-Else expression error
+                Err(IzeErr::new("If-Else expression failed parsing".into(), e.err.pos).into())
+            } else {
+                // Precedence
+                expr_term(input)
+            }
+        }
     }
 }
 
@@ -101,35 +121,25 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
 
 /// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {
-    let grammar = concat(
-        &[
+    grammar(
+        &Parser::Con(&[
             Parser::Key(&Parser::Tk(TokenKind::OpenParenth)),
             Parser::Fn(expr),
             Parser::Tk(TokenKind::ClosingParenth),
-        ],
+        ]),
         input,
-    );
-    match grammar {
-        Ok((rest, node_vec, _)) => {
-            // Collector
+        |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
             let end = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let start = node_vec.pop().unwrap().token().unwrap().pos; // Token "("
 
             let group_expr = Expression::new_group(expr, start, end);
-            Ok((rest, group_expr.into(), false))
+            group_expr.into()
         },
-        Err(e) => {
-            if e.after_key {
-                // Group expression error
-                Err(IzeErr::new("Group expression failed parsing".into(), e.err.pos).into())
-            } else {
-                // Precedence
-                expr_primary(input)   
-            }
-        },
-    }
+        |e| Err(IzeErr::new("Group expression failed parsing".into(), e.err.pos).into()),
+        expr_primary,
+    )
 }
 
 /// Parse a Primary expression.
