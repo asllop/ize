@@ -14,6 +14,7 @@ pub fn expr(input: &[Token]) -> IzeResult {
     expr_chain(input)
 }
 
+/// Parse a Chain expression.
 fn expr_chain(mut input: &[Token]) -> IzeResult {
     let mut expressions = vec![];
     //TODO: aquí podem emprar el composer "zero_more"
@@ -34,6 +35,7 @@ fn expr_chain(mut input: &[Token]) -> IzeResult {
     }
 }
 
+/// Parse a Let expression.
 fn expr_let(input: &[Token]) -> IzeResult {
     //TODO: aquí podem emprar el composer "concat"
     if let Ok((rest, let_token)) = token(&TokenKind::Let, input) {
@@ -50,6 +52,7 @@ fn expr_let(input: &[Token]) -> IzeResult {
     }
 }
 
+/// Parse an If-Else expression.
 fn expr_ifelse(input: &[Token]) -> IzeResult {
     //TODO: aquí podem emprar el composer "concat"
     if let Ok((rest, if_token)) = token(&TokenKind::If, input) {
@@ -71,6 +74,7 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
     }
 }
 
+/// Parse a Term Binary expression.
 fn expr_term(mut input: &[Token]) -> IzeResult {
     let (rest, mut expr) = expr_group(input)?;
     input = rest;
@@ -95,6 +99,7 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
     Ok((input, expr))
 }
 
+/// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {
     let grammar = concat(
         &[
@@ -119,6 +124,7 @@ fn expr_group(input: &[Token]) -> IzeResult {
     }
 }
 
+/// Parse a Primary expression.
 fn expr_primary(input: &[Token]) -> IzeResult {
     let grammar = select(
         &[
@@ -148,3 +154,15 @@ fn expr_primary(input: &[Token]) -> IzeResult {
         Err(IzeErr::new("Error parsing primary expr".into(), pos))
     }
 }
+
+/* Grammar changes:
+
+- Two different syntaxes for transfers, one for key-value lists and one for expressions:
+    transfer NAME IN_TYPE -> OUT_TYPE ( key: val, key: val, ... )
+    transfer NAME IN_TYPE -> OUT_TYPE expression
+
+- Allow multiple arguments for transfers:
+    transfer NAME IN_TYPE_A: name_a, IN_TYPE_B: name_b, IN_TYPE_C: name_c -> OUT_TYPE ...
+  As a syntax sugar for:
+    transfer NAME Tuple[IN_TYPE_A, IN_TYPE_B, IN_TYPE_C] -> OUT_TYPE ...
+*/
