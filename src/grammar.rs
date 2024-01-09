@@ -6,7 +6,7 @@ use crate::{
     ast::Expression,
     err::IzeErr,
     lexer::{Token, TokenKind},
-    parser::*,
+    parser::{*, Parser::*},
 };
 
 /// Parse an expression.
@@ -15,7 +15,39 @@ pub fn expr(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Chain expression.
-fn expr_chain(mut input: &[Token]) -> IzeResult {
+fn expr_chain(input: &[Token]) -> IzeResult {
+    def_grammar(
+        &[
+            Fn(expr_let),
+            Zero(&Con(&[
+                Tk(TokenKind::Semicolon),
+                Fn(expr_let),
+            ])),
+        ],
+        input,
+        //TODO: handle partial errors
+        |rest, node_vec| {
+            let mut node_vec = node_vec.vec().unwrap();
+            let chain_vec = node_vec.pop().unwrap().vec().unwrap();
+            let let_expr = node_vec.pop().unwrap();
+
+            if !chain_vec.is_empty() {
+                let mut expr_vec = vec![let_expr];
+                for chain_pair in chain_vec {
+                    let mut chain_pair = chain_pair.vec().unwrap();
+                    let expr = chain_pair.pop().unwrap();
+                    expr_vec.push(expr);
+                }
+                Ok((rest, Expression::new_chain(expr_vec).into(), false))
+            } else {
+                // Precedence
+                Ok((rest, let_expr, false))
+            }
+        },
+    )
+}
+
+fn _expr_chain(mut input: &[Token]) -> IzeResult {
     let mut expressions = vec![];
     //TODO: aquí podem emprar el composer "zero_more"
     let rest: &[Token] = loop {
@@ -56,13 +88,13 @@ fn expr_let(input: &[Token]) -> IzeResult {
 fn expr_ifelse(input: &[Token]) -> IzeResult {
     let grammar = concat(
         &[
-            Parser::Key(&Parser::Tk(TokenKind::If)),
-            Parser::Tk(TokenKind::OpenParenth),
-            Parser::Fn(expr),
-            Parser::Tk(TokenKind::ClosingParenth),
-            Parser::Fn(expr),
-            Parser::Tk(TokenKind::Else),
-            Parser::Fn(expr),
+            Key(&Tk(TokenKind::If)),
+            Tk(TokenKind::OpenParenth),
+            Fn(expr),
+            Tk(TokenKind::ClosingParenth),
+            Fn(expr),
+            Tk(TokenKind::Else),
+            Fn(expr),
         ],
         input,
     );
@@ -84,6 +116,9 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
         }
         Err(e) => {
             if e.after_key {
+                //TODO: how to generate more detailed errors: "expected closing parenthesis", "expected 'else' token", etc.
+                //      we need more information about where it failed parsing.
+
                 // If-Else expression error
                 Err(IzeErr::new("If-Else expression failed parsing".into(), e.err.pos).into())
             } else {
@@ -122,10 +157,10 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
 /// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {
     grammar(
-        &Parser::Con(&[
-            Parser::Key(&Parser::Tk(TokenKind::OpenParenth)),
-            Parser::Fn(expr),
-            Parser::Tk(TokenKind::ClosingParenth),
+        &Con(&[
+            Key(&Tk(TokenKind::OpenParenth)),
+            Fn(expr),
+            Tk(TokenKind::ClosingParenth),
         ]),
         input,
         |node_vec| {
@@ -133,9 +168,7 @@ fn expr_group(input: &[Token]) -> IzeResult {
             let end = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let start = node_vec.pop().unwrap().token().unwrap().pos; // Token "("
-
-            let group_expr = Expression::new_group(expr, start, end);
-            group_expr.into()
+            Expression::new_group(expr, start, end).into()
         },
         |e| Err(IzeErr::new("Group expression failed parsing".into(), e.err.pos).into()),
         expr_primary,
@@ -147,13 +180,13 @@ fn expr_primary(input: &[Token]) -> IzeResult {
     let grammar = select(
         &[
             //TODO: parse type
-            Parser::Fn(token_ident),
-            Parser::Fn(token_int),
-            Parser::Fn(token_flt),
-            Parser::Fn(token_str),
-            Parser::Fn(token_bool),
-            Parser::Tk(TokenKind::NoneLiteral),
-            Parser::Tk(TokenKind::NullLiteral),
+            Fn(token_ident),
+            Fn(token_int),
+            Fn(token_flt),
+            Fn(token_str),
+            Fn(token_bool),
+            Tk(TokenKind::NoneLiteral),
+            Tk(TokenKind::NullLiteral),
         ],
         input,
     );
@@ -181,6 +214,10 @@ fn expr_primary(input: &[Token]) -> IzeResult {
 
 - Allow multiple arguments for transfers:
     transfer NAME IN_TYPE_A: name_a, IN_TYPE_B: name_b, IN_TYPE_C: name_c -> OUT_TYPE ...
-  As a syntax sugar for:
+  as a syntax sugar for:
     transfer NAME Tuple[IN_TYPE_A, IN_TYPE_B, IN_TYPE_C] -> OUT_TYPE ...
+
+- Select and Unwrap, use a more concise syntax. Now we are always forced to use the "as _":
+    select EXPR do ( ... )
+    select EXPR as IDENT do ( ... )
 */

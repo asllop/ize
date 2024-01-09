@@ -90,6 +90,8 @@ pub enum TokenKind {
     Arrow,
     #[token("let")]
     Let,
+    #[token("do")]
+    Do,
 
     // Primaries
     #[regex("-?[0-9]+", parse_callback::<i64>)]

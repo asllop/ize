@@ -47,6 +47,64 @@ impl From<ParseErr> for IzeErr {
     }
 }
 
+/* TODO: OPTION 1
+    How to generate more detailed errors. For example, in an If-Else expression, we want to know if the error happened while trying to
+    match the closing parenthesis, or the "else" token, etc. We need more information about where the parser failed.
+
+    We need a new return type, one that contains 3 possibilities:
+    - Parsed, return the node.
+    - Fail after a key parser. Return an error plus the correctly parsed part (if node is a vector).
+    - Failed before or during a key parser. Return an error.
+
+    We should also unify IzeResult and IzeOptResult. A type alias is not enough, we need a custom enum.
+
+    enum ParseResult {
+        Ok(&'a [Token], AstNode, bool),
+        Partial(&'a [Token], AstNode, IzeErr),
+        Err(IzeErr),
+    }
+
+    Potser no calen els Key parsers. Simplement ens cal retornar el resultat parcial sempre que hi hagi un error. I és el codi
+    que tracta el cas d'error qui decideix si hem de cridar precedència o generar un error.
+
+    Per tant només calen dos casos: Ok i Err. I l'Err retorna el resultat parcial del parsing.
+
+    enum ParseResult {
+        Ok(&'a [Token], AstNode),
+        Err(IzeErr, AstNode),
+    }
+
+    Potser podem seguir l'alias:
+
+    pub type IzeResult<'a> = Result<Option<(&'a [Token], AstNode)>, ParseErr>;
+
+    Redefinir: ParseErr {
+        err: IzeErr,
+        partial: AstNode,
+    }
+*/
+
+/* TODO: OPTION 2
+
+    Farem que cada Parser tingui un ID (int) associat. Quan falli, l'error contindrà aquest ID que serà enviat a un callback
+    error handdler. Amb això ja no calen els key parsers.
+
+    struct ParseErr {
+        err: IzeErr,
+        id: usize,
+    }
+
+    pub enum Parser<'a> {
+        Fn(fn(&[Token]) -> IzeResult, usize),
+        Tk(TokenKind, usize),
+        Sel(&'a [Parser<'a>], usize),
+        Con(&'a [Parser<'a>], usize),
+        Opt(&'a Parser<'a>),
+        Zero(&'a Parser<'a>),
+        One(&'a Parser<'a>, usize),
+    }
+*/
+
 /// Result type alias for parsers.
 pub type IzeResult<'a> = Result<(&'a [Token], AstNode, bool), ParseErr>;
 
@@ -58,7 +116,7 @@ pub fn into_opt_res(value: IzeResult) -> IzeOptResult {
     Ok(Some(value?))
 }
 
-/// Define a grammar.
+/// Define a grammar. Version 1
 pub fn grammar<'a>(
     parser: &'a Parser<'a>,
     input: &'a [Token],
@@ -84,6 +142,18 @@ pub fn grammar<'a>(
     }
 }
 
+/// Define a grammar. Version 2
+pub fn def_grammar<'a>(
+    parsers: &'a [Parser<'a>],
+    input: &'a [Token],
+    collector: fn(input: &'a [Token], AstNode) -> IzeResult<'a>,
+) -> IzeResult<'a> {
+    match concat(parsers, input) {
+        Ok((rest, node, _)) => collector(rest, node),
+        Err(e) => Err(e)
+    }
+}
+
 /// Parser element.
 #[derive(Clone)]
 pub enum Parser<'a> {
@@ -97,12 +167,15 @@ pub enum Parser<'a> {
     Sel(&'a [Parser<'a>]),
     /// Concatenate parser composers. Executes a list of parsers.
     Con(&'a [Parser<'a>]),
+
+    //TODO: Opt, Zero and One should hold a parser array.
+
     /// Optional parser composer. Optionally executes a parser.
     Opt(&'a Parser<'a>),
     /// Zero-plus parser composer. Executes a parser zero or more times.
-    Zpl(&'a Parser<'a>),
+    Zero(&'a Parser<'a>),
     /// One-plus parser composer. Executes a parser one or more times.
-    Opl(&'a Parser<'a>),
+    One(&'a Parser<'a>),
 }
 
 impl<'a> Parser<'a> {
@@ -119,8 +192,8 @@ impl<'a> Parser<'a> {
             Parser::Sel(parsers) => into_opt_res(select(parsers, input)),
             Parser::Con(parsers) => into_opt_res(concat(parsers, input)),
             Parser::Opt(parser) => optional(parser, input),
-            Parser::Zpl(parser) => into_opt_res(zero_plus(parser, input)),
-            Parser::Opl(parser) => into_opt_res(one_plus(parser, input)),
+            Parser::Zero(parser) => into_opt_res(zero_plus(parser, input)),
+            Parser::One(parser) => into_opt_res(one_plus(parser, input)),
         }
     }
 }

@@ -48,6 +48,17 @@ transfer CalcAggr Tuple[String,List[Metric]] -> Aggr (
     count: in.second.Len()
 )
 
+// Alternative version of CalcAggr using a named list of arguments.
+transfer CalcAggr String: metric_name, List[Metric]: metrics -> Aggr (
+    name: metric_name,
+    value: select metric_name as _ (
+        "CPU" -> metrics.Median("value"),
+        "RespTime" -> metrics.Mode("value"),
+        _ -> metrics.Mean("value")
+    ),
+    count: metrics.Len()
+)
+
 transfer Whatever Mux[Integer,String,None] -> String (
     unwrap in as _ (
         Integer -> in.ToStr(),

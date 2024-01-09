@@ -14,10 +14,10 @@
 //!
 //! It transpiles into Rust and can generate binaries for the following environments:
 //!
-//! - System service (deamon) for Unix-like and Windows systems.
-//! - Run-once service (cron-like) for Unix-like and Windows systems.
+//! - System service (deamon).
+//! - Run-once service (cron-like).
 //! - On-cloud Lambda for AWS.
-//! - CLI tool for Unix-like and Windows systems.
+//! - CLI tool.
 //!
 //! The language is statically typed, async oriented, and declarative, with a minimalistic and expressive syntax, influenced by:
 //!
