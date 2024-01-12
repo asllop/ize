@@ -63,20 +63,8 @@ pub fn into_opt_res(value: IzeResult) -> IzeOptResult {
     Ok((Some((rest, node)), after_key))
 }
 
-/// Define a grammar. DEPRECATED.
-pub fn def_grammar<'a>(
-    parsers: &'a [Parser<'a>],
-    input: &'a [Token],
-    collector: fn(input: &'a [Token], AstNode) -> IzeResult<'a>,
-) -> IzeResult<'a> {
-    match concat(parsers, input) {
-        Ok((rest, node, after_key)) => collector(rest, node),
-        Err(e) => Err(e),
-    }
-}
-
 /// Define a grammar.
-pub fn grammar<'a>(
+pub fn def_grammar<'a>(
     parsers: &'a [Parser<'a>],
     input: &'a [Token],
     success: fn(AstNode) -> AstNode,
@@ -99,7 +87,7 @@ pub enum Parser<'a> {
     Key(TokenKind, u16),
     /// Generic parser function.
     Fn(fn(&[Token]) -> IzeResult, u16),
-    /// Token parser.
+    /// Token.
     Tk(TokenKind, u16),
     /// Select parser composer. Executes one from a list of parsers, the first that matches.
     Sel(&'a [Parser<'a>]),
@@ -107,10 +95,10 @@ pub enum Parser<'a> {
     Con(&'a [Parser<'a>]),
     /// Optional parser composer. Optionally executes a parser.
     Opt(&'a Parser<'a>),
-    /// Zero-plus parser composer. Executes a parser zero or more times.
+    /// Zero-plus parser composer. Executes a concat of parsers zero or more times.
     Zero(&'a [Parser<'a>]),
-    /// One-plus parser composer. Executes a parser one or more times.
-    One(&'a Parser<'a>),
+    /// One-plus parser composer. Executes a concat of parsers one or more times.
+    One(&'a [Parser<'a>]),
 }
 
 impl<'a> Parser<'a> {
@@ -130,7 +118,7 @@ impl<'a> Parser<'a> {
             Self::Con(parsers) => (into_opt_res(concat(parsers, input)), None),
             Self::Opt(parser) => (optional(parser, input), None),
             Self::Zero(parsers) => (into_opt_res(zero_plus(parsers, input)), None),
-            Self::One(parser) => (into_opt_res(one_plus(parser, input)), None),
+            Self::One(parsers) => (into_opt_res(one_plus(parsers, input)), None),
         };
         if let Err(mut e) = res {
             if let Some(id) = id {
@@ -167,7 +155,6 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     Err(e)
 }
 
-//TODO: take an array of parsers and use concat, like zero_plus
 /// Optionally execute a parser.
 pub fn optional<'a>(parser: &'a Parser<'a>, input: &'a [Token]) -> IzeOptResult<'a> {
     //TODO: if it fails after key, should Opt fail??
@@ -245,7 +232,7 @@ pub fn zero_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult
 
 //TODO: take an array of parsers and use concat, like zero_plus
 /// Execute a parser one or more times and return the result in a vector.
-pub fn one_plus<'a>(parser: &'a Parser<'a>, mut input: &'a [Token]) -> IzeResult<'a> {
+pub fn one_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<'a> {
     todo!("Implement one_plus")
     // let mut results = vec![];
     // while let Ok(result) = parser.run(input) {

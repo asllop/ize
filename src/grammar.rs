@@ -16,7 +16,7 @@ pub fn expr(input: &[Token]) -> IzeResult {
 
 /// Parse a Chain expression.
 fn expr_chain(input: &[Token]) -> IzeResult {
-    grammar(
+    def_grammar(
         &[
             Fn(expr_let, 0),
             Zero(&[Key(TokenKind::Semicolon, 1), Fn(expr_let, 2)]),
@@ -148,7 +148,7 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
 
 /// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {
-    grammar(
+    def_grammar(
         &[
             Tk(TokenKind::OpenParenth, 0),
             Fn(expr, 1),
@@ -166,12 +166,14 @@ fn expr_group(input: &[Token]) -> IzeResult {
             if e.id == 0 {
                 // Precedence
                 expr_primary(input)
-            } else {
+            } else if e.id == 2 {
                 Err(IzeErr::new(
-                    format!("Group expression failed parsing at {}", e.id),
+                    "Group expression expected a closing parenthesis".into(),
                     e.err.pos,
                 )
                 .into())
+            } else {
+                Err(IzeErr::new("Group expression failed parsing".into(), e.err.pos).into())
             }
         },
     )
