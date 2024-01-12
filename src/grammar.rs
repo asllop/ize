@@ -16,17 +16,16 @@ pub fn expr(input: &[Token]) -> IzeResult {
 
 /// Parse a Chain expression.
 fn expr_chain(input: &[Token]) -> IzeResult {
-    def_grammar(
-        &[
-            Fn(expr_let),
+    grammar(
+        &Con(&[
+            Fn(expr_let, 0),
             Zero(&Con(&[
-                Tk(TokenKind::Semicolon),
-                Fn(expr_let),
+                Key(TokenKind::Semicolon, 1),
+                Fn(expr_let, 2),
             ])),
-        ],
+        ]),
         input,
-        //TODO: handle partial errors
-        |rest, node_vec| {
+        |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
             let chain_vec = node_vec.pop().unwrap().vec().unwrap();
             let let_expr = node_vec.pop().unwrap();
@@ -38,34 +37,74 @@ fn expr_chain(input: &[Token]) -> IzeResult {
                     let expr = chain_pair.pop().unwrap();
                     expr_vec.push(expr);
                 }
-                Ok((rest, Expression::new_chain(expr_vec).into(), false))
+                Expression::new_chain(expr_vec).into()
             } else {
                 // Precedence
-                Ok((rest, let_expr, false))
+                let_expr
             }
         },
+        |_, e| {
+            if e.id == 2 {
+                Err(IzeErr::new("Chain expected expression after semicolon".into(), e.err.pos).into())
+            } else {
+                // Propagate the error we received.
+                Err(e)
+            }
+        }
     )
 }
 
-fn _expr_chain(mut input: &[Token]) -> IzeResult {
-    let mut expressions = vec![];
-    //TODO: aquí podem emprar el composer "zero_more"
-    let rest: &[Token] = loop {
-        let (rest, expr, _) = expr_let(input)?;
-        expressions.push(expr);
-        if let Ok((rest, _, _)) = token(&TokenKind::Semicolon, rest) {
-            input = rest;
-        } else {
-            break rest;
-        }
-    };
-    // If we are here, `expressions` Vec contains at least one element.
-    if expressions.len() == 1 {
-        Ok((rest, expressions.pop().unwrap(), false))
-    } else {
-        Ok((rest, Expression::new_chain(expressions).into(), false))
-    }
-}
+// fn __expr_chain(input: &[Token]) -> IzeResult {
+//     def_grammar(
+//         &[
+//             Fn(expr_let, 0),
+//             Zero(&Con(&[
+//                 Tk(TokenKind::Semicolon, 1),
+//                 Fn(expr_let, 2),
+//             ])),
+//         ],
+//         input,
+//         //TODO: handle partial errors
+//         |rest, node_vec| {
+//             let mut node_vec = node_vec.vec().unwrap();
+//             let chain_vec = node_vec.pop().unwrap().vec().unwrap();
+//             let let_expr = node_vec.pop().unwrap();
+
+//             if !chain_vec.is_empty() {
+//                 let mut expr_vec = vec![let_expr];
+//                 for chain_pair in chain_vec {
+//                     let mut chain_pair = chain_pair.vec().unwrap();
+//                     let expr = chain_pair.pop().unwrap();
+//                     expr_vec.push(expr);
+//                 }
+//                 Ok((rest, Expression::new_chain(expr_vec).into()))
+//             } else {
+//                 // Precedence
+//                 Ok((rest, let_expr))
+//             }
+//         },
+//     )
+// }
+
+// fn _expr_chain(mut input: &[Token]) -> IzeResult {
+//     let mut expressions = vec![];
+//     //TODO: aquí podem emprar el composer "zero_more"
+//     let rest: &[Token] = loop {
+//         let (rest, expr) = expr_let(input)?;
+//         expressions.push(expr);
+//         if let Ok((rest, _)) = token(&TokenKind::Semicolon, rest) {
+//             input = rest;
+//         } else {
+//             break rest;
+//         }
+//     };
+//     // If we are here, `expressions` Vec contains at least one element.
+//     if expressions.len() == 1 {
+//         Ok((rest, expressions.pop().unwrap()))
+//     } else {
+//         Ok((rest, Expression::new_chain(expressions).into()))
+//     }
+// }
 
 /// Parse a Let expression.
 fn expr_let(input: &[Token]) -> IzeResult {
@@ -78,7 +117,7 @@ fn expr_let(input: &[Token]) -> IzeResult {
             expr.expr().unwrap(),
             let_token.token().unwrap().pos,
         );
-        IzeResult::Ok((rest, let_expr.into(), false))
+        Ok((rest, let_expr.into(), false))
     } else {
         expr_ifelse(input)
     }
@@ -88,13 +127,13 @@ fn expr_let(input: &[Token]) -> IzeResult {
 fn expr_ifelse(input: &[Token]) -> IzeResult {
     let grammar = concat(
         &[
-            Key(&Tk(TokenKind::If)),
-            Tk(TokenKind::OpenParenth),
-            Fn(expr),
-            Tk(TokenKind::ClosingParenth),
-            Fn(expr),
-            Tk(TokenKind::Else),
-            Fn(expr),
+            Tk(TokenKind::If, 0),
+            Tk(TokenKind::OpenParenth, 1),
+            Fn(expr, 2),
+            Tk(TokenKind::ClosingParenth, 3),
+            Fn(expr, 4),
+            Tk(TokenKind::Else, 5),
+            Fn(expr, 6),
         ],
         input,
     );
@@ -115,16 +154,17 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
             Ok((rest, ifelse_expr.into(), false))
         }
         Err(e) => {
-            if e.after_key {
-                //TODO: how to generate more detailed errors: "expected closing parenthesis", "expected 'else' token", etc.
-                //      we need more information about where it failed parsing.
+            // if e.after_key {
+            //     //TODO: how to generate more detailed errors: "expected closing parenthesis", "expected 'else' token", etc.
+            //     //      we need more information about where it failed parsing.
 
-                // If-Else expression error
-                Err(IzeErr::new("If-Else expression failed parsing".into(), e.err.pos).into())
-            } else {
-                // Precedence
-                expr_term(input)
-            }
+            //     // If-Else expression error
+            //     Err(IzeErr::new("If-Else expression failed parsing".into(), e.err.pos).into())
+            // } else {
+            //     // Precedence
+            //     expr_term(input)
+            // }
+            expr_term(input)
         }
     }
 }
@@ -136,7 +176,7 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
     //TODO: aquí podem emprar el composer "zero_more"
     loop {
         if let Ok((rest, op, _)) = select(
-            &[Parser::Tk(TokenKind::Plus), Parser::Tk(TokenKind::Minus)],
+            &[Parser::Tk(TokenKind::Plus, 0), Parser::Tk(TokenKind::Minus, 1)],
             input,
         ) {
             let (rest, right, _) = expr_group(rest)?;
@@ -158,9 +198,9 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
 fn expr_group(input: &[Token]) -> IzeResult {
     grammar(
         &Con(&[
-            Key(&Tk(TokenKind::OpenParenth)),
-            Fn(expr),
-            Tk(TokenKind::ClosingParenth),
+            Tk(TokenKind::OpenParenth, 0),
+            Fn(expr, 1),
+            Tk(TokenKind::ClosingParenth, 2),
         ]),
         input,
         |node_vec| {
@@ -170,8 +210,14 @@ fn expr_group(input: &[Token]) -> IzeResult {
             let start = node_vec.pop().unwrap().token().unwrap().pos; // Token "("
             Expression::new_group(expr, start, end).into()
         },
-        |e| Err(IzeErr::new("Group expression failed parsing".into(), e.err.pos).into()),
-        expr_primary,
+        |input, e| {
+            if e.id == 0 {
+                // Precedence
+                expr_primary(input)
+            } else {
+                Err(IzeErr::new(format!("Group expression failed parsing at {}", e.id), e.err.pos).into())
+            }
+        },
     )
 }
 
@@ -180,13 +226,13 @@ fn expr_primary(input: &[Token]) -> IzeResult {
     let grammar = select(
         &[
             //TODO: parse type
-            Fn(token_ident),
-            Fn(token_int),
-            Fn(token_flt),
-            Fn(token_str),
-            Fn(token_bool),
-            Tk(TokenKind::NoneLiteral),
-            Tk(TokenKind::NullLiteral),
+            Fn(token_ident, 0),
+            Fn(token_int, 1),
+            Fn(token_flt, 2),
+            Fn(token_str, 3),
+            Fn(token_bool, 4),
+            Tk(TokenKind::NoneLiteral, 5),
+            Tk(TokenKind::NullLiteral, 6),
         ],
         input,
     );

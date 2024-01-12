@@ -13,19 +13,21 @@ use crate::{
 pub struct ParseErr {
     /// Actual error.
     pub err: IzeErr,
-    /// Error happend after a Key parser.
+    /// Error happened at parser with ID.
+    pub id: u16,
+    /// Failed after a key.
     pub after_key: bool,
 }
 
 impl ParseErr {
     /// new parse error.
-    pub fn new(err: IzeErr, after_key: bool) -> Self {
-        Self { err, after_key }
+    pub fn new(err: IzeErr, id: u16, after_key: bool) -> Self {
+        Self { err, id, after_key }
     }
 
     /// Into parts
-    pub fn into_parts(self) -> (IzeErr, bool) {
-        (self.err, self.after_key)
+    pub fn into_parts(self) -> (IzeErr, u16) {
+        (self.err, self.id)
     }
 
     /// Convert error into an eror with after_key = true.
@@ -37,7 +39,7 @@ impl ParseErr {
 
 impl From<IzeErr> for ParseErr {
     fn from(value: IzeErr) -> Self {
-        ParseErr::new(value, false)
+        ParseErr::new(value, 0, false)
     }
 }
 
@@ -47,100 +49,46 @@ impl From<ParseErr> for IzeErr {
     }
 }
 
-/* TODO: OPTION 1
-    How to generate more detailed errors. For example, in an If-Else expression, we want to know if the error happened while trying to
-    match the closing parenthesis, or the "else" token, etc. We need more information about where the parser failed.
-
-    We need a new return type, one that contains 3 possibilities:
-    - Parsed, return the node.
-    - Fail after a key parser. Return an error plus the correctly parsed part (if node is a vector).
-    - Failed before or during a key parser. Return an error.
-
-    We should also unify IzeResult and IzeOptResult. A type alias is not enough, we need a custom enum.
-
-    enum ParseResult {
-        Ok(&'a [Token], AstNode, bool),
-        Partial(&'a [Token], AstNode, IzeErr),
-        Err(IzeErr),
-    }
-
-    Potser no calen els Key parsers. Simplement ens cal retornar el resultat parcial sempre que hi hagi un error. I és el codi
-    que tracta el cas d'error qui decideix si hem de cridar precedència o generar un error.
-
-    Per tant només calen dos casos: Ok i Err. I l'Err retorna el resultat parcial del parsing.
-
-    enum ParseResult {
-        Ok(&'a [Token], AstNode),
-        Err(IzeErr, AstNode),
-    }
-
-    Potser podem seguir l'alias:
-
-    pub type IzeResult<'a> = Result<Option<(&'a [Token], AstNode)>, ParseErr>;
-
-    Redefinir: ParseErr {
-        err: IzeErr,
-        partial: AstNode,
-    }
-*/
-
-/* TODO: OPTION 2
-
-    Farem que cada Parser tingui un ID (int) associat. Quan falli, l'error contindrà aquest ID que serà enviat a un callback
-    error handdler. Amb això ja no calen els key parsers.
-
-    struct ParseErr {
-        err: IzeErr,
-        id: usize,
-    }
-
-    pub enum Parser<'a> {
-        Fn(fn(&[Token]) -> IzeResult, usize),
-        Tk(TokenKind, usize),
-        Sel(&'a [Parser<'a>], usize),
-        Con(&'a [Parser<'a>], usize),
-        Opt(&'a Parser<'a>),
-        Zero(&'a Parser<'a>),
-        One(&'a Parser<'a>, usize),
-    }
-*/
+type AfterKey = bool;
 
 /// Result type alias for parsers.
-pub type IzeResult<'a> = Result<(&'a [Token], AstNode, bool), ParseErr>;
+pub type IzeResult<'a> = Result<(&'a [Token], AstNode, AfterKey), ParseErr>;
 
 /// Result type alias for parsers with optional result.
-pub type IzeOptResult<'a> = Result<Option<(&'a [Token], AstNode, bool)>, ParseErr>;
+pub type IzeOptResult<'a> = Result<(Option<(&'a [Token], AstNode)>, AfterKey), ParseErr>;
 
 /// Convert [IzeResult](crate::parser::IzeResult) into [IzeOptResult](crate::parser::IzeOptResult).
 pub fn into_opt_res(value: IzeResult) -> IzeOptResult {
-    Ok(Some(value?))
+    let (rest, node, after_key) = value?;
+    Ok((Some((rest, node)), after_key))
 }
 
-/// Define a grammar. Version 1
-pub fn grammar<'a>(
-    parser: &'a Parser<'a>,
-    input: &'a [Token],
-    success: fn(AstNode) -> AstNode,
-    error: fn(ParseErr) -> IzeResult<'a>,
-    precedence: fn(&'a [Token]) -> IzeResult<'a>,
-) -> IzeResult<'a> {
-    match parser.run(input) {
-        Ok(Some((rest, node, _))) => {
-            let result_node = success(node);
-            Ok((rest, result_node, false))
-        }
-        Ok(None) => precedence(input),
-        Err(e) => {
-            if e.after_key {
-                // Error parsing expression
-                error(e)
-            } else {
-                // Precedence
-                precedence(input)
-            }
-        }
-    }
-}
+// /// Define a grammar. Version 1
+// pub fn _grammar<'a>(
+//     parser: &'a Parser<'a>,
+//     input: &'a [Token],
+//     success: fn(AstNode) -> AstNode,
+//     error: fn(ParseErr) -> IzeResult<'a>,
+//     precedence: fn(&'a [Token]) -> IzeResult<'a>,
+// ) -> IzeResult<'a> {
+//     match parser.run(input) {
+//         Ok(Some((rest, node))) => {
+//             let result_node = success(node);
+//             Ok((rest, result_node))
+//         }
+//         Ok(None) => precedence(input),
+//         Err(e) => {
+//             // if e.after_key {
+//             //     // Error parsing expression
+//             //     error(e)
+//             // } else {
+//             //     // Precedence
+//             //     precedence(input)
+//             // }
+//             precedence(input)
+//         }
+//     }
+// }
 
 /// Define a grammar. Version 2
 pub fn def_grammar<'a>(
@@ -149,22 +97,39 @@ pub fn def_grammar<'a>(
     collector: fn(input: &'a [Token], AstNode) -> IzeResult<'a>,
 ) -> IzeResult<'a> {
     match concat(parsers, input) {
-        Ok((rest, node, _)) => collector(rest, node),
+        Ok((rest, node, after_key)) => collector(rest, node),
         Err(e) => Err(e)
+    }
+}
+
+/// Define a grammar. Version 3
+pub fn grammar<'a>(
+    parser: &'a Parser<'a>,
+    input: &'a [Token],
+    success: fn(AstNode) -> AstNode,
+    error: fn(&'a [Token], ParseErr) -> IzeResult<'a>,
+) -> IzeResult<'a> {
+    match parser.run(input) {
+        Ok((Some((rest, node)), after_key)) => {
+            let result_node = success(node);
+            Ok((rest, result_node, after_key))
+        }
+        Ok((None, after_key)) => Ok((input, AstNode::Empty, after_key)),
+        Err(e) => error(input, e),
     }
 }
 
 /// Parser element.
 #[derive(Clone)]
 pub enum Parser<'a> {
-    /// Key parser.
-    Key(&'a Parser<'a>),
+    /// Key token.
+    Key(TokenKind, u16),
     /// Generic parser function.
-    Fn(fn(&[Token]) -> IzeResult),
+    Fn(fn(&[Token]) -> IzeResult, u16),
     /// Token parser.
-    Tk(TokenKind),
+    Tk(TokenKind, u16),
     /// Select parser composer. Executes one from a list of parsers, the first that matches.
-    Sel(&'a [Parser<'a>]),
+    Sel(&'a [Parser<'a>], u16),
     /// Concatenate parser composers. Executes a list of parsers.
     Con(&'a [Parser<'a>]),
 
@@ -175,38 +140,44 @@ pub enum Parser<'a> {
     /// Zero-plus parser composer. Executes a parser zero or more times.
     Zero(&'a Parser<'a>),
     /// One-plus parser composer. Executes a parser one or more times.
-    One(&'a Parser<'a>),
+    One(&'a Parser<'a>, u16),
 }
 
 impl<'a> Parser<'a> {
     /// Run a parser element.
     pub fn run(&self, input: &'a [Token]) -> IzeOptResult {
-        match self {
-            Parser::Key(parser) => match parser.run(input) {
-                Ok(Some((rest, node, _))) => Ok(Some((rest, node, true))),
-                Ok(None) => Ok(None),
-                Err(e) => Err(e),
+        let (res, id) = match self {
+            Self::Key(token_kind, id) => {
+                let r = match token(token_kind, input) {
+                    Ok((rest, node, _)) => Ok((Some((rest, node)), true)),
+                    Err(e) => Err(e),
+                };
+                (r, Some(*id))
             },
-            Parser::Fn(parser_fn) => into_opt_res(parser_fn(input)),
-            Parser::Tk(token_kind) => into_opt_res(token(token_kind, input)),
-            Parser::Sel(parsers) => into_opt_res(select(parsers, input)),
-            Parser::Con(parsers) => into_opt_res(concat(parsers, input)),
-            Parser::Opt(parser) => optional(parser, input),
-            Parser::Zero(parser) => into_opt_res(zero_plus(parser, input)),
-            Parser::One(parser) => into_opt_res(one_plus(parser, input)),
+            Self::Fn(parser_fn, id) => (into_opt_res(parser_fn(input)), Some(*id)),
+            Self::Tk(token_kind, id) => (into_opt_res(token(token_kind, input)), Some(*id)),
+            Self::Sel(parsers, id) => (into_opt_res(select(parsers, input)), Some(*id)),
+            Self::Con(parsers) => (into_opt_res(concat(parsers, input)), None),
+            Self::Opt(parser) => (optional(parser, input), None),
+            Self::Zero(parser) => (into_opt_res(zero_plus(parser, input)), None),
+            Self::One(parser, id) => (into_opt_res(one_plus(parser, input)), Some(*id)),
+        };
+        if let Err(mut e) = res {
+            if let Some(id) = id {
+                e.id = id;
+            }
+            Err(e)
+        } else {
+            res
         }
     }
 }
 
 /// Select a parser from a list, the first that succeeds.
 pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
-    let mut did_parse_key = false;
     for parser in parsers {
-        if let Ok(Some((rest, node, is_key))) = parser.run(input) {
-            if is_key {
-                did_parse_key = is_key;
-            }
-            return Ok((rest, node, did_parse_key));
+        if let Ok((Some((rest, node)), after_key)) = parser.run(input) {
+            return Ok((rest, node, after_key));
         }
     }
     // None of the parsers succeeded, return an error
@@ -220,17 +191,24 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
             "None of the parsers passed to 'select' succeeded".into(),
             pos,
         ),
-        did_parse_key,
+        0,
+        false
     );
     Err(e)
 }
 
 /// Optionally execute a parser.
 pub fn optional<'a>(parser: &'a Parser<'a>, input: &'a [Token]) -> IzeOptResult<'a> {
-    if let Ok(r) = parser.run(input) {
-        Ok(r)
-    } else {
-        Ok(None)
+    //TODO: if it fails after key, should Opt fail??
+    match parser.run(input) {
+        Ok(r) => Ok(r),
+        Err(e) => {
+            if e.after_key {
+                Err(e)
+            } else {
+                Ok((None, false))
+            }
+        },
     }
 }
 
@@ -240,14 +218,18 @@ pub fn concat<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<'a
     let mut did_parse_key = false;
     for parser in parsers {
         match parser.run(input) {
-            Ok(Some((result, node, is_key))) => {
+            Ok((Some((result, node)), after_key)) => {
                 results.push(node);
                 input = result;
-                if is_key {
-                    did_parse_key = is_key;
+                if after_key {
+                    did_parse_key = true;
                 }
             }
-            Ok(None) => {}
+            Ok((None, after_key)) => {
+                if after_key {
+                    did_parse_key = true;
+                }
+            }
             Err(e) => {
                 if did_parse_key {
                     return Err(e.into_key());
@@ -264,15 +246,27 @@ pub fn concat<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<'a
 pub fn zero_plus<'a>(parser: &'a Parser<'a>, mut input: &'a [Token]) -> IzeResult<'a> {
     let mut results = vec![];
     let mut did_parse_key = false;
-    while let Ok(result) = parser.run(input) {
-        if let Some((rest, node, is_key)) = result {
-            results.push(node);
-            input = rest;
-            if is_key {
-                did_parse_key = is_key;
-            }
-        } else {
-            break;
+    loop {
+        match parser.run(input) {
+            Ok((r, after_key)) => {
+                if after_key {
+                    did_parse_key = true;
+                }
+                if let Some((rest, node)) = r {
+                    results.push(node);
+                    input = rest;
+                } else {
+                    //TODO: if parser returns nothing, should we stop??
+                    break;
+                }
+            },
+            Err(e) => {
+                if e.after_key {
+                    return Err(e);
+                } else {
+                    break;
+                }
+            },
         }
     }
     Ok((input, results.into(), did_parse_key))
@@ -280,37 +274,34 @@ pub fn zero_plus<'a>(parser: &'a Parser<'a>, mut input: &'a [Token]) -> IzeResul
 
 /// Execute a parser one or more times and return the result in a vector.
 pub fn one_plus<'a>(parser: &'a Parser<'a>, mut input: &'a [Token]) -> IzeResult<'a> {
-    let mut results = vec![];
-    let mut did_parse_key = false;
-    while let Ok(result) = parser.run(input) {
-        if let Some((rest, node, is_key)) = result {
-            results.push(node);
-            input = rest;
-            if is_key {
-                did_parse_key = is_key;
-            }
-        } else {
-            break;
-        }
-    }
-    if results.len() > 0 {
-        Ok((input, results.into(), did_parse_key))
-    } else {
-        // The parsers must succeed at least once, return an error
-        let pos = if let Some(t) = input.first() {
-            t.pos
-        } else {
-            Default::default()
-        };
-        let e = ParseErr::new(
-            IzeErr::new(
-                "A parser passed to 'one_more' must succeed at least once".into(),
-                pos,
-            ),
-            did_parse_key,
-        );
-        Err(e)
-    }
+    todo!("Implement one_plus")
+    // let mut results = vec![];
+    // while let Ok(result) = parser.run(input) {
+    //     if let Some((rest, node)) = result {
+    //         results.push(node);
+    //         input = rest;
+    //     } else {
+    //         break;
+    //     }
+    // }
+    // if results.len() > 0 {
+    //     Ok((input, results.into()))
+    // } else {
+    //     // The parsers must succeed at least once, return an error
+    //     let pos = if let Some(t) = input.first() {
+    //         t.pos
+    //     } else {
+    //         Default::default()
+    //     };
+    //     let e = ParseErr::new(
+    //         IzeErr::new(
+    //             "A parser passed to 'one_more' must succeed at least once".into(),
+    //             pos,
+    //         ),
+    //         0,
+    //     );
+    //     Err(e)
+    // }
 }
 
 /// Matches one token usign a function to match. Used by [token_ident](crate::parser::token_ident), [token_int](crate::parser::token_int), etc.

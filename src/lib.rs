@@ -1,6 +1,6 @@
 //! # IZE Language
 //!
-//! IZE is a domain-specific programming language specialized in data pipelines and ETL processes, designed to accomplish the following data related tasks:
+//! IZE is a Turing-complete, domain-specific programming language, specialized in data pipelines and ETL processes, designed to accomplish the following data related tasks:
 //!
 //! - Aggregate
 //! - Buffer
@@ -10,12 +10,13 @@
 //! - Expand
 //! - Filter
 //! - Route
+//! - Sample
 //! - Wrap
 //!
 //! It transpiles into Rust and can generate binaries for the following environments:
 //!
 //! - System service (deamon).
-//! - Run-once service (cron-like).
+//! - Run-once service (cron).
 //! - On-cloud Lambda for AWS.
 //! - CLI tool.
 //!
@@ -23,9 +24,9 @@
 //!
 //! - Protobuf
 //! - Rust / Serde
-//! - SQL
 //! - Vector VRL
 //! - New Relic Flex
+//! - SQL
 //! - Go
 //! - TypeScript
 
