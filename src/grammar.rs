@@ -6,7 +6,7 @@ use crate::{
     ast::Expression,
     err::IzeErr,
     lexer::{Token, TokenKind},
-    parser::{*, Parser::*},
+    parser::{Parser::*, *},
 };
 
 /// Parse an expression.
@@ -17,13 +17,10 @@ pub fn expr(input: &[Token]) -> IzeResult {
 /// Parse a Chain expression.
 fn expr_chain(input: &[Token]) -> IzeResult {
     grammar(
-        &Con(&[
+        &[
             Fn(expr_let, 0),
-            Zero(&Con(&[
-                Key(TokenKind::Semicolon, 1),
-                Fn(expr_let, 2),
-            ])),
-        ]),
+            Zero(&[Key(TokenKind::Semicolon, 1), Fn(expr_let, 2)]),
+        ],
         input,
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
@@ -45,66 +42,18 @@ fn expr_chain(input: &[Token]) -> IzeResult {
         },
         |_, e| {
             if e.id == 2 {
-                Err(IzeErr::new("Chain expected expression after semicolon".into(), e.err.pos).into())
+                Err(IzeErr::new(
+                    "Chain expected expression after semicolon".into(),
+                    e.err.pos,
+                )
+                .into())
             } else {
                 // Propagate the error we received.
                 Err(e)
             }
-        }
+        },
     )
 }
-
-// fn __expr_chain(input: &[Token]) -> IzeResult {
-//     def_grammar(
-//         &[
-//             Fn(expr_let, 0),
-//             Zero(&Con(&[
-//                 Tk(TokenKind::Semicolon, 1),
-//                 Fn(expr_let, 2),
-//             ])),
-//         ],
-//         input,
-//         //TODO: handle partial errors
-//         |rest, node_vec| {
-//             let mut node_vec = node_vec.vec().unwrap();
-//             let chain_vec = node_vec.pop().unwrap().vec().unwrap();
-//             let let_expr = node_vec.pop().unwrap();
-
-//             if !chain_vec.is_empty() {
-//                 let mut expr_vec = vec![let_expr];
-//                 for chain_pair in chain_vec {
-//                     let mut chain_pair = chain_pair.vec().unwrap();
-//                     let expr = chain_pair.pop().unwrap();
-//                     expr_vec.push(expr);
-//                 }
-//                 Ok((rest, Expression::new_chain(expr_vec).into()))
-//             } else {
-//                 // Precedence
-//                 Ok((rest, let_expr))
-//             }
-//         },
-//     )
-// }
-
-// fn _expr_chain(mut input: &[Token]) -> IzeResult {
-//     let mut expressions = vec![];
-//     //TODO: aquí podem emprar el composer "zero_more"
-//     let rest: &[Token] = loop {
-//         let (rest, expr) = expr_let(input)?;
-//         expressions.push(expr);
-//         if let Ok((rest, _)) = token(&TokenKind::Semicolon, rest) {
-//             input = rest;
-//         } else {
-//             break rest;
-//         }
-//     };
-//     // If we are here, `expressions` Vec contains at least one element.
-//     if expressions.len() == 1 {
-//         Ok((rest, expressions.pop().unwrap()))
-//     } else {
-//         Ok((rest, Expression::new_chain(expressions).into()))
-//     }
-// }
 
 /// Parse a Let expression.
 fn expr_let(input: &[Token]) -> IzeResult {
@@ -176,7 +125,10 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
     //TODO: aquí podem emprar el composer "zero_more"
     loop {
         if let Ok((rest, op, _)) = select(
-            &[Parser::Tk(TokenKind::Plus, 0), Parser::Tk(TokenKind::Minus, 1)],
+            &[
+                Parser::Tk(TokenKind::Plus, 0),
+                Parser::Tk(TokenKind::Minus, 1),
+            ],
             input,
         ) {
             let (rest, right, _) = expr_group(rest)?;
@@ -197,11 +149,11 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
 /// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {
     grammar(
-        &Con(&[
+        &[
             Tk(TokenKind::OpenParenth, 0),
             Fn(expr, 1),
             Tk(TokenKind::ClosingParenth, 2),
-        ]),
+        ],
         input,
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
@@ -215,7 +167,11 @@ fn expr_group(input: &[Token]) -> IzeResult {
                 // Precedence
                 expr_primary(input)
             } else {
-                Err(IzeErr::new(format!("Group expression failed parsing at {}", e.id), e.err.pos).into())
+                Err(IzeErr::new(
+                    format!("Group expression failed parsing at {}", e.id),
+                    e.err.pos,
+                )
+                .into())
             }
         },
     )
