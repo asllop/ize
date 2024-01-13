@@ -29,6 +29,7 @@
 //! - SQL
 //! - Go
 //! - TypeScript
+//! - Lua
 
 #![no_std]
 

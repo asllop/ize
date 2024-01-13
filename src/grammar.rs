@@ -43,7 +43,7 @@ fn expr_chain(input: &[Token]) -> IzeResult {
         |_, e| {
             if e.id == 2 {
                 Err(IzeErr::new(
-                    "Chain expected expression after semicolon".into(),
+                    "Chain expression, expected expression after semicolon".into(),
                     e.err.pos,
                 )
                 .into())
@@ -68,11 +68,21 @@ fn expr_let(input: &[Token]) -> IzeResult {
             Expression::new_let(ident, expr, start_pos).into()
         },
         |input, e| {
-            if e.id == 0 {
+            match e.id {
                 // Precedence
-                expr_ifelse(input)
-            } else {
-                Err(e)
+                0 => expr_ifelse(input),
+                // Errors
+                1 => Err(IzeErr::new(
+                    "Let expression, expected identifier after 'let'".into(),
+                    e.err.pos,
+                )
+                .into()),
+                2 => Err(IzeErr::new(
+                    "Let expression, expected expression after variable name".into(),
+                    e.err.pos,
+                )
+                .into()),
+                _ => Err(e),
             }
         },
     )
