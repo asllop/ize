@@ -3,5 +3,5 @@
 /// Lexer teests
 mod lexer_tests;
 
-/// Parser tests
-mod parser_tests;
+/// Expression parser tests
+mod expr_parser_tests;

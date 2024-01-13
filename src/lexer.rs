@@ -99,8 +99,7 @@ pub enum TokenKind {
     //TODO: scientific notation: -9.09E-3, 9.09E+3
     #[regex(r#"-?[0-9]+\.[0-9]+"#, parse_callback::<f64>)]
     FloatLiteral(f64),
-    #[regex("true", parse_callback::<bool>)]
-    #[regex("false", parse_callback::<bool>)]
+    #[regex("(true|false)", parse_callback::<bool>)]
     BooleanLiteral(bool),
     #[token("none")]
     NoneLiteral,

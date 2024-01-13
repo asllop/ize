@@ -21,8 +21,6 @@ pub enum AstNode {
     Expression(Box<Expression>),
     /// Vector of nodes.
     Vec(Vec<AstNode>),
-    /// Empty node.
-    Empty,
 }
 
 impl AstNode {

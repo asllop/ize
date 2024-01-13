@@ -1,4 +1,4 @@
-//! # PARSER TESTS
+//! # EXPRESSION PARSER TESTS
 
 use alloc::vec::Vec;
 
@@ -67,6 +67,17 @@ fn check_primary() {
         .into()
     );
 
+    let code: &str = "false";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_primary(Token::new(
+            TokenPos::new(0, 0, 5, 0),
+            TokenKind::BooleanLiteral(false)
+        ))
+        .into()
+    );
+    
     let code = "none";
     let expr = parse_single_expr(code);
     assert_eq!(
@@ -197,3 +208,5 @@ fn check_complex_chain() {
 fn check_complex_group() {
     //TODO
 }
+
+//TODO: check complex expression precedence
