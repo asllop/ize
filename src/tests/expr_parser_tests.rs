@@ -77,7 +77,7 @@ fn check_primary() {
         ))
         .into()
     );
-    
+
     let code = "none";
     let expr = parse_single_expr(code);
     assert_eq!(
@@ -181,22 +181,135 @@ fn check_binary_term() {
 
 #[test]
 fn check_group() {
-    //TODO
+    let code = "(1 + 2)";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_group(
+            Expression::new_binary(
+                Token::new(TokenPos::new(0, 3, 4, 3), TokenKind::Plus),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 1, 2, 1),
+                    TokenKind::IntegerLiteral(1)
+                ))
+                .into(),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 5, 6, 5),
+                    TokenKind::IntegerLiteral(2)
+                ))
+                .into()
+            )
+            .into(),
+            TokenPos::new(0, 0, 1, 0),
+            TokenPos::new(0, 6, 7, 6)
+        )
+        .into()
+    );
 }
 
 #[test]
 fn check_let() {
-    //TODO
+    let code = "let num 100";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_let(
+            Token::new(
+                TokenPos::new(0, 4, 7, 4),
+                TokenKind::Identifier("num".into())
+            ),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 8, 11, 8),
+                TokenKind::IntegerLiteral(100)
+            ))
+            .into(),
+            TokenPos::new(0, 0, 3, 0)
+        )
+        .into()
+    );
+
+    let code = "let var a+b";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_let(
+            Token::new(
+                TokenPos::new(0, 4, 7, 4),
+                TokenKind::Identifier("var".into())
+            ),
+            Expression::new_binary(
+                Token::new(TokenPos::new(0, 9, 10, 9), TokenKind::Plus),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 8, 9, 8),
+                    TokenKind::Identifier("a".into())
+                ))
+                .into(),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 10, 11, 10),
+                    TokenKind::Identifier("b".into())
+                ))
+                .into()
+            )
+            .into(),
+            TokenPos::new(0, 0, 3, 0)
+        )
+        .into()
+    );
 }
 
 #[test]
 fn check_chain() {
-    //TODO
+    let code = "a;b;c";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_chain(vec![
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 0, 1, 0),
+                TokenKind::Identifier("a".into())
+            ))
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 2, 3, 2),
+                TokenKind::Identifier("b".into())
+            ))
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 4, 5, 4),
+                TokenKind::Identifier("c".into())
+            ))
+            .into()
+        ])
+        .into()
+    );
 }
 
 #[test]
 fn check_if_else() {
-    //TODO
+    let code = "if (true) 10 else 20";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_ifelse(
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 4, 8, 4),
+                TokenKind::BooleanLiteral(true)
+            ))
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 10, 12, 10),
+                TokenKind::IntegerLiteral(10)
+            ))
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 18, 20, 18),
+                TokenKind::IntegerLiteral(20)
+            ))
+            .into(),
+            TokenPos::new(0, 0, 2, 0)
+        )
+        .into()
+    );
 }
 
 #[test]
