@@ -232,7 +232,7 @@ pub fn zero_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult
 
 //TODO: take an array of parsers and use concat, like zero_plus
 /// Execute a parser one or more times and return the result in a vector.
-pub fn one_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<'a> {
+pub fn one_plus<'a>(_parsers: &'a [Parser], mut _input: &'a [Token]) -> IzeResult<'a> {
     todo!("Implement one_plus")
     // let mut results = vec![];
     // while let Ok(result) = parser.run(input) {

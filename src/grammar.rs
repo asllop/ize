@@ -59,7 +59,7 @@ fn expr_chain(input: &[Token]) -> IzeResult {
 fn expr_let(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
-        &[Tk(TokenKind::Let, 0), Fn(token_ident, 1), Fn(expr_let, 2)],
+        &[Key(TokenKind::Let, 0), Fn(token_ident, 1), Fn(expr_let, 2)],
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
             let expr = node_vec.pop().unwrap().expr().unwrap();
@@ -243,12 +243,15 @@ fn expr_primary(input: &[Token]) -> IzeResult {
 
 /* Grammar changes:
 
+- Force argument name for transfers:
+    transfer NAME in_name: IN_TYPE -> OUT_TYPE ...
+
 - Two different syntaxes for transfers, one for key-value lists and one for expressions:
-    transfer NAME IN_TYPE -> OUT_TYPE ( key: val, key: val, ... )
-    transfer NAME IN_TYPE -> OUT_TYPE expression
+    transfer NAME in_name: IN_TYPE -> OUT_TYPE ( key: val, key: val, ... )
+    transfer NAME in_name: IN_TYPE -> OUT_TYPE expression
 
 - Allow multiple arguments for transfers:
-    transfer NAME IN_TYPE_A: name_a, IN_TYPE_B: name_b, IN_TYPE_C: name_c -> OUT_TYPE ...
+    transfer NAME name_a:IN_TYPE_A, name_b:IN_TYPE_B, name_c:IN_TYPE_C -> OUT_TYPE ...
   as a syntax sugar for:
     transfer NAME Tuple[IN_TYPE_A, IN_TYPE_B, IN_TYPE_C] -> OUT_TYPE ...
 
