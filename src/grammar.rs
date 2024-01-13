@@ -17,11 +17,11 @@ pub fn expr(input: &[Token]) -> IzeResult {
 /// Parse a Chain expression.
 fn expr_chain(input: &[Token]) -> IzeResult {
     def_grammar(
+        input,
         &[
             Fn(expr_let, 0),
             Zero(&[Key(TokenKind::Semicolon, 1), Fn(expr_let, 2)]),
         ],
-        input,
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
             let chain_vec = node_vec.pop().unwrap().vec().unwrap();
@@ -58,8 +58,8 @@ fn expr_chain(input: &[Token]) -> IzeResult {
 /// Parse a Let expression.
 fn expr_let(input: &[Token]) -> IzeResult {
     def_grammar(
-        &[Tk(TokenKind::Let, 0), Fn(token_ident, 1), Fn(expr_let, 2)],
         input,
+        &[Tk(TokenKind::Let, 0), Fn(token_ident, 1), Fn(expr_let, 2)],
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
             let expr = node_vec.pop().unwrap().expr().unwrap();
@@ -90,9 +90,10 @@ fn expr_let(input: &[Token]) -> IzeResult {
 
 /// Parse an If-Else expression.
 fn expr_ifelse(input: &[Token]) -> IzeResult {
-    let grammar = concat(
+    def_grammar(
+        input,
         &[
-            Tk(TokenKind::If, 0),
+            Key(TokenKind::If, 0),
             Tk(TokenKind::OpenParenth, 1),
             Fn(expr, 2),
             Tk(TokenKind::ClosingParenth, 3),
@@ -100,13 +101,8 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
             Tk(TokenKind::Else, 5),
             Fn(expr, 6),
         ],
-        input,
-    );
-    match grammar {
-        Ok((rest, node_vec, _)) => {
-            // Collector
+        |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
-
             let else_expr = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // Token "else"
             let if_expr = node_vec.pop().unwrap().expr().unwrap();
@@ -114,24 +110,42 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
             let cond_expr = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // Token "("
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // Token "if"
-
-            let ifelse_expr = Expression::new_ifelse(cond_expr, if_expr, else_expr, start_pos);
-            Ok((rest, ifelse_expr.into(), false))
-        }
-        Err(e) => {
-            // if e.after_key {
-            //     //TODO: how to generate more detailed errors: "expected closing parenthesis", "expected 'else' token", etc.
-            //     //      we need more information about where it failed parsing.
-
-            //     // If-Else expression error
-            //     Err(IzeErr::new("If-Else expression failed parsing".into(), e.err.pos).into())
-            // } else {
-            //     // Precedence
-            //     expr_term(input)
-            // }
-            expr_term(input)
-        }
-    }
+            Expression::new_ifelse(cond_expr, if_expr, else_expr, start_pos).into()
+        },
+        |input, e| {
+            match e.id {
+                // Precedence
+                0 => expr_term(input),
+                // Errors
+                1 => Err(IzeErr::new(
+                    "If-Else expression, expected '(' after 'if'".into(),
+                    e.err.pos,
+                )
+                .into()),
+                2 => Err(IzeErr::new(
+                    "If-Else expression, expected condition expression".into(),
+                    e.err.pos,
+                )
+                .into()),
+                3 => Err(IzeErr::new(
+                    "If-Else expression, expected ')' after condition".into(),
+                    e.err.pos,
+                )
+                .into()),
+                4 | 6 => Err(IzeErr::new(
+                    "If-Else expression, expected branch expression".into(),
+                    e.err.pos,
+                )
+                .into()),
+                5 => Err(IzeErr::new(
+                    "If-Else expression, expected 'else' after branch expression".into(),
+                    e.err.pos,
+                )
+                .into()),
+                _ => Err(e),
+            }
+        },
+    )
 }
 
 /// Parse a Term Binary expression.
@@ -165,12 +179,12 @@ fn expr_term(mut input: &[Token]) -> IzeResult {
 /// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {
     def_grammar(
+        input,
         &[
             Tk(TokenKind::OpenParenth, 0),
             Fn(expr, 1),
             Tk(TokenKind::ClosingParenth, 2),
         ],
-        input,
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
             let end = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"

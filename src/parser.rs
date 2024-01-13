@@ -66,8 +66,8 @@ pub fn into_opt_res(value: IzeResult) -> IzeOptResult {
 
 /// Define a grammar.
 pub fn def_grammar<'a>(
-    parsers: &'a [Parser<'a>],
     input: &'a [Token],
+    parsers: &'a [Parser<'a>],
     success: fn(AstNode) -> AstNode,
     error: fn(&'a [Token], ParseErr) -> IzeResult<'a>,
 ) -> IzeResult<'a> {

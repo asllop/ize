@@ -23,3 +23,8 @@
     (a - b)
 
     a;b;c
+
+    if (true)
+        10
+    else
+        20
