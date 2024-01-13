@@ -279,6 +279,38 @@ fn check_let() {
         )
         .into()
     );
+
+    let code = "let var (100;x)";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_let(
+            Token::new(
+                TokenPos::new(0, 4, 7, 4),
+                TokenKind::Identifier("var".into())
+            ),
+            Expression::new_group(
+                Expression::new_chain(vec![
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 9, 12, 9),
+                        TokenKind::IntegerLiteral(100)
+                    ))
+                    .into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 13, 14, 13),
+                        TokenKind::Identifier("x".into())
+                    ))
+                    .into()
+                ])
+                .into(),
+                TokenPos::new(0, 8, 9, 8),
+                TokenPos::new(0, 14, 15, 14)
+            )
+            .into(),
+            TokenPos::new(0, 0, 3, 0)
+        )
+        .into()
+    );
 }
 
 #[test]
