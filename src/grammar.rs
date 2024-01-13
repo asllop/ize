@@ -173,7 +173,8 @@ fn expr_group(input: &[Token]) -> IzeResult {
                 )
                 .into())
             } else {
-                Err(IzeErr::new("Group expression failed parsing".into(), e.err.pos).into())
+                // Propagate error.
+                Err(e)
             }
         },
     )

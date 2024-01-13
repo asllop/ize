@@ -11,7 +11,7 @@ use alloc::{boxed::Box, vec::Vec};
 
 use crate::lexer::{Token, TokenPos};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// AST node type. It can contain tokens, expressions, commands or vectors of other nodes.
 pub enum AstNode {
     /// Token node.
@@ -105,7 +105,7 @@ impl From<Vec<AstNode>> for AstNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Expression type.
 pub struct Expression {
     /// Expression kind.
@@ -202,7 +202,7 @@ impl Expression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Expression kind.
 pub enum ExpressionKind {
     /// Primary expression.

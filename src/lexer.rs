@@ -134,7 +134,7 @@ pub enum TokenKind {
     Unwrap,
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 /// Position of a token in the code.
 pub struct TokenPos {
     /// Line.
@@ -159,7 +159,7 @@ impl TokenPos {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Token type.
 pub struct Token {
     /// Token kind.

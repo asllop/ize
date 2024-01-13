@@ -49,6 +49,7 @@ impl From<ParseErr> for IzeErr {
     }
 }
 
+/// A key token was already parsed.
 type AfterKey = bool;
 
 /// Result type alias for parsers.
@@ -70,12 +71,11 @@ pub fn def_grammar<'a>(
     success: fn(AstNode) -> AstNode,
     error: fn(&'a [Token], ParseErr) -> IzeResult<'a>,
 ) -> IzeResult<'a> {
-    match into_opt_res(concat(parsers, input)) {
-        Ok((Some((rest, node)), after_key)) => {
+    match concat(parsers, input) {
+        Ok((rest, node, after_key)) => {
             let result_node = success(node);
             Ok((rest, result_node, after_key))
         }
-        Ok((None, after_key)) => Ok((input, AstNode::Empty, after_key)),
         Err(e) => error(input, e),
     }
 }
