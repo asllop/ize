@@ -57,19 +57,25 @@ fn expr_chain(input: &[Token]) -> IzeResult {
 
 /// Parse a Let expression.
 fn expr_let(input: &[Token]) -> IzeResult {
-    //TODO: aquí podem emprar el composer "concat"
-    if let Ok((rest, let_token, _)) = token(&TokenKind::Let, input) {
-        let (rest, ident_token, _) = token_ident(rest)?;
-        let (rest, expr, _) = expr_let(rest)?;
-        let let_expr = Expression::new_let(
-            ident_token.token().unwrap(),
-            expr.expr().unwrap(),
-            let_token.token().unwrap().pos,
-        );
-        Ok((rest, let_expr.into(), false))
-    } else {
-        expr_ifelse(input)
-    }
+    def_grammar(
+        &[Tk(TokenKind::Let, 0), Fn(token_ident, 1), Fn(expr_let, 2)],
+        input,
+        |node_vec| {
+            let mut node_vec = node_vec.vec().unwrap();
+            let expr = node_vec.pop().unwrap().expr().unwrap();
+            let ident = node_vec.pop().unwrap().token().unwrap();
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            Expression::new_let(ident, expr, start_pos).into()
+        },
+        |input, e| {
+            if e.id == 0 {
+                // Precedence
+                expr_ifelse(input)
+            } else {
+                Err(e)
+            }
+        },
+    )
 }
 
 /// Parse an If-Else expression.

@@ -255,6 +255,30 @@ fn check_let() {
         )
         .into()
     );
+
+    let code = "let a let b 100";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_let(
+            Token::new(TokenPos::new(0, 4, 5, 4), TokenKind::Identifier("a".into())),
+            Expression::new_let(
+                Token::new(
+                    TokenPos::new(0, 10, 11, 10),
+                    TokenKind::Identifier("b".into())
+                ),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 12, 15, 12),
+                    TokenKind::IntegerLiteral(100)
+                ))
+                .into(),
+                TokenPos::new(0, 6, 9, 6)
+            )
+            .into(),
+            TokenPos::new(0, 0, 3, 0)
+        )
+        .into()
+    );
 }
 
 #[test]
@@ -277,6 +301,33 @@ fn check_chain() {
             Expression::new_primary(Token::new(
                 TokenPos::new(0, 4, 5, 4),
                 TokenKind::Identifier("c".into())
+            ))
+            .into()
+        ])
+        .into()
+    );
+
+    let code = "let var 100; var";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_chain(vec![
+            Expression::new_let(
+                Token::new(
+                    TokenPos::new(0, 4, 7, 4),
+                    TokenKind::Identifier("var".into())
+                ),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 8, 11, 8),
+                    TokenKind::IntegerLiteral(100)
+                ))
+                .into(),
+                TokenPos::new(0, 0, 3, 0)
+            )
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 13, 16, 13),
+                TokenKind::Identifier("var".into())
             ))
             .into()
         ])
