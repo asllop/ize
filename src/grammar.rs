@@ -149,31 +149,47 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Term Binary expression.
-fn expr_term(mut input: &[Token]) -> IzeResult {
-    let (rest, mut expr, _) = expr_group(input)?;
-    input = rest;
-    //TODO: aquí podem emprar el composer "zero_more"
-    loop {
-        if let Ok((rest, op, _)) = select(
-            &[
-                Parser::Tk(TokenKind::Plus, 0),
-                Parser::Tk(TokenKind::Minus, 1),
-            ],
-            input,
-        ) {
-            let (rest, right, _) = expr_group(rest)?;
-            expr = Expression::new_binary(
-                op.token().unwrap(),
-                expr.expr().unwrap(),
-                right.expr().unwrap(),
-            )
-            .into();
-            input = rest;
-        } else {
-            break;
-        }
-    }
-    Ok((input, expr, false))
+fn expr_term(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fn(expr_group, 0),
+            Zero(&[
+                Sel(&[Key(TokenKind::Plus, 1), Key(TokenKind::Minus, 2)]),
+                Fn(expr_group, 3),
+            ]),
+        ],
+        |node_vec| {
+            let mut node_vec = node_vec.vec().unwrap();
+            let term_vec = node_vec.pop().unwrap().vec().unwrap();
+            let group_expr = node_vec.pop().unwrap();
+
+            if !term_vec.is_empty() {
+                let mut final_expr = group_expr.expr().unwrap();
+                for term_pair in term_vec {
+                    let mut term_pair = term_pair.vec().unwrap();
+                    let right_expr = term_pair.pop().unwrap().expr().unwrap();
+                    let op = term_pair.pop().unwrap().token().unwrap();
+                    final_expr = Expression::new_binary(op, final_expr, right_expr).into();
+                }
+                final_expr.into()
+            } else {
+                // Precedence
+                group_expr
+            }
+        },
+        |_, e| {
+            if e.id == 3 {
+                Err(IzeErr::new(
+                    "Term expression, expected expression after operator".into(),
+                    e.err.pos,
+                )
+                .into())
+            } else {
+                Err(e)
+            }
+        },
+    )
 }
 
 /// Parse a Group expression.
@@ -256,6 +272,6 @@ fn expr_primary(input: &[Token]) -> IzeResult {
     transfer NAME Tuple[IN_TYPE_A, IN_TYPE_B, IN_TYPE_C] -> OUT_TYPE ...
 
 - Select and Unwrap, use a more concise syntax. Now we are always forced to use the "as _":
-    select EXPR do ( ... )
-    select EXPR as IDENT do ( ... )
+    select (EXPR) ( ... )
+    select (EXPR as IDENT) ( ... )
 */
