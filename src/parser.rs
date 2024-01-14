@@ -86,7 +86,7 @@ pub enum Parser<'a> {
     /// Key token.
     Key(TokenKind, u16),
     /// Generic parser function.
-    Fn(fn(&[Token]) -> IzeResult, u16),
+    Fun(fn(&[Token]) -> IzeResult, u16),
     /// Token.
     Tk(TokenKind, u16),
     /// Select parser composer. Executes one from a list of parsers, the first that matches.
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
                 };
                 (r, Some(*id))
             }
-            Self::Fn(parser_fn, id) => (into_opt_res(parser_fn(input)), Some(*id)),
+            Self::Fun(parser_fn, id) => (into_opt_res(parser_fn(input)), Some(*id)),
             Self::Tk(token_kind, id) => (into_opt_res(token(token_kind, input)), Some(*id)),
             Self::Sel(parsers) => (into_opt_res(select(parsers, input)), None),
             Self::Con(parsers) => (into_opt_res(concat(parsers, input)), None),

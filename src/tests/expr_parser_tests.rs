@@ -180,6 +180,38 @@ fn check_binary_term() {
 }
 
 #[test]
+fn check_binary_factor() {
+    let code = "a+b*c";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_binary(
+            Token::new(TokenPos::new(0, 1, 2, 1), TokenKind::Plus),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 0, 1, 0),
+                TokenKind::Identifier("a".into())
+            ))
+            .into(),
+            Expression::new_binary(
+                Token::new(TokenPos::new(0, 3, 4, 3), TokenKind::Star),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 2, 3, 2),
+                    TokenKind::Identifier("b".into())
+                ))
+                .into(),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 4, 5, 4),
+                    TokenKind::Identifier("c".into())
+                ))
+                .into()
+            )
+            .into()
+        )
+        .into()
+    );
+}
+
+#[test]
 fn check_group() {
     let code = "(1 + 2)";
     let expr = parse_single_expr(code);

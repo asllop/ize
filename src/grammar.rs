@@ -3,7 +3,7 @@
 //! Contains the grammar rules to parse the IZE language.
 
 use crate::{
-    ast::Expression,
+    ast::{AstNode, Expression},
     err::IzeErr,
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
@@ -19,8 +19,8 @@ fn expr_chain(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fn(expr_let, 0),
-            Zero(&[Key(TokenKind::Semicolon, 1), Fn(expr_let, 2)]),
+            Fun(expr_let, 0),
+            Zero(&[Key(TokenKind::Semicolon, 1), Fun(expr_let, 2)]),
         ],
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
@@ -59,7 +59,11 @@ fn expr_chain(input: &[Token]) -> IzeResult {
 fn expr_let(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
-        &[Key(TokenKind::Let, 0), Fn(token_ident, 1), Fn(expr_let, 2)],
+        &[
+            Key(TokenKind::Let, 0),
+            Fun(token_ident, 1),
+            Fun(expr_let, 2),
+        ],
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
             let expr = node_vec.pop().unwrap().expr().unwrap();
@@ -95,11 +99,11 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
         &[
             Key(TokenKind::If, 0),
             Tk(TokenKind::OpenParenth, 1),
-            Fn(expr, 2),
+            Fun(expr, 2),
             Tk(TokenKind::ClosingParenth, 3),
-            Fn(expr, 4),
+            Fun(expr, 4),
             Tk(TokenKind::Else, 5),
-            Fn(expr, 6),
+            Fun(expr, 6),
         ],
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
@@ -153,42 +157,34 @@ fn expr_term(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fn(expr_group, 0),
+            Fun(expr_factor, 0),
             Zero(&[
                 Sel(&[Key(TokenKind::Plus, 1), Key(TokenKind::Minus, 2)]),
-                Fn(expr_group, 3),
+                Fun(expr_factor, 10),
             ]),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
-            let term_vec = node_vec.pop().unwrap().vec().unwrap();
-            let group_expr = node_vec.pop().unwrap();
+        binary_success,
+        binary_error,
+    )
+}
 
-            if !term_vec.is_empty() {
-                let mut final_expr = group_expr.expr().unwrap();
-                for term_pair in term_vec {
-                    let mut term_pair = term_pair.vec().unwrap();
-                    let right_expr = term_pair.pop().unwrap().expr().unwrap();
-                    let op = term_pair.pop().unwrap().token().unwrap();
-                    final_expr = Expression::new_binary(op, final_expr, right_expr).into();
-                }
-                final_expr.into()
-            } else {
-                // Precedence
-                group_expr
-            }
-        },
-        |_, e| {
-            if e.id == 3 {
-                Err(IzeErr::new(
-                    "Term expression, expected expression after operator".into(),
-                    e.err.pos,
-                )
-                .into())
-            } else {
-                Err(e)
-            }
-        },
+/// Parse a Factor Binary expression.
+fn expr_factor(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fun(expr_group, 0),
+            Zero(&[
+                Sel(&[
+                    Key(TokenKind::Star, 1),
+                    Key(TokenKind::Slash, 2),
+                    Key(TokenKind::Percent, 3),
+                ]),
+                Fun(expr_group, 10),
+            ]),
+        ],
+        binary_success,
+        binary_error,
     )
 }
 
@@ -198,7 +194,7 @@ fn expr_group(input: &[Token]) -> IzeResult {
         input,
         &[
             Tk(TokenKind::OpenParenth, 0),
-            Fn(expr, 1),
+            Fun(expr, 1),
             Tk(TokenKind::ClosingParenth, 2),
         ],
         |node_vec| {
@@ -230,14 +226,14 @@ fn expr_group(input: &[Token]) -> IzeResult {
 fn expr_primary(input: &[Token]) -> IzeResult {
     let grammar = select(
         &[
-            //TODO: parse type
-            Fn(token_ident, 0),
-            Fn(token_int, 1),
-            Fn(token_flt, 2),
-            Fn(token_str, 3),
-            Fn(token_bool, 4),
+            Fun(token_ident, 0),
+            Fun(token_int, 1),
+            Fun(token_flt, 2),
+            Fun(token_str, 3),
+            Fun(token_bool, 4),
             Tk(TokenKind::NoneLiteral, 5),
             Tk(TokenKind::NullLiteral, 6),
+            //TODO: parse type
         ],
         input,
     );
@@ -254,6 +250,36 @@ fn expr_primary(input: &[Token]) -> IzeResult {
             Default::default()
         };
         Err(IzeErr::new("Error parsing primary expr".into(), pos).into())
+    }
+}
+
+/// Collect binary expression
+fn binary_success(node_vec: AstNode) -> AstNode {
+    let mut node_vec = node_vec.vec().unwrap();
+    let expr_vec = node_vec.pop().unwrap().vec().unwrap();
+    let next_expr = node_vec.pop().unwrap();
+
+    if !expr_vec.is_empty() {
+        let mut final_expr = next_expr.expr().unwrap();
+        for expr_pair in expr_vec {
+            let mut expr_pair = expr_pair.vec().unwrap();
+            let right_expr = expr_pair.pop().unwrap().expr().unwrap();
+            let op = expr_pair.pop().unwrap().token().unwrap();
+            final_expr = Expression::new_binary(op, final_expr, right_expr).into();
+        }
+        final_expr.into()
+    } else {
+        // Precedence
+        next_expr
+    }
+}
+
+/// Generate error for binary expression
+fn binary_error(_: &[Token], e: ParseErr) -> IzeResult {
+    if e.id == 10 {
+        Err(IzeErr::new("Expected expression after operator".into(), e.err.pos).into())
+    } else {
+        Err(e)
     }
 }
 
