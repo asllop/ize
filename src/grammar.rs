@@ -224,8 +224,9 @@ fn expr_group(input: &[Token]) -> IzeResult {
 
 /// Parse a Primary expression.
 fn expr_primary(input: &[Token]) -> IzeResult {
-    let grammar = select(
-        &[
+    def_grammar(
+        input,
+        &[Sel(&[
             Fun(token_ident, 0),
             Fun(token_int, 1),
             Fun(token_flt, 2),
@@ -233,24 +234,21 @@ fn expr_primary(input: &[Token]) -> IzeResult {
             Fun(token_bool, 4),
             Tk(TokenKind::NoneLiteral, 5),
             Tk(TokenKind::NullLiteral, 6),
-            //TODO: parse type
-        ],
-        input,
-    );
-    if let Ok((rest, node, _)) = grammar {
-        // Collector
-        let token = node.token().unwrap();
-        let primary_expr = Expression::new_primary(token);
-        Ok((rest, primary_expr.into(), false))
-    } else {
-        // Precedence
-        let pos = if input.len() > 0 {
-            input[0].pos
-        } else {
-            Default::default()
-        };
-        Err(IzeErr::new("Error parsing primary expr".into(), pos).into())
-    }
+        ])],
+        |node_vec| {
+            let mut node_vec = node_vec.vec().unwrap();
+            let token = node_vec.pop().unwrap().token().unwrap();
+            Expression::new_primary(token).into()
+        },
+        |input, _| {
+            let pos = if input.len() > 0 {
+                input[0].pos
+            } else {
+                Default::default()
+            };
+            Err(IzeErr::new("Error parsing primary expr".into(), pos).into())
+        },
+    )
 }
 
 /// Collect binary expression

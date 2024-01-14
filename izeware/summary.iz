@@ -26,7 +26,8 @@ transfer LogToEvent MyLog -> MyEvent (
 )
 
 transfer StrToInt Tuple[String,Integer] -> Tuple[String,String] (
-    Tuple[String,String].New(in.first, in.second.ToStr())
+    //Tuple[String,String].New(in.first, in.second.ToStr())
+    Tuple(in.first, in.second.ToStr())
 )
 
 transfer FilterHb VideoEvent -> Mux[VideoEvent,None] (
