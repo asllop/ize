@@ -205,18 +205,16 @@ fn expr_group(input: &[Token]) -> IzeResult {
             Expression::new_group(expr, start, end).into()
         },
         |input, e| {
-            if e.id == 0 {
+            match e.id {
                 // Precedence
-                expr_primary(input)
-            } else if e.id == 2 {
-                Err(IzeErr::new(
+                0 => expr_primary(input),
+                // Errors
+                2 => Err(IzeErr::new(
                     "Group expression expected a closing parenthesis".into(),
                     e.err.pos,
                 )
-                .into())
-            } else {
-                // Propagate error.
-                Err(e)
+                .into()),
+                _ => Err(e),
             }
         },
     )
@@ -240,13 +238,8 @@ fn expr_primary(input: &[Token]) -> IzeResult {
             let token = node_vec.pop().unwrap().token().unwrap();
             Expression::new_primary(token).into()
         },
-        |input, _| {
-            let pos = if input.len() > 0 {
-                input[0].pos
-            } else {
-                Default::default()
-            };
-            Err(IzeErr::new("Error parsing primary expr".into(), pos).into())
+        |_, e| {
+            Err(IzeErr::new("Error parsing primary expr".into(), e.err.pos).into())
         },
     )
 }
