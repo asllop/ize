@@ -257,14 +257,17 @@ fn expr_unary(input: &[Token]) -> IzeResult {
             let op = node_vec.pop().unwrap().token().unwrap();
             Expression::new_unary(op, expr).into()
         },
-        |input, e| match e.id {
-            // Precedence
-            2 => expr_group(input),
-            // Errors
-            3 => Err(
-                IzeErr::new("Expected expression after unary operator".into(), e.err.pos).into(),
-            ),
-            _ => Err(e),
+        |input, e| {
+            match e.id {
+                // Precedence
+                2 => expr_group(input),
+                // Errors
+                3 => Err(
+                    IzeErr::new("Expected expression after unary operator".into(), e.err.pos)
+                        .into(),
+                ),
+                _ => Err(e),
+            }
         },
     )
 }
