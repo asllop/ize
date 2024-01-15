@@ -159,12 +159,12 @@ fn expr_equality(input: &[Token]) -> IzeResult {
         &[
             Fun(expr_comparison, 0),
             Zero(&[
-                Sel(&[Key(TokenKind::GreaterThan, 1), Key(TokenKind::LesserThan, 2)]),
+                Sel(&[Key(TokenKind::TwoEquals, 1), Key(TokenKind::NotEqual, 2)]),
                 Fun(expr_comparison, 10),
             ]),
         ],
-        binary_success,
-        binary_error,
+        binary_expr_success,
+        binary_expr_error,
     )
 }
 
@@ -186,8 +186,8 @@ fn expr_comparison(input: &[Token]) -> IzeResult {
                 Fun(expr_logic, 10),
             ]),
         ],
-        binary_success,
-        binary_error,
+        binary_expr_success,
+        binary_expr_error,
     )
 }
 
@@ -202,8 +202,8 @@ fn expr_logic(input: &[Token]) -> IzeResult {
                 Fun(expr_term, 10),
             ]),
         ],
-        binary_success,
-        binary_error,
+        binary_expr_success,
+        binary_expr_error,
     )
 }
 
@@ -218,8 +218,8 @@ fn expr_term(input: &[Token]) -> IzeResult {
                 Fun(expr_factor, 10),
             ]),
         ],
-        binary_success,
-        binary_error,
+        binary_expr_success,
+        binary_expr_error,
     )
 }
 
@@ -238,8 +238,8 @@ fn expr_factor(input: &[Token]) -> IzeResult {
                 Fun(expr_group, 10),
             ]),
         ],
-        binary_success,
-        binary_error,
+        binary_expr_success,
+        binary_expr_error,
     )
 }
 
@@ -295,14 +295,12 @@ fn expr_primary(input: &[Token]) -> IzeResult {
             let token = node_vec.pop().unwrap().token().unwrap();
             Expression::new_primary(token).into()
         },
-        |_, e| {
-            Err(IzeErr::new("Error parsing primary expr".into(), e.err.pos).into())
-        },
+        |_, e| Err(IzeErr::new("Error parsing primary expr".into(), e.err.pos).into()),
     )
 }
 
 /// Collect binary expression
-fn binary_success(node_vec: AstNode) -> AstNode {
+fn binary_expr_success(node_vec: AstNode) -> AstNode {
     let mut node_vec = node_vec.vec().unwrap();
     let expr_vec = node_vec.pop().unwrap().vec().unwrap();
     let next_expr = node_vec.pop().unwrap();
@@ -323,7 +321,7 @@ fn binary_success(node_vec: AstNode) -> AstNode {
 }
 
 /// Generate error for binary expression
-fn binary_error(_: &[Token], e: ParseErr) -> IzeResult {
+fn binary_expr_error(_: &[Token], e: ParseErr) -> IzeResult {
     if e.id == 10 {
         Err(IzeErr::new("Expected expression after operator".into(), e.err.pos).into())
     } else {

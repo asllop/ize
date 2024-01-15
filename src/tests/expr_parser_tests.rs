@@ -212,6 +212,121 @@ fn check_binary_factor() {
 }
 
 #[test]
+fn check_binary_precedence() {
+    let code = "a==b>c&d+e*f";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_binary(
+            Token::new(TokenPos::new(0, 1, 3, 1), TokenKind::TwoEquals),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 0, 1, 0),
+                TokenKind::Identifier("a".into())
+            ))
+            .into(),
+            Expression::new_binary(
+                Token::new(TokenPos::new(0, 4, 5, 4), TokenKind::GreaterThan),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 3, 4, 3),
+                    TokenKind::Identifier("b".into())
+                ))
+                .into(),
+                Expression::new_binary(
+                    Token::new(TokenPos::new(0, 6, 7, 6), TokenKind::And),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 5, 6, 5),
+                        TokenKind::Identifier("c".into())
+                    ))
+                    .into(),
+                    Expression::new_binary(
+                        Token::new(TokenPos::new(0, 8, 9, 8), TokenKind::Plus),
+                        Expression::new_primary(Token::new(
+                            TokenPos::new(0, 7, 8, 7),
+                            TokenKind::Identifier("d".into())
+                        ))
+                        .into(),
+                        Expression::new_binary(
+                            Token::new(TokenPos::new(0, 10, 11, 10), TokenKind::Star),
+                            Expression::new_primary(Token::new(
+                                TokenPos::new(0, 9, 10, 9),
+                                TokenKind::Identifier("e".into())
+                            ))
+                            .into(),
+                            Expression::new_primary(Token::new(
+                                TokenPos::new(0, 11, 12, 11),
+                                TokenKind::Identifier("f".into())
+                            ))
+                            .into(),
+                        )
+                        .into()
+                    )
+                    .into()
+                )
+                .into()
+            )
+            .into()
+        )
+        .into()
+    );
+
+    let code = "a*b+c&d>e==f";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_binary(
+            Token::new(TokenPos::new(0, 9, 11, 9), TokenKind::TwoEquals),
+            Expression::new_binary(
+                Token::new(TokenPos::new(0, 7, 8, 7), TokenKind::GreaterThan),
+                Expression::new_binary(
+                    Token::new(TokenPos::new(0, 5, 6, 5), TokenKind::And),
+                    Expression::new_binary(
+                        Token::new(TokenPos::new(0, 3, 4, 3), TokenKind::Plus),
+                        Expression::new_binary(
+                            Token::new(TokenPos::new(0, 1, 2, 1), TokenKind::Star),
+                            Expression::new_primary(Token::new(
+                                TokenPos::new(0, 0, 1, 0),
+                                TokenKind::Identifier("a".into())
+                            ))
+                            .into(),
+                            Expression::new_primary(Token::new(
+                                TokenPos::new(0, 2, 3, 2),
+                                TokenKind::Identifier("b".into())
+                            ))
+                            .into(),
+                        )
+                        .into(),
+                        Expression::new_primary(Token::new(
+                            TokenPos::new(0, 4, 5, 4),
+                            TokenKind::Identifier("c".into())
+                        ))
+                        .into(),
+                    )
+                    .into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 6, 7, 6),
+                        TokenKind::Identifier("d".into())
+                    ))
+                    .into(),
+                )
+                .into(),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 8, 9, 8),
+                    TokenKind::Identifier("e".into())
+                ))
+                .into(),
+            )
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 11, 12, 11),
+                TokenKind::Identifier("f".into())
+            ))
+            .into(),
+        )
+        .into()
+    );
+}
+
+#[test]
 fn check_group() {
     let code = "(1 + 2)";
     let expr = parse_single_expr(code);
