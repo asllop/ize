@@ -119,7 +119,7 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                0 => expr_term(input),
+                0 => expr_equality(input),
                 // Errors
                 1 => Err(IzeErr::new(
                     "If-Else expression, expected '(' after 'if'".into(),
@@ -149,6 +149,61 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
                 _ => Err(e),
             }
         },
+    )
+}
+
+/// Parse a Equality Binary expression.
+fn expr_equality(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fun(expr_comparison, 0),
+            Zero(&[
+                Sel(&[Key(TokenKind::GreaterThan, 1), Key(TokenKind::LesserThan, 2)]),
+                Fun(expr_comparison, 10),
+            ]),
+        ],
+        binary_success,
+        binary_error,
+    )
+}
+
+/// Parse a Comparison Binary expression.
+fn expr_comparison(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fun(expr_logic, 0),
+            Zero(&[
+                Sel(&[
+                    Key(TokenKind::GreaterThan, 1),
+                    Key(TokenKind::LesserThan, 2),
+                    Key(TokenKind::GtEqual, 3),
+                    Key(TokenKind::LtEqual, 4),
+                    Key(TokenKind::TwoAnds, 5),
+                    Key(TokenKind::TwoOrs, 6),
+                ]),
+                Fun(expr_logic, 10),
+            ]),
+        ],
+        binary_success,
+        binary_error,
+    )
+}
+
+/// Parse a Logic Binary expression.
+fn expr_logic(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fun(expr_term, 0),
+            Zero(&[
+                Sel(&[Key(TokenKind::And, 1), Key(TokenKind::Or, 2)]),
+                Fun(expr_term, 10),
+            ]),
+        ],
+        binary_success,
+        binary_error,
     )
 }
 
@@ -187,6 +242,8 @@ fn expr_factor(input: &[Token]) -> IzeResult {
         binary_error,
     )
 }
+
+//TODO: unary expression
 
 /// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {
