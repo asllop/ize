@@ -133,9 +133,12 @@ impl<'a> Parser<'a> {
 
 /// Select a parser from a list, the first that succeeds.
 pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
+    let mut last_failed_id = 0;
     for parser in parsers {
-        if let Ok((Some((rest, node)), after_key)) = parser.run(input) {
-            return Ok((rest, node, after_key));
+        match parser.run(input) {
+            Ok((Some((rest, node)), after_key)) => return Ok((rest, node, after_key)),
+            Ok((None, _)) => {}
+            Err(e) => last_failed_id = e.id,
         }
     }
     // None of the parsers succeeded, return an error
@@ -149,7 +152,7 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
             "None of the parsers passed to 'select' succeeded".into(),
             pos,
         ),
-        0,
+        last_failed_id,
         false,
     );
     Err(e)

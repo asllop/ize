@@ -327,6 +327,66 @@ fn check_binary_precedence() {
 }
 
 #[test]
+fn check_unary() {
+    let code = "-a";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_unary(
+            Token::new(TokenPos::new(0, 0, 1, 0), TokenKind::Minus),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 1, 2, 1),
+                TokenKind::Identifier("a".into())
+            ))
+            .into()
+        )
+        .into()
+    );
+
+    let code = "!a";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_unary(
+            Token::new(TokenPos::new(0, 0, 1, 0), TokenKind::Not),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 1, 2, 1),
+                TokenKind::Identifier("a".into())
+            ))
+            .into()
+        )
+        .into()
+    );
+
+    let code = "-!-!a";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_unary(
+            Token::new(TokenPos::new(0, 0, 1, 0), TokenKind::Minus),
+            Expression::new_unary(
+                Token::new(TokenPos::new(0, 1, 2, 1), TokenKind::Not),
+                Expression::new_unary(
+                    Token::new(TokenPos::new(0, 2, 3, 2), TokenKind::Minus),
+                    Expression::new_unary(
+                        Token::new(TokenPos::new(0, 3, 4, 3), TokenKind::Not),
+                        Expression::new_primary(Token::new(
+                            TokenPos::new(0, 4, 5, 4),
+                            TokenKind::Identifier("a".into())
+                        ))
+                        .into()
+                    )
+                    .into()
+                )
+                .into()
+            )
+            .into()
+        )
+        .into()
+    );
+}
+
+#[test]
 fn check_group() {
     let code = "(1 + 2)";
     let expr = parse_single_expr(code);
@@ -542,14 +602,4 @@ fn check_if_else() {
     );
 }
 
-#[test]
-fn check_complex_chain() {
-    //TODO
-}
-
-#[test]
-fn check_complex_group() {
-    //TODO
-}
-
-//TODO: check complex expression precedence
+//TODO: check complex expression combination

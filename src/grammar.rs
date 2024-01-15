@@ -228,14 +228,14 @@ fn expr_factor(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_group, 0),
+            Fun(expr_unary, 0),
             Zero(&[
                 Sel(&[
                     Key(TokenKind::Star, 1),
                     Key(TokenKind::Slash, 2),
                     Key(TokenKind::Percent, 3),
                 ]),
-                Fun(expr_group, 10),
+                Fun(expr_unary, 10),
             ]),
         ],
         binary_expr_success,
@@ -243,7 +243,31 @@ fn expr_factor(input: &[Token]) -> IzeResult {
     )
 }
 
-//TODO: unary expression
+/// Parse a Unary expression.
+fn expr_unary(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Sel(&[Tk(TokenKind::Minus, 1), Tk(TokenKind::Not, 2)]),
+            Fun(expr_unary, 3),
+        ],
+        |node_vec| {
+            let mut node_vec = node_vec.vec().unwrap();
+            let expr = node_vec.pop().unwrap().expr().unwrap();
+            let op = node_vec.pop().unwrap().token().unwrap();
+            Expression::new_unary(op, expr).into()
+        },
+        |input, e| match e.id {
+            // Precedence
+            2 => expr_group(input),
+            // Errors
+            3 => Err(
+                IzeErr::new("Expected expression after unary operator".into(), e.err.pos).into(),
+            ),
+            _ => Err(e),
+        },
+    )
+}
 
 /// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {

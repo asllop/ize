@@ -162,6 +162,20 @@ impl Expression {
         }
     }
 
+    /// New Unary expression.
+    pub fn new_unary(op: Token, expr: Box<Expression>) -> Self {
+        let start_pos = op.pos;
+        let end_pos = expr.end_pos;
+        Self {
+            kind: ExpressionKind::Unary {
+                op_token: op.into(),
+                expr: expr.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
     /// New Chain expression.
     pub fn new_chain(chain: Vec<AstNode>) -> Self {
         let start_pos = chain.first().unwrap().expr_ref().unwrap().start_pos;
@@ -221,6 +235,8 @@ pub enum ExpressionKind {
         left_expr: AstNode,
         right_expr: AstNode,
     },
+    /// Unary expression.
+    Unary { op_token: AstNode, expr: AstNode },
     /// Let expression.
     Let { ident_token: AstNode, expr: AstNode },
 }
