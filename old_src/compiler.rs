@@ -17,7 +17,7 @@ pub fn build<'a>(code: &'a str, source: ImportPath, reader: ImportReaderFn) -> R
         source,
     };
 
-    let mut parser = Parser::new(Lexer::new(code).tokenize()?);
+    let mut parser = Parser::new(Lexer::new(code).tokenize_vec()?);
 
     while !parser.ended() {
         let command = parser.command()?;

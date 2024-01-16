@@ -8,6 +8,8 @@ mod expr;
 
 mod stmt;
 
+pub mod grammar;
+
 use crate::lexer::Token;
 use alloc::{collections::VecDeque, vec::Vec};
 

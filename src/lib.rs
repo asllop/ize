@@ -1,21 +1,27 @@
 //! # IZE Language
 //!
-//! IZE is a domain-specific programming language specialized in data pipelines and ETL processes, designed to accomplish the following data related tasks:
+//! IZE is a Turing-complete, domain-specific programming language, specialized in data pipelines and ETL processes, designed to accomplish the following data related tasks:
+//!
 //! - Aggregate
 //! - Buffer
+//! - Collect
 //! - Combine
 //! - Convert
 //! - Expand
 //! - Filter
 //! - Route
+//! - Sample
 //! - Wrap
 //!
-//! It transpiles into Rust and can run in multiple environments:
-//! - System service (deamon) for Unix-like systems and Windows.
-//! - On-cloud Lambda/Function for AWS, Azure and Google Cloud.
-//! - CLI tool for Unix-like systems and Windows.
+//! It transpiles into Rust and can generate binaries for the following environments:
 //!
-//! Is statically typed, async oriented, and declarative, with a minimalistic and expressive syntax, influenced by:
+//! - System service (deamon).
+//! - Run-once service (cron).
+//! - On-cloud Lambda for AWS.
+//! - CLI tool.
+//!
+//! The language is statically typed, async oriented, and declarative, with a minimalistic and expressive syntax, influenced by:
+//!
 //! - Protobuf
 //! - Rust / Serde
 //! - Vector VRL
@@ -23,18 +29,15 @@
 //! - SQL
 //! - Go
 //! - TypeScript
+//! - Lua
 
 #![no_std]
 
 #[macro_use]
 extern crate alloc;
 
-// Common types, used by all parts of the crate.
-mod common;
-pub use common::{BuildErr, IzeErr, Pos};
-
-mod compiler;
-pub use compiler::build;
+/// Error type.
+pub mod err;
 
 /// Lexical analyzer.
 pub mod lexer;
@@ -42,13 +45,11 @@ pub mod lexer;
 /// Abstract Syntax Tree.
 pub mod ast;
 
-/// Parser (syntactic analyzer).
+/// Parser combinator primitives.
 pub mod parser;
 
-/// Semantic analyzer.
-pub mod semanter;
+/// Grammar rules to parse the IZE language.
+pub mod grammar;
 
-/// Interface for creating Extensions / Plugins.
-pub mod ext;
-
-//TODO: tests
+#[cfg(test)]
+mod tests;

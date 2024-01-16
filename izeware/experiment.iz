@@ -1,0 +1,38 @@
+    // The program starts here
+
+    100
+    "Hello world"
+    myVar true false
+
+    var + 100.5 - 10
+
+    let salute "Hello World"
+
+    let A let B let C 111
+
+    let num 1234.001 ; num ; A ; let A let B let C 111
+
+    let num
+        ("hello";null)
+
+    if (isTrue)
+        let var a+b ; var 
+    else
+        a + b
+
+    (a - b)
+
+    a;b;c
+
+    if (true)
+        10
+    else
+        20
+
+    a+b*c
+
+    !(a+b)
+    
+    foo()
+    foo(a)
+    foo(a,b)
