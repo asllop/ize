@@ -602,4 +602,72 @@ fn check_if_else() {
     );
 }
 
+#[test]
+fn check_call() {
+    let code = "foo()";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_call(
+            Token::new(
+                TokenPos::new(0, 0, 3, 0),
+                TokenKind::Identifier("foo".into())
+            ),
+            vec![],
+            TokenPos::new(0, 4, 5, 4)
+        )
+        .into()
+    );
+
+    let code = "foo(a)";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_call(
+            Token::new(
+                TokenPos::new(0, 0, 3, 0),
+                TokenKind::Identifier("foo".into())
+            ),
+            vec![Expression::new_primary(Token::new(
+                TokenPos::new(0, 4, 5, 4),
+                TokenKind::Identifier("a".into())
+            ))
+            .into()],
+            TokenPos::new(0, 5, 6, 5)
+        )
+        .into()
+    );
+
+    let code = "foo(a,b,c)";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_call(
+            Token::new(
+                TokenPos::new(0, 0, 3, 0),
+                TokenKind::Identifier("foo".into())
+            ),
+            vec![
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 4, 5, 4),
+                    TokenKind::Identifier("a".into())
+                ))
+                .into(),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 6, 7, 6),
+                    TokenKind::Identifier("b".into())
+                ))
+                .into(),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 8, 9, 8),
+                    TokenKind::Identifier("c".into())
+                ))
+                .into(),
+            ],
+            TokenPos::new(0, 9, 10, 9)
+        )
+        .into()
+    );
+}
+
 //TODO: check complex expression combination

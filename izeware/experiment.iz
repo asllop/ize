@@ -33,3 +33,6 @@
 
     !(a+b)
     
+    foo()
+    foo(a)
+    foo(a,b)

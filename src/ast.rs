@@ -200,6 +200,19 @@ impl Expression {
         }
     }
 
+    /// New Group expression.
+    pub fn new_call(ident: Token, args: Vec<AstNode>, end_pos: TokenPos) -> Self {
+        let start_pos = ident.pos;
+        Self {
+            kind: ExpressionKind::Call {
+                ident_token: ident.into(),
+                args_vec: AstNode::Vec(args),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
     /// New Primary expression.
     pub fn new_primary(token: Token) -> Self {
         let start_pos = token.pos;
@@ -239,4 +252,9 @@ pub enum ExpressionKind {
     Unary { op_token: AstNode, expr: AstNode },
     /// Let expression.
     Let { ident_token: AstNode, expr: AstNode },
+    /// Call expression.
+    Call {
+        ident_token: AstNode,
+        args_vec: AstNode,
+    },
 }

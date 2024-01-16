@@ -2,6 +2,8 @@
 //!
 //! Contains the grammar rules to parse the IZE language.
 
+use alloc::collections::VecDeque;
+
 use crate::{
     ast::{AstNode, Expression},
     err::IzeErr,
@@ -91,6 +93,9 @@ fn expr_let(input: &[Token]) -> IzeResult {
         },
     )
 }
+
+//TODO: select/unwrap expressions
+//TODO: type expression
 
 /// Parse an If-Else expression.
 fn expr_ifelse(input: &[Token]) -> IzeResult {
@@ -260,12 +265,79 @@ fn expr_unary(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                2 => expr_group(input),
+                2 => expr_call(input),
                 // Errors
                 3 => Err(
                     IzeErr::new("Expected expression after unary operator".into(), e.err.pos)
                         .into(),
                 ),
+                _ => Err(e),
+            }
+        },
+    )
+}
+
+//TODO: dot expr
+
+/// Parse a Call expression.
+fn expr_call(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fun(token_ident, 1),
+            Tk(TokenKind::OpenParenth, 2),
+            Opt(&[
+                Fun(expr, 3),
+                Zero(&[Key(TokenKind::Comma, 4), Fun(expr, 5)]),
+            ]),
+            Tk(TokenKind::ClosingParenth, 6),
+        ],
+        |node_vec| {
+            let mut node_vec = node_vec.vec().unwrap();
+            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
+            match node_vec.pop().unwrap() {
+                AstNode::Token(_) => {
+                    // Empty call
+                    let ident = node_vec.pop().unwrap().token().unwrap();
+                    Expression::new_call(ident, vec![], end_pos).into()
+                }
+                AstNode::Vec(args_node_vec) => {
+                    // Call with arguments
+                    let mut args_node_vec = VecDeque::from(args_node_vec);
+                    let first_arg = args_node_vec.pop_front().unwrap();
+                    let mut args = vec![first_arg];
+                    let following_args_vec = args_node_vec.pop_front().unwrap().vec().unwrap();
+                    if following_args_vec.len() == 0 {
+                        // Single argument
+                        node_vec.pop().unwrap().token().unwrap(); // Token "("
+                        let ident = node_vec.pop().unwrap().token().unwrap();
+                        Expression::new_call(ident, args, end_pos).into()
+                    } else {
+                        // Multiple arguments
+                        for pair_vec in following_args_vec {
+                            let mut pair_vec = pair_vec.vec().unwrap();
+                            let arg = pair_vec.pop().unwrap();
+                            args.push(arg);
+                        }
+                        node_vec.pop().unwrap().token().unwrap(); // Token "("
+                        let ident = node_vec.pop().unwrap().token().unwrap();
+                        Expression::new_call(ident, args, end_pos).into()
+                    }
+                }
+                _ => panic!("Unexpected expression in Call results"),
+            }
+        },
+        |input, e| {
+            match e.id {
+                // Precedence
+                1 | 2 => expr_group(input),
+                // Errors
+                5 => Err(IzeErr::new("Expected expression after comma".into(), e.err.pos).into()),
+                6 => Err(IzeErr::new(
+                    "Expected expression or closing parenthesis".into(),
+                    e.err.pos,
+                )
+                .into()),
                 _ => Err(e),
             }
         },

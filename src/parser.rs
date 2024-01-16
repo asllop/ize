@@ -93,8 +93,8 @@ pub enum Parser<'a> {
     Sel(&'a [Parser<'a>]),
     /// Concatenate parser composers. Executes a list of parsers.
     Con(&'a [Parser<'a>]),
-    /// Optional parser composer. Optionally executes a parser.
-    Opt(&'a Parser<'a>),
+    /// Optional parser composer. Optionally executes a concat of parsers.
+    Opt(&'a [Parser<'a>]),
     /// Zero-plus parser composer. Executes a concat of parsers zero or more times.
     Zero(&'a [Parser<'a>]),
     /// One-plus parser composer. Executes a concat of parsers one or more times.
@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
             Self::Tk(token_kind, id) => (into_opt_res(token(token_kind, input)), Some(*id)),
             Self::Sel(parsers) => (into_opt_res(select(parsers, input)), None),
             Self::Con(parsers) => (into_opt_res(concat(parsers, input)), None),
-            Self::Opt(parser) => (optional(parser, input), None),
+            Self::Opt(parsers) => (optional(parsers, input), None),
             Self::Zero(parsers) => (into_opt_res(zero_plus(parsers, input)), None),
             Self::One(parsers) => (into_opt_res(one_plus(parsers, input)), None),
         };
@@ -159,9 +159,8 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
 }
 
 /// Optionally execute a parser.
-pub fn optional<'a>(parser: &'a Parser<'a>, input: &'a [Token]) -> IzeOptResult<'a> {
-    //TODO: if it fails after key, should Opt fail??
-    match parser.run(input) {
+pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeOptResult<'a> {
+    match into_opt_res(concat(parsers, input)) {
         Ok(r) => Ok(r),
         Err(e) => {
             if e.after_key {
@@ -217,6 +216,7 @@ pub fn zero_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult
                     results.push(node);
                     input = rest;
                 } else {
+                    //This can't actually happen, because concat always returns something.
                     //TODO: if parser returns nothing, should we stop??
                     break;
                 }
