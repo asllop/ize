@@ -20,8 +20,6 @@
     else
         a + b
 
-    (a - b)
-
     a;b;c
 
     if (true)
@@ -36,6 +34,8 @@
 
     a.(b+c).d
     
-    //foo()
-    //foo(a)
-    //foo(a,b)
+    foo()
+    foo(a)
+    foo(a,b,c)
+
+    foo().bar(a,b,c).z

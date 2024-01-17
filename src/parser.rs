@@ -234,7 +234,6 @@ pub fn zero_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult
     Ok((input, results.into(), did_parse_key))
 }
 
-//NOTE: never tested
 /// Execute a parser one or more times and return the result in a vector.
 pub fn one_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<'a> {
     let mut did_parse_key = false;
