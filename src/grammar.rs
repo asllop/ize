@@ -2,8 +2,6 @@
 //!
 //! Contains the grammar rules to parse the IZE language.
 
-use alloc::collections::VecDeque;
-
 use crate::{
     ast::{AstNode, Expression},
     err::IzeErr,
@@ -16,13 +14,15 @@ pub fn expr(input: &[Token]) -> IzeResult {
     expr_chain(input)
 }
 
+//TODO: change all parser IDs, to start by 1 and not by 0. It may cause confusion with default ID created by token parsers that are 0.
+
 /// Parse a Chain expression.
 fn expr_chain(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_let, 0),
-            Zero(&[Key(TokenKind::Semicolon, 1), Fun(expr_let, 2)]),
+            Fun(expr_let, 1),
+            Zero(&[Key(TokenKind::Semicolon, 2), Fun(expr_let, 3)]),
         ],
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
@@ -43,7 +43,7 @@ fn expr_chain(input: &[Token]) -> IzeResult {
             }
         },
         |_, e| {
-            if e.id == 2 {
+            if e.id == 3 {
                 Err(IzeErr::new(
                     "Chain expression, expected expression after semicolon".into(),
                     e.err.pos,
@@ -265,7 +265,7 @@ fn expr_unary(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                2 => expr_call(input),
+                2 => expr_dot(input),
                 // Errors
                 3 => Err(
                     IzeErr::new("Expected expression after unary operator".into(), e.err.pos)
@@ -277,72 +277,110 @@ fn expr_unary(input: &[Token]) -> IzeResult {
     )
 }
 
-//TODO: dot expr
-
-/// Parse a Call expression.
-fn expr_call(input: &[Token]) -> IzeResult {
+// Parse a Dot expression.
+fn expr_dot(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(token_ident, 1),
-            Tk(TokenKind::OpenParenth, 2),
-            Opt(&[
-                Fun(expr, 3),
-                Zero(&[Key(TokenKind::Comma, 4), Fun(expr, 5)]),
-            ]),
-            Tk(TokenKind::ClosingParenth, 6),
+            Fun(expr_group, 1),
+            Zero(&[Key(TokenKind::Dot, 2), Fun(expr_group, 3)]),
         ],
         |node_vec| {
             let mut node_vec = node_vec.vec().unwrap();
-            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
-            match node_vec.pop().unwrap() {
-                AstNode::Token(_) => {
-                    // Empty call
-                    let ident = node_vec.pop().unwrap().token().unwrap();
-                    Expression::new_call(ident, vec![], end_pos).into()
+            let dot_vec = node_vec.pop().unwrap().vec().unwrap();
+            let next_expr = node_vec.pop().unwrap();
+
+            if !dot_vec.is_empty() {
+                let mut expr_vec = vec![next_expr];
+                for dot_pair in dot_vec {
+                    let mut dot_pair = dot_pair.vec().unwrap();
+                    let expr = dot_pair.pop().unwrap();
+                    expr_vec.push(expr);
                 }
-                AstNode::Vec(args_node_vec) => {
-                    // Call with arguments
-                    let mut args_node_vec = VecDeque::from(args_node_vec);
-                    let first_arg = args_node_vec.pop_front().unwrap();
-                    let mut args = vec![first_arg];
-                    let following_args_vec = args_node_vec.pop_front().unwrap().vec().unwrap();
-                    if following_args_vec.len() == 0 {
-                        // Single argument
-                        node_vec.pop().unwrap().token().unwrap(); // Token "("
-                        let ident = node_vec.pop().unwrap().token().unwrap();
-                        Expression::new_call(ident, args, end_pos).into()
-                    } else {
-                        // Multiple arguments
-                        for pair_vec in following_args_vec {
-                            let mut pair_vec = pair_vec.vec().unwrap();
-                            let arg = pair_vec.pop().unwrap();
-                            args.push(arg);
-                        }
-                        node_vec.pop().unwrap().token().unwrap(); // Token "("
-                        let ident = node_vec.pop().unwrap().token().unwrap();
-                        Expression::new_call(ident, args, end_pos).into()
-                    }
-                }
-                _ => panic!("Unexpected expression in Call results"),
+                Expression::new_dot(expr_vec).into()
+            } else {
+                // Precedence
+                next_expr
             }
         },
-        |input, e| {
-            match e.id {
-                // Precedence
-                1 | 2 => expr_group(input),
-                // Errors
-                5 => Err(IzeErr::new("Expected expression after comma".into(), e.err.pos).into()),
-                6 => Err(IzeErr::new(
-                    "Expected expression or closing parenthesis".into(),
-                    e.err.pos,
-                )
-                .into()),
-                _ => Err(e),
+        |_, e| {
+            if e.id == 3 {
+                Err(IzeErr::new("Expected expression after dot".into(), e.err.pos).into())
+            } else {
+                // Propagate the error we received.
+                Err(e)
             }
         },
     )
 }
+
+// /// Parse a Call expression.
+// fn expr_call(input: &[Token]) -> IzeResult {
+//     println!("Call input = {:?}", input);
+//     def_grammar(
+//         input,
+//         &[
+//             Fun(token_ident, 1),
+//             Tk(TokenKind::OpenParenth, 2),
+//             Opt(&[
+//                 Fun(expr, 3),
+//                 Zero(&[Key(TokenKind::Comma, 4), Fun(expr, 5)]),
+//             ]),
+//             Tk(TokenKind::ClosingParenth, 6),
+//         ],
+//         |node_vec| {
+//             println!("Call success");
+//             let mut node_vec = node_vec.vec().unwrap();
+//             let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
+//             match node_vec.pop().unwrap() {
+//                 AstNode::Token(_) => {
+//                     // Empty call
+//                     let ident = node_vec.pop().unwrap().token().unwrap();
+//                     Expression::new_call(ident, vec![], end_pos).into()
+//                 }
+//                 AstNode::Vec(args_node_vec) => {
+//                     // Call with arguments
+//                     let mut args_node_vec = VecDeque::from(args_node_vec);
+//                     let first_arg = args_node_vec.pop_front().unwrap();
+//                     let mut args = vec![first_arg];
+//                     let following_args_vec = args_node_vec.pop_front().unwrap().vec().unwrap();
+//                     if following_args_vec.len() == 0 {
+//                         // Single argument
+//                         node_vec.pop().unwrap().token().unwrap(); // Token "("
+//                         let ident = node_vec.pop().unwrap().token().unwrap();
+//                         Expression::new_call(ident, args, end_pos).into()
+//                     } else {
+//                         // Multiple arguments
+//                         for pair_vec in following_args_vec {
+//                             let mut pair_vec = pair_vec.vec().unwrap();
+//                             let arg = pair_vec.pop().unwrap();
+//                             args.push(arg);
+//                         }
+//                         node_vec.pop().unwrap().token().unwrap(); // Token "("
+//                         let ident = node_vec.pop().unwrap().token().unwrap();
+//                         Expression::new_call(ident, args, end_pos).into()
+//                     }
+//                 }
+//                 _ => panic!("Unexpected expression in Call results"),
+//             }
+//         },
+//         |input, e| {
+//             println!("Call err {:?}", e);
+//             match e.id {
+//                 // Precedence
+//                 1 | 2 => expr_group(input),
+//                 // Errors
+//                 5 => Err(IzeErr::new("Expected expression after comma".into(), e.err.pos).into()),
+//                 6 => Err(IzeErr::new(
+//                     "Expected expression or closing parenthesis".into(),
+//                     e.err.pos,
+//                 )
+//                 .into()),
+//                 _ => Err(e),
+//             }
+//         },
+//     )
+// }
 
 /// Parse a Group expression.
 fn expr_group(input: &[Token]) -> IzeResult {
@@ -445,4 +483,10 @@ fn binary_expr_error(_: &[Token], e: ParseErr) -> IzeResult {
 - Select and Unwrap, use a more concise syntax. Now we are always forced to use the "as _":
     select (EXPR) ( ... )
     select (EXPR as IDENT) ( ... )
+
+- Method calls:
+    If we have a transfer that accepts only one input, for example:
+        transfer Whatever in: String -> String ...
+    Then we can apply it to any "String" as a method:
+        "Hello World".Whatever()
 */

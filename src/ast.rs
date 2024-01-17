@@ -213,6 +213,19 @@ impl Expression {
         }
     }
 
+    /// New Dot expression.
+    pub fn new_dot(dots: Vec<AstNode>) -> Self {
+        let start_pos = dots.first().unwrap().expr_ref().unwrap().start_pos;
+        let end_pos = dots.last().unwrap().expr_ref().unwrap().end_pos;
+        Self {
+            kind: ExpressionKind::Dot {
+                expr_vec: AstNode::Vec(dots),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
     /// New Primary expression.
     pub fn new_primary(token: Token) -> Self {
         let start_pos = token.pos;
@@ -257,4 +270,6 @@ pub enum ExpressionKind {
         ident_token: AstNode,
         args_vec: AstNode,
     },
+    /// Dot expression.
+    Dot { expr_vec: AstNode },
 }

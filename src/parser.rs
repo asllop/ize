@@ -158,6 +158,7 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     Err(e)
 }
 
+//TODO: revisar això, crec que el problema que tenim amb call expr es per l'Opt.
 /// Optionally execute a parser.
 pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeOptResult<'a> {
     match into_opt_res(concat(parsers, input)) {
@@ -166,6 +167,7 @@ pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeOptResult<'
             if e.after_key {
                 Err(e)
             } else {
+                // TODO: if we could report the "e.id" in an Ok, we could improve parser error generation
                 Ok((None, false))
             }
         }
@@ -216,8 +218,7 @@ pub fn zero_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult
                     results.push(node);
                     input = rest;
                 } else {
-                    //This can't actually happen, because concat always returns something.
-                    //TODO: if parser returns nothing, should we stop??
+                    //TODO: Remove into_opt_res and this case. This can't actually happen, because concat always returns something.
                     break;
                 }
             }
@@ -233,37 +234,49 @@ pub fn zero_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult
     Ok((input, results.into(), did_parse_key))
 }
 
-//TODO: take an array of parsers and use concat, like zero_plus
+//NOTE: never tested
 /// Execute a parser one or more times and return the result in a vector.
-pub fn one_plus<'a>(_parsers: &'a [Parser], mut _input: &'a [Token]) -> IzeResult<'a> {
-    todo!("Implement one_plus")
-    // let mut results = vec![];
-    // while let Ok(result) = parser.run(input) {
-    //     if let Some((rest, node)) = result {
-    //         results.push(node);
-    //         input = rest;
-    //     } else {
-    //         break;
-    //     }
-    // }
-    // if results.len() > 0 {
-    //     Ok((input, results.into()))
-    // } else {
-    //     // The parsers must succeed at least once, return an error
-    //     let pos = if let Some(t) = input.first() {
-    //         t.pos
-    //     } else {
-    //         Default::default()
-    //     };
-    //     let e = ParseErr::new(
-    //         IzeErr::new(
-    //             "A parser passed to 'one_more' must succeed at least once".into(),
-    //             pos,
-    //         ),
-    //         0,
-    //     );
-    //     Err(e)
-    // }
+pub fn one_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<'a> {
+    let mut did_parse_key = false;
+    let mut results = vec![];
+    let last_failed_id;
+    loop {
+        let (rest, node, after_key) = match concat(parsers, input) {
+            Ok(result) => result,
+            Err(e) => {
+                if e.after_key {
+                    return Err(e);
+                } else {
+                    last_failed_id = e.id;
+                    break;
+                }
+            }
+        };
+        if after_key {
+            did_parse_key = true;
+        }
+        results.push(node);
+        input = rest;
+    }
+    if results.len() > 0 {
+        Ok((input, results.into(), did_parse_key))
+    } else {
+        // The parsers must succeed at least once, return an error
+        let pos = if let Some(t) = input.first() {
+            t.pos
+        } else {
+            Default::default()
+        };
+        let e = ParseErr::new(
+            IzeErr::new(
+                "A parser passed to 'one_more' must succeed at least once".into(),
+                pos,
+            ),
+            last_failed_id,
+            did_parse_key,
+        );
+        Err(e)
+    }
 }
 
 /// Matches one token usign a function to match. Used by [token_ident](crate::parser::token_ident), [token_int](crate::parser::token_int), etc.

@@ -32,7 +32,10 @@
     a+b*c
 
     !(a+b)
+
+
+    a.(b+c).d
     
-    foo()
-    foo(a)
-    foo(a,b)
+    //foo()
+    //foo(a)
+    //foo(a,b)
