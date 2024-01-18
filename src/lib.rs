@@ -1,12 +1,13 @@
 //! # IZE Language
 //!
-//! IZE is a Turing-complete, domain-specific programming language, specialized in data pipelines and ETL processes, designed to accomplish the following data related tasks:
+//! IZE is a Turing-complete, domain-specific programming language, specialized in data pipelines and ETL processes, designed to accomplish, among others, the following data related tasks:
 //!
 //! - Aggregate
 //! - Buffer
 //! - Collect
 //! - Combine
 //! - Convert
+//! - Deduplicate
 //! - Expand
 //! - Filter
 //! - Route
