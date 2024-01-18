@@ -4,4 +4,4 @@
 mod lexer_tests;
 
 /// Expression parser tests
-mod expr_parser_tests;
+mod expr_grammar_tests;

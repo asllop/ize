@@ -39,3 +39,5 @@
     foo(a,b,c)
 
     foo().bar(a,b,c).z
+
+    foo(a,bar(b,c))

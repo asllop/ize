@@ -1,4 +1,4 @@
-//! # EXPRESSION PARSER TESTS
+//! # EXPRESSION GRAMMAR TESTS
 
 use alloc::vec::Vec;
 
@@ -709,11 +709,93 @@ fn check_call() {
         )
         .into()
     );
+
+    let code = "foo(a,bar(b,c))";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_call(
+            Token::new(
+                TokenPos::new(0, 0, 3, 0),
+                TokenKind::Identifier("foo".into())
+            ),
+            vec![
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 4, 5, 4),
+                    TokenKind::Identifier("a".into())
+                ))
+                .into(),
+                Expression::new_call(
+                    Token::new(
+                        TokenPos::new(0, 6, 9, 6),
+                        TokenKind::Identifier("bar".into())
+                    ),
+                    vec![
+                        Expression::new_primary(Token::new(
+                            TokenPos::new(0, 10, 11, 10),
+                            TokenKind::Identifier("b".into())
+                        ))
+                        .into(),
+                        Expression::new_primary(Token::new(
+                            TokenPos::new(0, 12, 13, 12),
+                            TokenKind::Identifier("c".into())
+                        ))
+                        .into()
+                    ],
+                    TokenPos::new(0, 13, 14, 13)
+                )
+                .into()
+            ],
+            TokenPos::new(0, 14, 15, 14)
+        )
+        .into()
+    );
 }
 
 #[test]
 fn check_dot_with_calls() {
-    //TODO: dot expression with function calls
+    let code = "foo().bar(a,b).z";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_dot(vec![
+            Expression::new_call(
+                Token::new(
+                    TokenPos::new(0, 0, 3, 0),
+                    TokenKind::Identifier("foo".into())
+                ),
+                vec![],
+                TokenPos::new(0, 4, 5, 4)
+            )
+            .into(),
+            Expression::new_call(
+                Token::new(
+                    TokenPos::new(0, 6, 9, 6),
+                    TokenKind::Identifier("bar".into())
+                ),
+                vec![
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 10, 11, 10),
+                        TokenKind::Identifier("a".into())
+                    ))
+                    .into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 12, 13, 12),
+                        TokenKind::Identifier("b".into())
+                    ))
+                    .into(),
+                ],
+                TokenPos::new(0, 13, 14, 13)
+            )
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 15, 16, 15),
+                TokenKind::Identifier("z".into())
+            ))
+            .into(),
+        ])
+        .into()
+    );
 }
 
 //TODO: check complex expression combination

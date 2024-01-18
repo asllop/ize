@@ -335,9 +335,9 @@ fn expr_call_empty(input: &[Token]) -> IzeResult {
                 // Is not a call, precedence to Group expression
                 1 | 2 => expr_group(input),
                 // It's a call, but not empty, precedence to the next Call parser
-                _ => expr_call(input)
+                _ => expr_call(input),
             }
-        }
+        },
     )
 }
 
@@ -349,10 +349,7 @@ fn expr_call(input: &[Token]) -> IzeResult {
             Fun(token_ident, 1),
             Tk(TokenKind::OpenParenth, 2),
             Fun(expr, 3),
-            Zero(&[
-                Key(TokenKind::Comma, 4),
-                Fun(expr, 5),
-            ]),
+            Zero(&[Key(TokenKind::Comma, 4), Fun(expr, 5)]),
             Tk(TokenKind::ClosingParenth, 6),
         ],
         |node_vec| {
@@ -372,9 +369,7 @@ fn expr_call(input: &[Token]) -> IzeResult {
 
             Expression::new_call(ident, args, end_pos).into()
         },
-        |input, e| {
-            todo!("expr_call err {:#?}", e)
-        }
+        |_, e| todo!("expr_call err {:#?}", e),
     )
 }
 
