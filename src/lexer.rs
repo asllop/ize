@@ -92,10 +92,9 @@ pub enum TokenKind {
     Let,
 
     // Primaries
-    #[regex("-?[0-9]+", parse_callback::<i64>)]
+    #[regex("[0-9]+", parse_callback::<i64>)]
     IntegerLiteral(i64),
-    //TODO: scientific notation: -9.09E-3, 9.09E+3
-    #[regex(r#"-?[0-9]+\.[0-9]+"#, parse_callback::<f64>)]
+    #[regex(r#"[0-9]+\.[0-9]+"#, parse_callback::<f64>)]
     FloatLiteral(f64),
     #[regex("(true|false)", parse_callback::<bool>)]
     BooleanLiteral(bool),

@@ -6,6 +6,8 @@
 
     var + 100.5 - 10
 
+    x*-1
+
     let salute "Hello World"
 
     let A let B let C 111

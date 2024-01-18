@@ -47,9 +47,13 @@ fn check_valid_tokens() {
     assert_eq!(
         tokens.pop(),
         Some(Token::new(
-            TokenPos::new(0, 6, 12, 6),
-            TokenKind::FloatLiteral(-100.0)
+            TokenPos::new(0, 7, 12, 7),
+            TokenKind::FloatLiteral(100.0)
         ))
+    );
+    assert_eq!(
+        tokens.pop(),
+        Some(Token::new(TokenPos::new(0, 6, 7, 6), TokenKind::Minus))
     );
     assert_eq!(
         tokens.pop(),

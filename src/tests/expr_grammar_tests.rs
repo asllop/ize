@@ -176,6 +176,30 @@ fn check_binary_term() {
         .into()
     );
 
+    let code = "x*-1";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_binary(
+            Token::new(TokenPos::new(0, 1, 2, 1), TokenKind::Star),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 0, 1, 0),
+                TokenKind::Identifier("x".into())
+            ))
+            .into(),
+            Expression::new_unary(
+                Token::new(TokenPos::new(0, 2, 3, 2), TokenKind::Minus),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 3, 4, 3),
+                    TokenKind::IntegerLiteral(1)
+                ))
+                .into()
+            )
+            .into()
+        )
+        .into()
+    );
+
     //TODO: check binary error
 }
 
