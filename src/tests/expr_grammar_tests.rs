@@ -822,4 +822,59 @@ fn check_dot_with_calls() {
     );
 }
 
+#[test]
+fn check_type() {
+    let code = "List[String]";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_type(
+            Token::new(TokenPos::new(0, 0, 4, 0), TokenKind::List),
+            vec![Expression::new_type(
+                Token::new(
+                    TokenPos::new(0, 5, 11, 5),
+                    TokenKind::Identifier("String".into())
+                ),
+                vec![],
+                TokenPos::new(0, 5, 11, 5)
+            )
+            .into()],
+            TokenPos::new(0, 11, 12, 11)
+        )
+        .into()
+    );
+
+    let code = "Map[String, Integer]";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_type(
+            Token::new(TokenPos::new(0, 0, 3, 0), TokenKind::Map),
+            vec![
+                Expression::new_type(
+                    Token::new(
+                        TokenPos::new(0, 4, 10, 4),
+                        TokenKind::Identifier("String".into())
+                    ),
+                    vec![],
+                    TokenPos::new(0, 4, 10, 4)
+                )
+                .into(),
+                Expression::new_type(
+                    Token::new(
+                        TokenPos::new(0, 12, 19, 12),
+                        TokenKind::Identifier("Integer".into())
+                    ),
+                    vec![],
+                    TokenPos::new(0, 12, 19, 12)
+                )
+                .into()
+            ],
+            TokenPos::new(0, 19, 20, 19)
+        )
+        .into()
+    );
+
+    //TODO: check subtypes with subtypes: "Tuple[String, Mux[Float, Integer]]"
+}
 //TODO: check complex expression combination

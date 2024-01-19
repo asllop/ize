@@ -47,3 +47,5 @@
     List[String]
     Map[String, Custom]
     Tuple[String, Integer, Mux[Float, Boolean]]
+    
+    Tuple[A,B,C].New()
