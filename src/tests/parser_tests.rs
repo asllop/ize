@@ -151,10 +151,7 @@ fn check_opt() {
 #[test]
 fn check_opt_after_key() {
     // Grammar to parse: "def" ID ("as" STRING)? "=" LITERAL
-    let binding = [
-            Parser::Key(TokenKind::As, 3),
-            Parser::Fun(token_str, 4),
-        ];
+    let binding = [Parser::Key(TokenKind::As, 3), Parser::Fun(token_str, 4)];
     let grammar = &[
         Parser::Key(TokenKind::Identifier("def".into()), 1),
         Parser::Fun(token_ident, 2),
@@ -165,7 +162,7 @@ fn check_opt_after_key() {
             Parser::Fun(token_bool, 6),
             Parser::Fun(token_int, 6),
             Parser::Fun(token_flt, 6),
-        ])
+        ]),
     ];
 
     // Input code: def my_var = 100
@@ -174,7 +171,7 @@ fn check_opt_after_key() {
         Token::new(TokenPos::default(), TokenKind::Identifier("def".into())),
         Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
         Token::new(TokenPos::default(), TokenKind::Identifier("=".into())),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100))
+        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100)),
     ];
     assert!(concat(grammar, input).is_ok());
 
@@ -183,9 +180,12 @@ fn check_opt_after_key() {
         Token::new(TokenPos::default(), TokenKind::Identifier("def".into())),
         Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
         Token::new(TokenPos::default(), TokenKind::As),
-        Token::new(TokenPos::default(), TokenKind::StringLiteral("alias".into())),
+        Token::new(
+            TokenPos::default(),
+            TokenKind::StringLiteral("alias".into()),
+        ),
         Token::new(TokenPos::default(), TokenKind::Identifier("=".into())),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100))
+        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100)),
     ];
     assert!(concat(grammar, input).is_ok());
 
@@ -195,7 +195,7 @@ fn check_opt_after_key() {
         Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
         Token::new(TokenPos::default(), TokenKind::As),
         Token::new(TokenPos::default(), TokenKind::Identifier("=".into())),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100))
+        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100)),
     ];
     let res = concat(grammar, input);
     assert!(res.is_err());
@@ -205,7 +205,7 @@ fn check_opt_after_key() {
     let input = &[
         Token::new(TokenPos::default(), TokenKind::Identifier("def".into())),
         Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100))
+        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100)),
     ];
     let res = concat(grammar, input);
     assert!(res.is_err());

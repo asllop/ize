@@ -226,6 +226,19 @@ impl Expression {
         }
     }
 
+    /// New Type expression.
+    pub fn new_type(ident: Token, subtypes: Vec<AstNode>, end_pos: TokenPos) -> Self {
+        let start_pos = ident.pos;
+        Self {
+            kind: ExpressionKind::Type {
+                ident_token: ident.into(),
+                subtypes_vec: AstNode::Vec(subtypes),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
     /// New Primary expression.
     pub fn new_primary(token: Token) -> Self {
         let start_pos = token.pos;
@@ -272,4 +285,9 @@ pub enum ExpressionKind {
     },
     /// Dot expression.
     Dot { expr_vec: AstNode },
+    /// Type expression.
+    Type {
+        ident_token: AstNode,
+        subtypes_vec: AstNode,
+    },
 }

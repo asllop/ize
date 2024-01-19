@@ -2,12 +2,18 @@
 //!
 //! Contains the grammar rules to parse the IZE language.
 
+use alloc::vec::Vec;
+
 use crate::{
-    ast::{AstNode, Expression},
+    ast::{AstNode, Expression, ExpressionKind},
     err::IzeErr,
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
 };
+
+////////////////////////
+// Expression parsers //
+////////////////////////
 
 /// Parse an expression.
 pub fn expr(input: &[Token]) -> IzeResult {
@@ -24,8 +30,7 @@ fn expr_chain(input: &[Token]) -> IzeResult {
             Fun(expr_let, 1),
             Zero(&[Key(TokenKind::Semicolon, 2), Fun(expr_let, 3)]),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let chain_vec = node_vec.pop().unwrap().vec().unwrap();
             let let_expr = node_vec.pop().unwrap();
 
@@ -66,8 +71,7 @@ fn expr_let(input: &[Token]) -> IzeResult {
             Fun(token_ident, 1),
             Fun(expr_let, 2),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
@@ -95,7 +99,6 @@ fn expr_let(input: &[Token]) -> IzeResult {
 }
 
 //TODO: select/unwrap expressions
-//TODO: type expression
 
 /// Parse an If-Else expression.
 fn expr_ifelse(input: &[Token]) -> IzeResult {
@@ -110,8 +113,7 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
             Tk(TokenKind::Else, 5),
             Fun(expr, 6),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let else_expr = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // Token "else"
             let if_expr = node_vec.pop().unwrap().expr().unwrap();
@@ -256,8 +258,7 @@ fn expr_unary(input: &[Token]) -> IzeResult {
             Sel(&[Tk(TokenKind::Minus, 1), Tk(TokenKind::Not, 2)]),
             Fun(expr_unary, 3),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let op = node_vec.pop().unwrap().token().unwrap();
             Expression::new_unary(op, expr).into()
@@ -285,8 +286,7 @@ fn expr_dot(input: &[Token]) -> IzeResult {
             Fun(expr_call_empty, 1),
             Zero(&[Key(TokenKind::Dot, 2), Fun(expr_call_empty, 3)]),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let dot_vec = node_vec.pop().unwrap().vec().unwrap();
             let next_expr = node_vec.pop().unwrap();
 
@@ -323,8 +323,7 @@ fn expr_call_empty(input: &[Token]) -> IzeResult {
             Tk(TokenKind::OpenParenth, 2),
             Tk(TokenKind::ClosingParenth, 3),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let end_pos = node_vec.pop().unwrap().token().unwrap().pos;
             node_vec.pop().unwrap().token().unwrap(); // Discard token "("
             let ident = node_vec.pop().unwrap().token().unwrap();
@@ -352,8 +351,7 @@ fn expr_call(input: &[Token]) -> IzeResult {
             Zero(&[Key(TokenKind::Comma, 4), Fun(expr, 5)]),
             Tk(TokenKind::ClosingParenth, 6),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // ")" token
             let arg_pairs_vec = node_vec.pop().unwrap().vec().unwrap();
             let first_arg = node_vec.pop().unwrap();
@@ -382,8 +380,7 @@ fn expr_group(input: &[Token]) -> IzeResult {
             Fun(expr, 1),
             Tk(TokenKind::ClosingParenth, 2),
         ],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let end = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let start = node_vec.pop().unwrap().token().unwrap().pos; // Token "("
@@ -392,7 +389,7 @@ fn expr_group(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                0 => expr_primary(input),
+                0 => expr_type(input),
                 // Errors
                 2 => Err(IzeErr::new(
                     "Group expression expected a closing parenthesis".into(),
@@ -400,6 +397,31 @@ fn expr_group(input: &[Token]) -> IzeResult {
                 )
                 .into()),
                 _ => Err(e),
+            }
+        },
+    )
+}
+
+/// Parse a Type expression.
+fn expr_type(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fun(type_name, 1),
+            //TODO: make it a key?
+            Tk(TokenKind::OpenClause, 2),
+            Fun(expr_type, 3), // if subtype is not List, Map, Mux or Tuple, it will be parsed as a primary expr.
+            Zero(&[Key(TokenKind::Comma, 4), Fun(expr_type, 5)]),
+            Tk(TokenKind::ClosingClause, 6),
+        ],
+        collect_type,
+        //TODO: handle errors: expected type after comma, etc
+        |input, e| {
+            match e.id {
+                // Precedence
+                1 => expr_primary(input),
+                // Errors
+                _ => todo!("Type expr err = {:#?}", e),
             }
         },
     )
@@ -418,8 +440,7 @@ fn expr_primary(input: &[Token]) -> IzeResult {
             Tk(TokenKind::NoneLiteral, 5),
             Tk(TokenKind::NullLiteral, 6),
         ])],
-        |node_vec| {
-            let mut node_vec = node_vec.vec().unwrap();
+        |mut node_vec| {
             let token = node_vec.pop().unwrap().token().unwrap();
             Expression::new_primary(token).into()
         },
@@ -427,9 +448,81 @@ fn expr_primary(input: &[Token]) -> IzeResult {
     )
 }
 
+///////////////////////
+// Support functions //
+///////////////////////
+
+fn type_name(input: &[Token]) -> IzeResult {
+    match input.get(0) {
+        Some(token) => match &token.kind {
+            TokenKind::Identifier(id) => match id.as_str() {
+                //TODO: make it tokens on lexer, and use a Sel parser.
+                "List" | "Map" | "Mux" | "Tuple" => Ok((
+                    &input[1..],
+                    Token::new(token.pos, token.kind.clone()).into(),
+                    false,
+                )),
+                _ => Err(IzeErr::default().into()),
+            },
+            _ => Err(IzeErr::default().into()),
+        },
+        None => Err(IzeErr::default().into()),
+    }
+}
+
+fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
+    let mut subtypes_vec = vec![];
+
+    let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // token "]"
+    let following_subtypes_vec = node_vec.pop().unwrap().vec().unwrap(); // Each element is a pair of Comma - Type -> Either a Vec (a type ready to be collected) or a Primary ident.
+    let first_subtype = node_vec.pop().unwrap(); // Either a Vec (a type ready to be collected) or a Primary ident
+    node_vec.pop().unwrap().token().unwrap(); // token "["
+    let ident = node_vec.pop().unwrap().token().unwrap();
+
+    subtypes_vec.push(collect_subtype(first_subtype));
+
+    for subtype in following_subtypes_vec {
+        // Ignore comma, get type
+        let type_node = subtype.vec().unwrap().pop().unwrap();
+        subtypes_vec.push(collect_subtype(type_node.into()));
+    }
+
+    Expression::new_type(ident, subtypes_vec, end_pos).into()
+}
+
+fn collect_subtype(subtype: AstNode) -> AstNode {
+    match subtype {
+        AstNode::Vec(subtype_vec) => {
+            let node = collect_type(subtype_vec);
+            node
+        }
+        AstNode::Expression(expr) => match expr.kind {
+            ExpressionKind::Primary { expr } => {
+                let token = expr.token().unwrap();
+                let end_pos = token.pos;
+                let node = Expression::new_type(token, vec![], end_pos).into();
+                node
+            }
+            ExpressionKind::Type {
+                ident_token,
+                subtypes_vec,
+            } => Expression {
+                kind: ExpressionKind::Type {
+                    ident_token,
+                    subtypes_vec,
+                },
+                start_pos: expr.start_pos,
+                end_pos: expr.end_pos,
+            }
+            .into(),
+            _ => panic!("Unexpected expression while parsing subtype: {:#?}", expr),
+        },
+        AstNode::Token(token) => panic!("Unexpected token while parsing subtype: {:#?}", token),
+    }
+}
+
 /// Collect binary expression
-fn binary_expr_success(node_vec: AstNode) -> AstNode {
-    let mut node_vec = node_vec.vec().unwrap();
+fn binary_expr_success(mut node_vec: Vec<AstNode>) -> AstNode {
     let expr_vec = node_vec.pop().unwrap().vec().unwrap();
     let next_expr = node_vec.pop().unwrap();
 

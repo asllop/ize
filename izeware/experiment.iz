@@ -43,3 +43,7 @@
     foo().bar(a,b,c).z
 
     foo(a,bar(b,c))
+
+    List[String]
+    Map[String, Custom]
+    Tuple[String, Integer, Mux[Float, Boolean]]

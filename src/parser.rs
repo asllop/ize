@@ -2,6 +2,8 @@
 //!
 //! Parser combinator infrastructure. Contains the primitives used to define the parser for the IZE language. Inspired by [Nom](https://github.com/rust-bakery/nom).
 
+use alloc::vec::Vec;
+
 use crate::{
     ast::AstNode,
     err::IzeErr,
@@ -68,12 +70,12 @@ pub fn into_opt_res(value: IzeResult) -> IzeOptResult {
 pub fn def_grammar<'a>(
     input: &'a [Token],
     parsers: &'a [Parser<'a>],
-    success: fn(AstNode) -> AstNode,
+    success: fn(Vec<AstNode>) -> AstNode,
     error: fn(&'a [Token], ParseErr) -> IzeResult<'a>,
 ) -> IzeResult<'a> {
     match concat(parsers, input) {
         Ok((rest, node, after_key)) => {
-            let result_node = success(node);
+            let result_node = success(node.vec().unwrap());
             Ok((rest, result_node, after_key))
         }
         Err(e) => error(input, e),
