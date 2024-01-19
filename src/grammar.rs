@@ -283,8 +283,8 @@ fn expr_dot(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_call_empty, 1),
-            Zero(&[Key(TokenKind::Dot, 2), Fun(expr_call_empty, 3)]),
+            Fun(expr_call, 1),
+            Zero(&[Key(TokenKind::Dot, 2), Fun(expr_call, 3)]),
         ],
         |mut node_vec| {
             let dot_vec = node_vec.pop().unwrap().vec().unwrap();
@@ -315,7 +315,7 @@ fn expr_dot(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Call expression without arguments.
-fn expr_call_empty(input: &[Token]) -> IzeResult {
+fn expr_call(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -334,14 +334,14 @@ fn expr_call_empty(input: &[Token]) -> IzeResult {
                 // Is not a call, precedence to Group expression
                 1 | 2 => expr_group(input),
                 // It's a call, but not empty, precedence to the next Call parser
-                _ => expr_call(input),
+                _ => expr_call_with_args(input),
             }
         },
     )
 }
 
 /// Parse a Call expression with arguments.
-fn expr_call(input: &[Token]) -> IzeResult {
+fn expr_call_with_args(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -453,21 +453,17 @@ fn expr_primary(input: &[Token]) -> IzeResult {
 ///////////////////////
 
 fn type_name(input: &[Token]) -> IzeResult {
-    match input.get(0) {
-        Some(token) => match &token.kind {
-            TokenKind::Identifier(id) => match id.as_str() {
-                //TODO: make it tokens on lexer, and use a Sel parser.
-                "List" | "Map" | "Mux" | "Tuple" => Ok((
-                    &input[1..],
-                    Token::new(token.pos, token.kind.clone()).into(),
-                    false,
-                )),
-                _ => Err(IzeErr::default().into()),
-            },
-            _ => Err(IzeErr::default().into()),
-        },
-        None => Err(IzeErr::default().into()),
-    }
+    def_grammar(
+        input,
+        &[Sel(&[
+            Tk(TokenKind::List, 1),
+            Tk(TokenKind::Map, 2),
+            Tk(TokenKind::Mux, 3),
+            Tk(TokenKind::Tuple, 4),
+        ])],
+        |mut node_vec| node_vec.pop().unwrap(),
+        |_, e| Err(e),
+    )
 }
 
 fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {

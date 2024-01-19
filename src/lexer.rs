@@ -107,6 +107,16 @@ pub enum TokenKind {
     #[regex(r#"[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#, parse_callback::<String>)]
     Identifier(String),
 
+    // Types
+    #[token("List")]
+    List,
+    #[token("Map")]
+    Map,
+    #[token("Mux")]
+    Mux,
+    #[token("Tuple")]
+    Tuple,
+
     // Commands
     #[token("model")]
     Model,
