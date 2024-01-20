@@ -875,6 +875,6 @@ fn check_type() {
         .into()
     );
 
-    //TODO: check subtypes with subtypes: "Tuple[String, Mux[Float, Integer]]"
+    //TODO: check subtypes with subtypes: "Tuple[Mux[Float, Integer], String]"
 }
 //TODO: check complex expression combination

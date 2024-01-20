@@ -408,20 +408,26 @@ fn expr_type(input: &[Token]) -> IzeResult {
         input,
         &[
             Fun(type_name, 1),
-            //TODO: make it a key?
             Tk(TokenKind::OpenClause, 2),
             Fun(expr_type, 3), // if subtype is not List, Map, Mux or Tuple, it will be parsed as a primary expr.
             Zero(&[Key(TokenKind::Comma, 4), Fun(expr_type, 5)]),
             Tk(TokenKind::ClosingClause, 6),
         ],
         collect_type,
-        //TODO: handle errors: expected type after comma, etc
         |input, e| {
             match e.id {
                 // Precedence
                 1 => expr_primary(input),
                 // Errors
-                _ => todo!("Type expr err = {:#?}", e),
+                2 => Err(
+                    IzeErr::new("Expected opening clause after type name".into(), e.err.pos).into(),
+                ),
+                3 => Err(IzeErr::new("Expected a subtype".into(), e.err.pos).into()),
+                5 => Err(IzeErr::new("Expected subtype after comma".into(), e.err.pos).into()),
+                6 => Err(
+                    IzeErr::new("Expected closing clause after subtype".into(), e.err.pos).into(),
+                ),
+                _ => Err(e),
             }
         },
     )
