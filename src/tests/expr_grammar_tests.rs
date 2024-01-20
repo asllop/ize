@@ -875,6 +875,52 @@ fn check_type() {
         .into()
     );
 
-    //TODO: check subtypes with subtypes: "Tuple[Mux[Float, Integer], String]"
+    let code = "Tuple[Mux[Float, Integer], String]";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_type(
+            Token::new(TokenPos::new(0, 0, 5, 0), TokenKind::Tuple),
+            vec![
+                Expression::new_type(
+                    Token::new(TokenPos::new(0, 6, 9, 6), TokenKind::Mux),
+                    vec![
+                        Expression::new_type(
+                            Token::new(
+                                TokenPos::new(0, 10, 15, 10),
+                                TokenKind::Identifier("Float".into())
+                            ),
+                            vec![],
+                            TokenPos::new(0, 10, 15, 10)
+                        )
+                        .into(),
+                        Expression::new_type(
+                            Token::new(
+                                TokenPos::new(0, 17, 24, 17),
+                                TokenKind::Identifier("Integer".into())
+                            ),
+                            vec![],
+                            TokenPos::new(0, 17, 24, 17)
+                        )
+                        .into()
+                    ],
+                    TokenPos::new(0, 24, 25, 24)
+                )
+                .into(),
+                Expression::new_type(
+                    Token::new(
+                        TokenPos::new(0, 27, 33, 27),
+                        TokenKind::Identifier("String".into())
+                    ),
+                    vec![],
+                    TokenPos::new(0, 27, 33, 27)
+                )
+                .into()
+            ],
+            TokenPos::new(0, 33, 34, 33)
+        )
+        .into()
+    );
 }
+
 //TODO: check complex expression combination
