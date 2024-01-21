@@ -80,7 +80,7 @@ fn expr_let(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                0 => expr_ifelse(input),
+                0 => expr_select_unwrap(input),
                 // Errors
                 1 => Err(IzeErr::new(
                     "Let expression, expected identifier after 'let'".into(),
@@ -98,7 +98,50 @@ fn expr_let(input: &[Token]) -> IzeResult {
     )
 }
 
-//TODO: select/unwrap expressions
+/// Select/Unwrap expressions
+fn expr_select_unwrap(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Sel(&[Tk(TokenKind::Select, 1), Tk(TokenKind::Unwrap, 1)]),
+            Tk(TokenKind::OpenParenth, 2),
+            Fun(expr, 3),
+            Opt(&[Key(TokenKind::As, 4), Fun(token_ident, 5)]),
+            Tk(TokenKind::ClosingParenth, 6),
+            Tk(TokenKind::OpenParenth, 7),
+            Fun(arm_expr, 8),
+            Zero(&[Key(TokenKind::Comma, 9), Fun(arm_expr, 10)]),
+            Tk(TokenKind::ClosingParenth, 11),
+        ],
+        |node_vec| todo!("Select/Unwrap success = {:#?}", node_vec),
+        |input, e| {
+            match e.id {
+                // Precedence
+                1 => expr_ifelse(input),
+                // Errors
+                2 => Err(IzeErr::new(
+                    "Expected '(' after 'select' or 'unwrap' keyword".into(),
+                    e.err.pos,
+                )
+                .into()),
+                3 => Err(IzeErr::new("Expected expression after '('".into(), e.err.pos).into()),
+                5 => Err(IzeErr::new("Expected identifier after 'as'".into(), e.err.pos).into()),
+                6 => Err(IzeErr::new("Expected ')'".into(), e.err.pos).into()),
+                7 => Err(IzeErr::new("Expected '('".into(), e.err.pos).into()),
+                8 => Err(IzeErr::new("Expected arm expression after '('".into(), e.err.pos).into()),
+                10 => {
+                    Err(IzeErr::new("Expected arm expression after comma".into(), e.err.pos).into())
+                }
+                11 => Err(IzeErr::new(
+                    "Expected ')' or comma after arm expression".into(),
+                    e.err.pos,
+                )
+                .into()),
+                _ => Err(e),
+            }
+        },
+    )
+}
 
 /// Parse an If-Else expression.
 fn expr_ifelse(input: &[Token]) -> IzeResult {
@@ -458,6 +501,22 @@ fn expr_primary(input: &[Token]) -> IzeResult {
 // Support functions //
 ///////////////////////
 
+/// Parse an Arm expression.
+fn arm_expr(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[Fun(expr, 1), Tk(TokenKind::Arrow, 2), Fun(expr, 3)],
+        |mut node_vec| {
+            let right_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // Arrow token
+            let left_expr = node_vec.pop().unwrap().expr().unwrap();
+            Expression::new_arm(left_expr, right_expr).into()
+        },
+        |_, e| Err(e),
+    )
+}
+
+/// Parse a type name.
 fn type_name(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
@@ -472,6 +531,7 @@ fn type_name(input: &[Token]) -> IzeResult {
     )
 }
 
+/// Collect type expression results.
 fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
     let mut subtypes_vec = vec![];
 
@@ -492,6 +552,7 @@ fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
     Expression::new_type(ident, subtypes_vec, end_pos).into()
 }
 
+/// Collect the subtype of a type expression results.
 fn collect_subtype(subtype: AstNode) -> AstNode {
     match subtype {
         AstNode::Vec(subtype_vec) => {
@@ -499,8 +560,8 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
             node
         }
         AstNode::Expression(expr) => match expr.kind {
-            ExpressionKind::Primary { expr } => {
-                let token = expr.token().unwrap();
+            ExpressionKind::Primary { token } => {
+                let token = token.token().unwrap();
                 let end_pos = token.pos;
                 let node = Expression::new_type(token, vec![], end_pos).into();
                 node

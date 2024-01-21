@@ -49,3 +49,9 @@
     Tuple[String, Integer, Mux[Float, Boolean]]
     
     Tuple[A,B,C].New()
+
+    select (x.pop() as result) (
+        "hi" -> result,
+        "bye" -> result + " world",
+        _ -> ""
+    )

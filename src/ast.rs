@@ -147,6 +147,45 @@ impl Expression {
         }
     }
 
+    /// New Select/Unwrap expression.
+    pub fn new_select_unwrap(
+        op: Token,
+        expr: Box<Expression>,
+        alias_token: Option<Token>,
+        arms: Vec<AstNode>,
+        end_pos: TokenPos,
+    ) -> Self {
+        let start_pos = op.pos;
+        Self {
+            kind: ExpressionKind::SelectUnwrap {
+                op_token: op.into(),
+                expr: expr.into(),
+                alias_token: if let Some(alias) = alias_token {
+                    Some(alias.into())
+                } else {
+                    None
+                },
+                arms_vec: arms.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
+    /// New Arm expression.
+    pub fn new_arm(left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
+        let start_pos = left_expr.start_pos;
+        let end_pos = right_expr.end_pos;
+        Self {
+            kind: ExpressionKind::Arm {
+                left_expr: left_expr.into(),
+                right_expr: right_expr.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
     /// New Binary expression.
     pub fn new_binary(op: Token, left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
         let start_pos = left_expr.start_pos;
@@ -245,7 +284,7 @@ impl Expression {
         let end_pos = token.pos;
         Self {
             kind: ExpressionKind::Primary {
-                expr: AstNode::Token(token),
+                token: AstNode::Token(token),
             },
             start_pos,
             end_pos,
@@ -256,8 +295,8 @@ impl Expression {
 #[derive(Debug, PartialEq)]
 /// Expression kind.
 pub enum ExpressionKind {
-    /// Primary expression.
-    Primary { expr: AstNode },
+    /// Primary expression (literals and identifiers).
+    Primary { token: AstNode },
     /// Chain expression.
     Chain { expr_vec: AstNode },
     /// Group expression.
@@ -289,5 +328,17 @@ pub enum ExpressionKind {
     Type {
         ident_token: AstNode,
         subtypes_vec: AstNode,
+    },
+    /// Select/Unwrap expression.
+    SelectUnwrap {
+        op_token: AstNode,
+        expr: AstNode,
+        alias_token: Option<AstNode>,
+        arms_vec: AstNode,
+    },
+    /// Arm expression for Select/Unwrap.
+    Arm {
+        left_expr: AstNode,
+        right_expr: AstNode,
     },
 }
