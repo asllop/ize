@@ -32,6 +32,8 @@ fn parse_single_expr(code: &str) -> AstNode {
     expr.unwrap()
 }
 
+//TODO: test error handling in all kinds of expressions
+
 #[test]
 fn check_primary() {
     let code = "100";
@@ -121,8 +123,6 @@ fn check_primary() {
         ))
         .into()
     );
-
-    //TODO: check primary error
 }
 
 #[test]
@@ -175,8 +175,6 @@ fn check_binary_term() {
         )
         .into()
     );
-
-    //TODO: check binary error
 }
 
 #[test]

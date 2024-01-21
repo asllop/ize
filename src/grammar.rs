@@ -575,4 +575,21 @@ fn binary_expr_error(_: &[Token], e: ParseErr) -> IzeResult {
         transfer Whatever in: String -> String ...
     Then we can apply it to any "String" as a method:
         "Hello World".Whatever()
+
+- Anonymous functions:
+    To pass as arguments to Foreach, and other higher order functions, that take transfers as arguments.
+
+        // "numbers" is a List[Integer]
+
+        // Traditional way, referencing a transfer command
+        numbers.Foreach(Half) // Return a List[Float]
+
+        transfer Half val:Integer -> Float
+            val.ToFlt() / 2.0
+
+        // With a lambda expression
+        numbers.Foreach(
+            lambda val:Integer -> Float
+                val.ToFlt() / 2.0
+        )
 */
