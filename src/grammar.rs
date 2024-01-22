@@ -20,8 +20,6 @@ pub fn expr(input: &[Token]) -> IzeResult {
     expr_chain(input)
 }
 
-//TODO: change all parser IDs, to start by 1 and not by 0. It may cause confusion with default ID created by token parsers that are 0.
-
 /// Parse a Chain expression.
 fn expr_chain(input: &[Token]) -> IzeResult {
     def_grammar(
@@ -67,9 +65,9 @@ fn expr_let(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Key(TokenKind::Let, 0),
-            Fun(token_ident, 1),
-            Fun(expr_let, 2),
+            Key(TokenKind::Let, 1),
+            Fun(token_ident, 2),
+            Fun(expr_let, 3),
         ],
         |mut node_vec| {
             let expr = node_vec.pop().unwrap().expr().unwrap();
@@ -80,14 +78,14 @@ fn expr_let(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                0 => expr_equality(input),
+                1 => expr_equality(input),
                 // Errors
-                1 => Err(IzeErr::new(
+                2 => Err(IzeErr::new(
                     "Let expression, expected identifier after 'let'".into(),
                     e.err.pos,
                 )
                 .into()),
-                2 => Err(IzeErr::new(
+                3 => Err(IzeErr::new(
                     "Let expression, expected expression after variable name".into(),
                     e.err.pos,
                 )
@@ -103,10 +101,10 @@ fn expr_equality(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_comparison, 0),
+            Fun(expr_comparison, 1),
             Zero(&[
-                Sel(&[Key(TokenKind::TwoEquals, 1), Key(TokenKind::NotEqual, 2)]),
-                Fun(expr_comparison, 10),
+                Sel(&[Key(TokenKind::TwoEquals, 2), Key(TokenKind::NotEqual, 2)]),
+                Fun(expr_comparison, 3),
             ]),
         ],
         binary_expr_success,
@@ -119,17 +117,17 @@ fn expr_comparison(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_logic, 0),
+            Fun(expr_logic, 1),
             Zero(&[
                 Sel(&[
-                    Key(TokenKind::GreaterThan, 1),
+                    Key(TokenKind::GreaterThan, 2),
                     Key(TokenKind::LesserThan, 2),
-                    Key(TokenKind::GtEqual, 3),
-                    Key(TokenKind::LtEqual, 4),
-                    Key(TokenKind::TwoAnds, 5),
-                    Key(TokenKind::TwoOrs, 6),
+                    Key(TokenKind::GtEqual, 2),
+                    Key(TokenKind::LtEqual, 2),
+                    Key(TokenKind::TwoAnds, 2),
+                    Key(TokenKind::TwoOrs, 2),
                 ]),
-                Fun(expr_logic, 10),
+                Fun(expr_logic, 3),
             ]),
         ],
         binary_expr_success,
@@ -142,10 +140,10 @@ fn expr_logic(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_term, 0),
+            Fun(expr_term, 1),
             Zero(&[
-                Sel(&[Key(TokenKind::And, 1), Key(TokenKind::Or, 2)]),
-                Fun(expr_term, 10),
+                Sel(&[Key(TokenKind::And, 2), Key(TokenKind::Or, 2)]),
+                Fun(expr_term, 3),
             ]),
         ],
         binary_expr_success,
@@ -158,10 +156,10 @@ fn expr_term(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_factor, 0),
+            Fun(expr_factor, 1),
             Zero(&[
-                Sel(&[Key(TokenKind::Plus, 1), Key(TokenKind::Minus, 2)]),
-                Fun(expr_factor, 10),
+                Sel(&[Key(TokenKind::Plus, 2), Key(TokenKind::Minus, 2)]),
+                Fun(expr_factor, 3),
             ]),
         ],
         binary_expr_success,
@@ -174,14 +172,14 @@ fn expr_factor(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_unary, 0),
+            Fun(expr_unary, 1),
             Zero(&[
                 Sel(&[
-                    Key(TokenKind::Star, 1),
+                    Key(TokenKind::Star, 2),
                     Key(TokenKind::Slash, 2),
-                    Key(TokenKind::Percent, 3),
+                    Key(TokenKind::Percent, 2),
                 ]),
-                Fun(expr_unary, 10),
+                Fun(expr_unary, 3),
             ]),
         ],
         binary_expr_success,
@@ -194,8 +192,8 @@ fn expr_unary(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Sel(&[Tk(TokenKind::Minus, 1), Tk(TokenKind::Not, 2)]),
-            Fun(expr_unary, 3),
+            Sel(&[Tk(TokenKind::Minus, 1), Tk(TokenKind::Not, 1)]),
+            Fun(expr_unary, 2),
         ],
         |mut node_vec| {
             let expr = node_vec.pop().unwrap().expr().unwrap();
@@ -205,9 +203,9 @@ fn expr_unary(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                2 => expr_dot(input),
+                1 => expr_dot(input),
                 // Errors
-                3 => Err(
+                2 => Err(
                     IzeErr::new("Expected expression after unary operator".into(), e.err.pos)
                         .into(),
                 ),
@@ -333,13 +331,13 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Key(TokenKind::If, 0),
-            Tk(TokenKind::OpenParenth, 1),
-            Fun(expr, 2),
-            Tk(TokenKind::ClosingParenth, 3),
-            Fun(expr, 4),
-            Tk(TokenKind::Else, 5),
-            Fun(expr, 6),
+            Key(TokenKind::If, 1),
+            Tk(TokenKind::OpenParenth, 2),
+            Fun(expr, 3),
+            Tk(TokenKind::ClosingParenth, 4),
+            Fun(expr, 5),
+            Tk(TokenKind::Else, 6),
+            Fun(expr, 7),
         ],
         |mut node_vec| {
             let else_expr = node_vec.pop().unwrap().expr().unwrap();
@@ -354,29 +352,29 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                0 => expr_call(input),
+                1 => expr_call(input),
                 // Errors
-                1 => Err(IzeErr::new(
+                2 => Err(IzeErr::new(
                     "If-Else expression, expected '(' after 'if'".into(),
                     e.err.pos,
                 )
                 .into()),
-                2 => Err(IzeErr::new(
+                3 => Err(IzeErr::new(
                     "If-Else expression, expected condition expression".into(),
                     e.err.pos,
                 )
                 .into()),
-                3 => Err(IzeErr::new(
+                4 => Err(IzeErr::new(
                     "If-Else expression, expected ')' after condition".into(),
                     e.err.pos,
                 )
                 .into()),
-                4 | 6 => Err(IzeErr::new(
+                5 | 7 => Err(IzeErr::new(
                     "If-Else expression, expected branch expression".into(),
                     e.err.pos,
                 )
                 .into()),
-                5 => Err(IzeErr::new(
+                6 => Err(IzeErr::new(
                     "If-Else expression, expected 'else' after branch expression".into(),
                     e.err.pos,
                 )
@@ -454,9 +452,9 @@ fn expr_group(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Tk(TokenKind::OpenParenth, 0),
-            Fun(expr, 1),
-            Tk(TokenKind::ClosingParenth, 2),
+            Tk(TokenKind::OpenParenth, 1),
+            Fun(expr, 2),
+            Tk(TokenKind::ClosingParenth, 3),
         ],
         |mut node_vec| {
             let end = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
@@ -467,9 +465,14 @@ fn expr_group(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                0 => expr_type(input),
+                1 => expr_type(input),
                 // Errors
                 2 => Err(IzeErr::new(
+                    "Group expression expected expression after open parenthesis".into(),
+                    e.err.pos,
+                )
+                .into()),
+                3 => Err(IzeErr::new(
                     "Group expression expected a closing parenthesis".into(),
                     e.err.pos,
                 )
@@ -516,13 +519,13 @@ fn expr_primary(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[Sel(&[
-            Fun(token_ident, 0),
+            Fun(token_ident, 1),
             Fun(token_int, 1),
-            Fun(token_flt, 2),
-            Fun(token_str, 3),
-            Fun(token_bool, 4),
-            Tk(TokenKind::NoneLiteral, 5),
-            Tk(TokenKind::NullLiteral, 6),
+            Fun(token_flt, 1),
+            Fun(token_str, 1),
+            Fun(token_bool, 1),
+            Tk(TokenKind::NoneLiteral, 1),
+            Tk(TokenKind::NullLiteral, 1),
         ])],
         |mut node_vec| {
             let token = node_vec.pop().unwrap().token().unwrap();
@@ -641,7 +644,7 @@ fn binary_expr_success(mut node_vec: Vec<AstNode>) -> AstNode {
 
 /// Generate error for binary expression
 fn binary_expr_error(_: &[Token], e: ParseErr) -> IzeResult {
-    if e.id == 10 {
+    if e.id == 3 {
         Err(IzeErr::new("Expected expression after operator".into(), e.err.pos).into())
     } else {
         Err(e)
