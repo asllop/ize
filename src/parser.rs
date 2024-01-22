@@ -160,7 +160,6 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     Err(e)
 }
 
-//TODO: revisar això, crec que el problema que tenim amb call expr es per l'Opt.
 /// Optionally execute a parser.
 pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeOptResult<'a> {
     match into_opt_res(concat(parsers, input)) {

@@ -113,7 +113,37 @@ fn expr_select_unwrap(input: &[Token]) -> IzeResult {
             Zero(&[Key(TokenKind::Comma, 9), Fun(arm_expr, 10)]),
             Tk(TokenKind::ClosingParenth, 11),
         ],
-        |node_vec| todo!("Select/Unwrap success = {:#?}", node_vec),
+        |mut node_vec| {
+            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // token ")"
+            let arms = node_vec.pop().unwrap().vec().unwrap();
+            let first_arm = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // token "("
+            node_vec.pop().unwrap().token().unwrap(); // token ")"
+            let maybe_as_ident = node_vec.pop().unwrap();
+            let (alias, expr) = if let AstNode::Vec(mut as_ident) = maybe_as_ident {
+                // Is the alias
+                let alias = as_ident.pop().unwrap().token().unwrap();
+                let expr = node_vec.pop().unwrap().expr().unwrap();
+                (Some(alias), expr)
+            } else {
+                // Is the expression
+                let expr = maybe_as_ident.expr().unwrap();
+                (None, expr)
+            };
+            node_vec.pop().unwrap().token().unwrap(); // token "("
+            let op = node_vec.pop().unwrap().token().unwrap();
+
+            // Collect arms
+            let mut arm_expressions = vec![first_arm.into()];
+            for arm in arms {
+                let mut arm = arm.vec().unwrap();
+                let arm_expr = arm.pop().unwrap();
+                arm_expressions.push(arm_expr);
+            }
+
+            // Generate expression
+            Expression::new_select_unwrap(op, expr, alias, arm_expressions, end_pos).into()
+        },
         |input, e| {
             match e.id {
                 // Precedence
@@ -321,7 +351,11 @@ fn expr_unary(input: &[Token]) -> IzeResult {
     )
 }
 
-// Parse a Dot expression.
+//TODO: move dot expr to a lower precedence, right before select/unwrap, to allow if-else, and select/unwrap use the dot expr.
+//      investigate the implications of this change to other expression types, binary, unary, etc. Things like "!(a+b).foo()"
+//      ** We can also try moving if-else and select/unwrap to a higher precedence, right after dot. **
+
+/// Parse a Dot expression.
 fn expr_dot(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
@@ -410,6 +444,7 @@ fn expr_call_with_args(input: &[Token]) -> IzeResult {
 
             Expression::new_call(ident, args, end_pos).into()
         },
+        //TODO: error handling
         |_, e| todo!("expr_call err {:#?}", e),
     )
 }
@@ -627,10 +662,6 @@ fn binary_expr_error(_: &[Token], e: ParseErr) -> IzeResult {
   as a syntax sugar for:
     transfer NAME Tuple[IN_TYPE_A, IN_TYPE_B, IN_TYPE_C] -> OUT_TYPE ...
 
-- Select and Unwrap, use a more concise syntax. Now we are always forced to use the "as _":
-    select (EXPR) ( ... )
-    select (EXPR as IDENT) ( ... )
-
 - Method calls:
     If we have a transfer that accepts only one input, for example:
         transfer Whatever in: String -> String ...
@@ -640,17 +671,23 @@ fn binary_expr_error(_: &[Token], e: ParseErr) -> IzeResult {
 - Anonymous functions:
     To pass as arguments to Foreach, and other higher order functions, that take transfers as arguments.
 
-        // "numbers" is a List[Integer]
+        // "numbers" is a List[Int]
 
         // Traditional way, referencing a transfer command
         numbers.Foreach(Half) // Return a List[Float]
 
-        transfer Half val:Integer -> Float
-            val.ToFlt() / 2.0
+        transfer Half val:Int -> Float
+            val.Float() / 2.0
 
         // With a lambda expression
         numbers.Foreach(
-            lambda val:Integer -> Float
-                val.ToFlt() / 2.0
+            lambda val:Int -> Float
+                val.Float() / 2.0
         )
+
+    We could even infer the return type from the expression and make it more compact:
+
+        numbers.Foreach(lambda val:Int -> val.Float() / 2.0)
+    
+    The arrow is not necessary to parse without ambiguity, but it helps to visually differentiate args from the body.
 */

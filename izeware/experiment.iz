@@ -44,9 +44,9 @@
 
     foo(a,bar(b,c))
 
-    List[String]
-    Map[String, Custom]
-    Tuple[String, Integer, Mux[Float, Boolean]]
+    List[Str]
+    Map[Str, Custom]
+    Tuple[Str, Int, Mux[Float, Bool]]
     
     Tuple[A,B,C].New()
 
