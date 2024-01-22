@@ -80,7 +80,7 @@ fn expr_let(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                0 => expr_select_unwrap(input),
+                0 => expr_equality(input),
                 // Errors
                 1 => Err(IzeErr::new(
                     "Let expression, expected identifier after 'let'".into(),
@@ -89,140 +89,6 @@ fn expr_let(input: &[Token]) -> IzeResult {
                 .into()),
                 2 => Err(IzeErr::new(
                     "Let expression, expected expression after variable name".into(),
-                    e.err.pos,
-                )
-                .into()),
-                _ => Err(e),
-            }
-        },
-    )
-}
-
-/// Select/Unwrap expressions
-fn expr_select_unwrap(input: &[Token]) -> IzeResult {
-    def_grammar(
-        input,
-        &[
-            Sel(&[Tk(TokenKind::Select, 1), Tk(TokenKind::Unwrap, 1)]),
-            Tk(TokenKind::OpenParenth, 2),
-            Fun(expr, 3),
-            Opt(&[Key(TokenKind::As, 4), Fun(token_ident, 5)]),
-            Tk(TokenKind::ClosingParenth, 6),
-            Tk(TokenKind::OpenParenth, 7),
-            Fun(arm_expr, 8),
-            Zero(&[Key(TokenKind::Comma, 9), Fun(arm_expr, 10)]),
-            Tk(TokenKind::ClosingParenth, 11),
-        ],
-        |mut node_vec| {
-            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // token ")"
-            let arms = node_vec.pop().unwrap().vec().unwrap();
-            let first_arm = node_vec.pop().unwrap().expr().unwrap();
-            node_vec.pop().unwrap().token().unwrap(); // token "("
-            node_vec.pop().unwrap().token().unwrap(); // token ")"
-            let maybe_as_ident = node_vec.pop().unwrap();
-            let (alias, expr) = if let AstNode::Vec(mut as_ident) = maybe_as_ident {
-                // Is the alias
-                let alias = as_ident.pop().unwrap().token().unwrap();
-                let expr = node_vec.pop().unwrap().expr().unwrap();
-                (Some(alias), expr)
-            } else {
-                // Is the expression
-                let expr = maybe_as_ident.expr().unwrap();
-                (None, expr)
-            };
-            node_vec.pop().unwrap().token().unwrap(); // token "("
-            let op = node_vec.pop().unwrap().token().unwrap(); // "select" or "unwrap" token
-
-            // Collect arms
-            let mut arm_expressions = vec![first_arm.into()];
-            for arm in arms {
-                let mut arm = arm.vec().unwrap();
-                let arm_expr = arm.pop().unwrap();
-                arm_expressions.push(arm_expr);
-            }
-
-            // Generate expression
-            Expression::new_select_unwrap(op, expr, alias, arm_expressions, end_pos).into()
-        },
-        |input, e| {
-            match e.id {
-                // Precedence
-                1 => expr_ifelse(input),
-                // Errors
-                2 => Err(IzeErr::new(
-                    "Expected '(' after 'select' or 'unwrap' keyword".into(),
-                    e.err.pos,
-                )
-                .into()),
-                3 => Err(IzeErr::new("Expected expression after '('".into(), e.err.pos).into()),
-                5 => Err(IzeErr::new("Expected identifier after 'as'".into(), e.err.pos).into()),
-                6 => Err(IzeErr::new("Expected ')'".into(), e.err.pos).into()),
-                7 => Err(IzeErr::new("Expected '('".into(), e.err.pos).into()),
-                8 => Err(IzeErr::new("Expected arm expression after '('".into(), e.err.pos).into()),
-                10 => {
-                    Err(IzeErr::new("Expected arm expression after comma".into(), e.err.pos).into())
-                }
-                11 => Err(IzeErr::new(
-                    "Expected ')' or comma after arm expression".into(),
-                    e.err.pos,
-                )
-                .into()),
-                _ => Err(e),
-            }
-        },
-    )
-}
-
-/// Parse an If-Else expression.
-fn expr_ifelse(input: &[Token]) -> IzeResult {
-    def_grammar(
-        input,
-        &[
-            Key(TokenKind::If, 0),
-            Tk(TokenKind::OpenParenth, 1),
-            Fun(expr, 2),
-            Tk(TokenKind::ClosingParenth, 3),
-            Fun(expr, 4),
-            Tk(TokenKind::Else, 5),
-            Fun(expr, 6),
-        ],
-        |mut node_vec| {
-            let else_expr = node_vec.pop().unwrap().expr().unwrap();
-            node_vec.pop().unwrap().token().unwrap(); // Token "else"
-            let if_expr = node_vec.pop().unwrap().expr().unwrap();
-            node_vec.pop().unwrap().token().unwrap(); // Token ")"
-            let cond_expr = node_vec.pop().unwrap().expr().unwrap();
-            node_vec.pop().unwrap().token().unwrap(); // Token "("
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // Token "if"
-            Expression::new_ifelse(cond_expr, if_expr, else_expr, start_pos).into()
-        },
-        |input, e| {
-            match e.id {
-                // Precedence
-                0 => expr_equality(input),
-                // Errors
-                1 => Err(IzeErr::new(
-                    "If-Else expression, expected '(' after 'if'".into(),
-                    e.err.pos,
-                )
-                .into()),
-                2 => Err(IzeErr::new(
-                    "If-Else expression, expected condition expression".into(),
-                    e.err.pos,
-                )
-                .into()),
-                3 => Err(IzeErr::new(
-                    "If-Else expression, expected ')' after condition".into(),
-                    e.err.pos,
-                )
-                .into()),
-                4 | 6 => Err(IzeErr::new(
-                    "If-Else expression, expected branch expression".into(),
-                    e.err.pos,
-                )
-                .into()),
-                5 => Err(IzeErr::new(
-                    "If-Else expression, expected 'else' after branch expression".into(),
                     e.err.pos,
                 )
                 .into()),
@@ -351,17 +217,13 @@ fn expr_unary(input: &[Token]) -> IzeResult {
     )
 }
 
-//TODO: move dot expr to a lower precedence, right before select/unwrap, to allow if-else, and select/unwrap use the dot expr.
-//      investigate the implications of this change to other expression types, binary, unary, etc. Things like "!(a+b).foo()"
-//      ** We can also try moving if-else and select/unwrap to a higher precedence, right after dot. **
-
 /// Parse a Dot expression.
 fn expr_dot(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_call, 1),
-            Zero(&[Key(TokenKind::Dot, 2), Fun(expr_call, 3)]),
+            Fun(expr_select_unwrap, 1),
+            Zero(&[Key(TokenKind::Dot, 2), Fun(expr_select_unwrap, 3)]),
         ],
         |mut node_vec| {
             let dot_vec = node_vec.pop().unwrap().vec().unwrap();
@@ -386,6 +248,140 @@ fn expr_dot(input: &[Token]) -> IzeResult {
             } else {
                 // Propagate the error we received.
                 Err(e)
+            }
+        },
+    )
+}
+
+/// Select/Unwrap expressions
+fn expr_select_unwrap(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Sel(&[Tk(TokenKind::Select, 1), Tk(TokenKind::Unwrap, 1)]),
+            Tk(TokenKind::OpenParenth, 2),
+            Fun(expr, 3),
+            Opt(&[Key(TokenKind::As, 4), Fun(token_ident, 5)]),
+            Tk(TokenKind::ClosingParenth, 6),
+            Tk(TokenKind::OpenParenth, 7),
+            Fun(arm_expr, 8),
+            Zero(&[Key(TokenKind::Comma, 9), Fun(arm_expr, 10)]),
+            Tk(TokenKind::ClosingParenth, 11),
+        ],
+        |mut node_vec| {
+            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // token ")"
+            let arms = node_vec.pop().unwrap().vec().unwrap();
+            let first_arm = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // token "("
+            node_vec.pop().unwrap().token().unwrap(); // token ")"
+            let maybe_as_ident = node_vec.pop().unwrap();
+            let (alias, expr) = if let AstNode::Vec(mut as_ident) = maybe_as_ident {
+                // Is the alias
+                let alias = as_ident.pop().unwrap().token().unwrap();
+                let expr = node_vec.pop().unwrap().expr().unwrap();
+                (Some(alias), expr)
+            } else {
+                // Is the expression
+                let expr = maybe_as_ident.expr().unwrap();
+                (None, expr)
+            };
+            node_vec.pop().unwrap().token().unwrap(); // token "("
+            let op = node_vec.pop().unwrap().token().unwrap(); // "select" or "unwrap" token
+
+            // Collect arms
+            let mut arm_expressions = vec![first_arm.into()];
+            for arm in arms {
+                let mut arm = arm.vec().unwrap();
+                let arm_expr = arm.pop().unwrap();
+                arm_expressions.push(arm_expr);
+            }
+
+            // Generate expression
+            Expression::new_select_unwrap(op, expr, alias, arm_expressions, end_pos).into()
+        },
+        |input, e| {
+            match e.id {
+                // Precedence
+                1 => expr_ifelse(input),
+                // Errors
+                2 => Err(IzeErr::new(
+                    "Expected '(' after 'select' or 'unwrap' keyword".into(),
+                    e.err.pos,
+                )
+                .into()),
+                3 => Err(IzeErr::new("Expected expression after '('".into(), e.err.pos).into()),
+                5 => Err(IzeErr::new("Expected identifier after 'as'".into(), e.err.pos).into()),
+                6 => Err(IzeErr::new("Expected ')'".into(), e.err.pos).into()),
+                7 => Err(IzeErr::new("Expected '('".into(), e.err.pos).into()),
+                8 => Err(IzeErr::new("Expected arm expression after '('".into(), e.err.pos).into()),
+                10 => {
+                    Err(IzeErr::new("Expected arm expression after comma".into(), e.err.pos).into())
+                }
+                11 => Err(IzeErr::new(
+                    "Expected ')' or comma after arm expression".into(),
+                    e.err.pos,
+                )
+                .into()),
+                _ => Err(e),
+            }
+        },
+    )
+}
+
+/// Parse an If-Else expression.
+fn expr_ifelse(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Key(TokenKind::If, 0),
+            Tk(TokenKind::OpenParenth, 1),
+            Fun(expr, 2),
+            Tk(TokenKind::ClosingParenth, 3),
+            Fun(expr, 4),
+            Tk(TokenKind::Else, 5),
+            Fun(expr, 6),
+        ],
+        |mut node_vec| {
+            let else_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // Token "else"
+            let if_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // Token ")"
+            let cond_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // Token "("
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // Token "if"
+            Expression::new_ifelse(cond_expr, if_expr, else_expr, start_pos).into()
+        },
+        |input, e| {
+            match e.id {
+                // Precedence
+                0 => expr_call(input),
+                // Errors
+                1 => Err(IzeErr::new(
+                    "If-Else expression, expected '(' after 'if'".into(),
+                    e.err.pos,
+                )
+                .into()),
+                2 => Err(IzeErr::new(
+                    "If-Else expression, expected condition expression".into(),
+                    e.err.pos,
+                )
+                .into()),
+                3 => Err(IzeErr::new(
+                    "If-Else expression, expected ')' after condition".into(),
+                    e.err.pos,
+                )
+                .into()),
+                4 | 6 => Err(IzeErr::new(
+                    "If-Else expression, expected branch expression".into(),
+                    e.err.pos,
+                )
+                .into()),
+                5 => Err(IzeErr::new(
+                    "If-Else expression, expected 'else' after branch expression".into(),
+                    e.err.pos,
+                )
+                .into()),
+                _ => Err(e),
             }
         },
     )
