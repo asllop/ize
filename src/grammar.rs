@@ -131,7 +131,7 @@ fn expr_select_unwrap(input: &[Token]) -> IzeResult {
                 (None, expr)
             };
             node_vec.pop().unwrap().token().unwrap(); // token "("
-            let op = node_vec.pop().unwrap().token().unwrap();
+            let op = node_vec.pop().unwrap().token().unwrap(); // "select" or "unwrap" token
 
             // Collect arms
             let mut arm_expressions = vec![first_arm.into()];
@@ -444,8 +444,12 @@ fn expr_call_with_args(input: &[Token]) -> IzeResult {
 
             Expression::new_call(ident, args, end_pos).into()
         },
-        //TODO: error handling
-        |_, e| todo!("expr_call err {:#?}", e),
+        |_, e| match e.id {
+            3 => Err(IzeErr::new("Expected expression after '('".into(), e.err.pos).into()),
+            5 => Err(IzeErr::new("Expected expression after comma".into(), e.err.pos).into()),
+            6 => Err(IzeErr::new("Expected ')' after expression".into(), e.err.pos).into()),
+            _ => Err(e),
+        },
     )
 }
 
@@ -688,6 +692,6 @@ fn binary_expr_error(_: &[Token], e: ParseErr) -> IzeResult {
     We could even infer the return type from the expression and make it more compact:
 
         numbers.Foreach(lambda val:Int -> val.Float() / 2.0)
-    
+
     The arrow is not necessary to parse without ambiguity, but it helps to visually differentiate args from the body.
 */
