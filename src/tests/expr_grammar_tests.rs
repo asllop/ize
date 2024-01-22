@@ -921,6 +921,33 @@ fn check_type() {
     );
 }
 
-//TODO: select/unwrap expression tests
+#[test]
+fn check_select_unwrap() {
+    let code = r#"select (v as i) (a -> x, b -> y, _ -> z)"#;
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_select_unwrap(
+            Token::new(TokenPos::new(0, 0, 6, 0), TokenKind::Select),
+            Expression::new_primary(Token::new(TokenPos::new(0, 8, 9, 8), TokenKind::Identifier("v".into()))).into(),
+            Some(Token::new(TokenPos::new(0, 13, 14, 13), TokenKind::Identifier("i".into()))),
+            vec![
+                Expression::new_arm(
+                    Expression::new_primary(Token::new(TokenPos::new(0, 17, 18, 17), TokenKind::Identifier("a".into()))).into(),
+                    Expression::new_primary(Token::new(TokenPos::new(0, 22, 23, 22), TokenKind::Identifier("x".into()))).into(),
+                ).into(),
+                Expression::new_arm(
+                    Expression::new_primary(Token::new(TokenPos::new(0, 25, 26, 25), TokenKind::Identifier("b".into()))).into(),
+                    Expression::new_primary(Token::new(TokenPos::new(0, 30, 31, 30), TokenKind::Identifier("y".into()))).into(),
+                ).into(),
+                Expression::new_arm(
+                    Expression::new_primary(Token::new(TokenPos::new(0, 33, 34, 33), TokenKind::Identifier("_".into()))).into(),
+                    Expression::new_primary(Token::new(TokenPos::new(0, 38, 39, 38), TokenKind::Identifier("z".into()))).into(),
+                ).into(),
+            ],
+            TokenPos::new(0, 39, 40, 39)
+        ).into()
+    )
+}
 
 //TODO: check complex expression combination
