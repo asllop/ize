@@ -55,5 +55,8 @@ pub mod grammar_expr;
 /// Grammar rules to parse IZE commands.
 pub mod grammar_cmd;
 
+/// Semantic checker.
+pub mod semcheck;
+
 #[cfg(test)]
 mod tests;

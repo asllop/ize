@@ -98,6 +98,12 @@ impl From<Box<Expression>> for AstNode {
     }
 }
 
+impl From<Command> for AstNode {
+    fn from(value: Command) -> Self {
+        Self::Command(Box::new(value))
+    }
+}
+
 impl From<Vec<AstNode>> for AstNode {
     fn from(value: Vec<AstNode>) -> Self {
         Self::Vec(value)
@@ -375,6 +381,22 @@ pub struct Command {
     pub start_pos: TokenPos,
     /// Command ending position.
     pub end_pos: TokenPos,
+}
+
+impl Command {
+    /// New transfer command.
+    pub fn new_transfer(ident: Token, params: Vec<AstNode>, ret_type: Box<Expression>, body: AstNode, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+        Self {
+            kind: CommandKind::Transfer {
+                ident_token: ident.into(),
+                param_vec: params.into(),
+                return_type: ret_type.into(),
+                body
+            },
+            start_pos,
+            end_pos
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
