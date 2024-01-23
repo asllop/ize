@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use crate::{
     ast::{AstNode, Expression},
-    grammar,
+    grammar_expr,
     lexer::{self, Token, TokenKind, TokenPos},
 };
 
@@ -15,7 +15,7 @@ fn parse(code: &str) -> Vec<AstNode> {
     let mut input = tokens.as_slice();
     let mut res = vec![];
     while !input.is_empty() {
-        let expr = grammar::expr(input);
+        let expr = grammar_expr::expr(input);
         assert!(expr.is_ok());
         let (rest, matched, _) = expr.unwrap();
         input = rest;
@@ -929,24 +929,59 @@ fn check_select_unwrap() {
         expr,
         Expression::new_select_unwrap(
             Token::new(TokenPos::new(0, 0, 6, 0), TokenKind::Select),
-            Expression::new_primary(Token::new(TokenPos::new(0, 8, 9, 8), TokenKind::Identifier("v".into()))).into(),
-            Some(Token::new(TokenPos::new(0, 13, 14, 13), TokenKind::Identifier("i".into()))),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 8, 9, 8),
+                TokenKind::Identifier("v".into())
+            ))
+            .into(),
+            Some(Token::new(
+                TokenPos::new(0, 13, 14, 13),
+                TokenKind::Identifier("i".into())
+            )),
             vec![
                 Expression::new_arm(
-                    Expression::new_primary(Token::new(TokenPos::new(0, 17, 18, 17), TokenKind::Identifier("a".into()))).into(),
-                    Expression::new_primary(Token::new(TokenPos::new(0, 22, 23, 22), TokenKind::Identifier("x".into()))).into(),
-                ).into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 17, 18, 17),
+                        TokenKind::Identifier("a".into())
+                    ))
+                    .into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 22, 23, 22),
+                        TokenKind::Identifier("x".into())
+                    ))
+                    .into(),
+                )
+                .into(),
                 Expression::new_arm(
-                    Expression::new_primary(Token::new(TokenPos::new(0, 25, 26, 25), TokenKind::Identifier("b".into()))).into(),
-                    Expression::new_primary(Token::new(TokenPos::new(0, 30, 31, 30), TokenKind::Identifier("y".into()))).into(),
-                ).into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 25, 26, 25),
+                        TokenKind::Identifier("b".into())
+                    ))
+                    .into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 30, 31, 30),
+                        TokenKind::Identifier("y".into())
+                    ))
+                    .into(),
+                )
+                .into(),
                 Expression::new_arm(
-                    Expression::new_primary(Token::new(TokenPos::new(0, 33, 34, 33), TokenKind::Identifier("_".into()))).into(),
-                    Expression::new_primary(Token::new(TokenPos::new(0, 38, 39, 38), TokenKind::Identifier("z".into()))).into(),
-                ).into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 33, 34, 33),
+                        TokenKind::Identifier("_".into())
+                    ))
+                    .into(),
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 38, 39, 38),
+                        TokenKind::Identifier("z".into())
+                    ))
+                    .into(),
+                )
+                .into(),
             ],
             TokenPos::new(0, 39, 40, 39)
-        ).into()
+        )
+        .into()
     )
 }
 

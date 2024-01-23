@@ -4,7 +4,7 @@
 //!
 //! - [Token](crate::lexer::Token): A token in the source code, like a "(" or a variable name.
 //! - [Expression](crate::ast::Expression): An expression, like an if-else block, or a math operation.
-//! - [Command]: A command, like a model, or a transfer.
+//! - [Command](crate::ast::Command): A command, like a model, or a transfer.
 //! - [AstNode](crate::ast::AstNode): An AST is essentially a group of linked AST nodes. This type encapsulates the other three.
 
 use alloc::{boxed::Box, vec::Vec};
@@ -16,9 +16,10 @@ use crate::lexer::{Token, TokenPos};
 pub enum AstNode {
     /// Token node.
     Token(Token),
-    //TODO: Command/Statement variant
     /// Expression node.
     Expression(Box<Expression>),
+    /// Command node.
+    Command(Box<Command>),
     /// Vector of nodes.
     Vec(Vec<AstNode>),
 }
@@ -186,6 +187,20 @@ impl Expression {
         }
     }
 
+    /// New Pair expression.
+    pub fn new_pair(left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
+        let start_pos = left_expr.start_pos;
+        let end_pos = right_expr.end_pos;
+        Self {
+            kind: ExpressionKind::Pair {
+                left_expr: left_expr.into(),
+                right_expr: right_expr.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
     /// New Binary expression.
     pub fn new_binary(op: Token, left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
         let start_pos = left_expr.start_pos;
@@ -341,4 +356,47 @@ pub enum ExpressionKind {
         left_expr: AstNode,
         right_expr: AstNode,
     },
+    /// Pair expression, used by transfers, and pipes
+    Pair {
+        left_expr: AstNode,
+        right_expr: AstNode,
+    },
+}
+
+//TODO: create a Pair expression: EXPR ":" EXPR, used by models, transfer parameters, transfer body, and pipes
+//      with variants like: EXPR "as" STRING ":" EXPR only for models.
+
+#[derive(Debug, PartialEq)]
+/// Command type.
+pub struct Command {
+    /// Command kind.
+    pub kind: CommandKind,
+    /// Command starting position.
+    pub start_pos: TokenPos,
+    /// Command ending position.
+    pub end_pos: TokenPos,
+}
+
+#[derive(Debug, PartialEq)]
+/// Expression kind.
+pub enum CommandKind {
+    /// TODO: Import command.
+    Import,
+    /// Transfer command.
+    Transfer {
+        /// Transfer name.
+        ident_token: AstNode,
+        /// Parameters, vector of Pair expressions.
+        param_vec: AstNode,
+        /// Return type.
+        return_type: AstNode,
+        // Transfer body. Either an expression or a vector of Pair expressions.
+        body: AstNode
+    },
+    /// TODO: Model command.
+    Model,
+    /// TODO: Pipe command.
+    Pipe,
+    /// TODO: Run command.
+    Run,
 }

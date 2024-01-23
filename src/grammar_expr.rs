@@ -1,6 +1,6 @@
-//! # Grammar
+//! # Expression Grammars
 //!
-//! Contains the grammar rules to parse the IZE language.
+//! Contains the grammar rules to parse IZE expressions.
 
 use alloc::vec::Vec;
 
@@ -21,7 +21,7 @@ pub fn expr(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Chain expression.
-fn expr_chain(input: &[Token]) -> IzeResult {
+pub fn expr_chain(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -61,7 +61,7 @@ fn expr_chain(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Let expression.
-fn expr_let(input: &[Token]) -> IzeResult {
+pub fn expr_let(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -97,7 +97,7 @@ fn expr_let(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Equality Binary expression.
-fn expr_equality(input: &[Token]) -> IzeResult {
+pub fn expr_equality(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -113,7 +113,7 @@ fn expr_equality(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Comparison Binary expression.
-fn expr_comparison(input: &[Token]) -> IzeResult {
+pub fn expr_comparison(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -136,7 +136,7 @@ fn expr_comparison(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Logic Binary expression.
-fn expr_logic(input: &[Token]) -> IzeResult {
+pub fn expr_logic(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -152,7 +152,7 @@ fn expr_logic(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Term Binary expression.
-fn expr_term(input: &[Token]) -> IzeResult {
+pub fn expr_term(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -168,7 +168,7 @@ fn expr_term(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Factor Binary expression.
-fn expr_factor(input: &[Token]) -> IzeResult {
+pub fn expr_factor(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -188,7 +188,7 @@ fn expr_factor(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Unary expression.
-fn expr_unary(input: &[Token]) -> IzeResult {
+pub fn expr_unary(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -216,7 +216,7 @@ fn expr_unary(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Dot expression.
-fn expr_dot(input: &[Token]) -> IzeResult {
+pub fn expr_dot(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -252,7 +252,7 @@ fn expr_dot(input: &[Token]) -> IzeResult {
 }
 
 /// Select/Unwrap expressions
-fn expr_select_unwrap(input: &[Token]) -> IzeResult {
+pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -327,7 +327,7 @@ fn expr_select_unwrap(input: &[Token]) -> IzeResult {
 }
 
 /// Parse an If-Else expression.
-fn expr_ifelse(input: &[Token]) -> IzeResult {
+pub fn expr_ifelse(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -385,8 +385,8 @@ fn expr_ifelse(input: &[Token]) -> IzeResult {
     )
 }
 
-/// Parse a Call expression without arguments.
-fn expr_call(input: &[Token]) -> IzeResult {
+/// Parse a Call expression.
+pub fn expr_call(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -448,7 +448,7 @@ fn expr_call_with_args(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Group expression.
-fn expr_group(input: &[Token]) -> IzeResult {
+pub fn expr_group(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -484,7 +484,7 @@ fn expr_group(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Type expression.
-fn expr_type(input: &[Token]) -> IzeResult {
+pub fn expr_type(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
@@ -515,7 +515,7 @@ fn expr_type(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Primary expression.
-fn expr_primary(input: &[Token]) -> IzeResult {
+pub fn expr_primary(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[Sel(&[
@@ -618,7 +618,7 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
             .into(),
             _ => panic!("Unexpected expression while parsing subtype: {:#?}", expr),
         },
-        AstNode::Token(token) => panic!("Unexpected token while parsing subtype: {:#?}", token),
+        _ => panic!("Unexpected node variant while parsing subtype: {:#?}", subtype),
     }
 }
 

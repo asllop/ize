@@ -49,8 +49,11 @@ pub mod ast;
 /// Parser combinator primitives.
 pub mod parser;
 
-/// Grammar rules to parse the IZE language.
-pub mod grammar;
+/// Grammar rules to parse IZE expressions.
+pub mod grammar_expr;
+
+/// Grammar rules to parse IZE commands.
+pub mod grammar_cmd;
 
 #[cfg(test)]
 mod tests;

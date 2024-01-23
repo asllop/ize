@@ -4,10 +4,10 @@ use std::{
     str::{self},
 };
 
-use ize::{grammar, lexer};
+use ize::{grammar_cmd, lexer};
 
 fn main() {
-    let file_path = "izeware/experiment.iz";
+    let file_path = "izeware/experiment_cmd.iz";
     let file = File::open(file_path).expect("Error opening file");
     let mut reader = BufReader::new(file);
     let mut buf = Vec::<u8>::new();
@@ -19,7 +19,7 @@ fn main() {
     let mut input = tokens.as_slice();
 
     while !input.is_empty() {
-        let (rest, matched, _) = grammar::expr(input).expect("Error parsing expr");
+        let (rest, matched, _) = grammar_cmd::cmd(input).expect("Error parsing command");
         println!("-------------------------\n{:#?}", matched);
         input = rest;
     }

@@ -1,0 +1,11 @@
+// Parse commands
+
+// Expression transfer
+//transfer Suma a:Integer, b:Integer -> Integer
+//    a + b
+
+// Model transfer
+transfer MyTransfer in:Tuple[A,B] -> C (
+    one: 100,
+    two: a+b
+)
