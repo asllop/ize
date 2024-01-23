@@ -391,7 +391,7 @@ pub enum CommandKind {
         /// Return type.
         return_type: AstNode,
         // Transfer body. Either an expression or a vector of Pair expressions.
-        body: AstNode
+        body: AstNode,
     },
     /// TODO: Model command.
     Model,

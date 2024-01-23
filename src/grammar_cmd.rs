@@ -2,14 +2,14 @@
 //!
 //! Contains the grammar rules to parse IZE commands.
 
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     ast::{AstNode, Expression},
     err::IzeErr,
+    grammar_expr::{expr, expr_primary, expr_type},
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
-    grammar_expr::{expr, expr_type, expr_primary},
 };
 
 /////////////////////
@@ -29,24 +29,18 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             Tk(TokenKind::Transfer, 1),
             Fun(token_ident, 2),
             Fun(param_pair_expr, 3),
-            Zero(&[
-                Key(TokenKind::Comma, 4),
-                Fun(param_pair_expr, 5),
-            ]),
+            Zero(&[Key(TokenKind::Comma, 4), Fun(param_pair_expr, 5)]),
             Tk(TokenKind::Arrow, 6),
             Fun(expr_type, 7),
             Sel(&[
                 Con(&[
                     Key(TokenKind::OpenParenth, 8),
                     Fun(transfer_body_pair_expr, 9),
-                    Zero(&[
-                        Key(TokenKind::Comma, 10),
-                        Fun(transfer_body_pair_expr, 11),
-                    ]),
+                    Zero(&[Key(TokenKind::Comma, 10), Fun(transfer_body_pair_expr, 11)]),
                     Tk(TokenKind::ClosingParenth, 12),
                 ]),
                 Fun(expr, 8),
-            ])
+            ]),
         ],
         |node_vec| todo!("Transfer success = {:#?}", node_vec),
         |input, e| todo!("Transfer error = {:#?}", e),
@@ -61,8 +55,12 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
 fn param_pair_expr(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
-        &[Fun(expr_primary, 1), Tk(TokenKind::Colon, 2), Fun(expr_type, 3)],
-        pair_success,
+        &[
+            Fun(token_ident, 1),
+            Tk(TokenKind::Colon, 2),
+            Fun(expr_type, 3),
+        ],
+        simple_pair_success,
         |_, e| Err(e),
     )
 }
@@ -71,16 +69,17 @@ fn param_pair_expr(input: &[Token]) -> IzeResult {
 fn transfer_body_pair_expr(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
-        &[Fun(expr_primary, 1), Tk(TokenKind::Colon, 2), Fun(expr, 3)],
-        pair_success,
+        &[Fun(token_ident, 1), Tk(TokenKind::Colon, 2), Fun(expr, 3)],
+        simple_pair_success,
         |_, e| Err(e),
     )
 }
 
 // Collect Pair expression
-fn pair_success(mut node_vec: Vec<AstNode>) -> AstNode {
+fn simple_pair_success(mut node_vec: Vec<AstNode>) -> AstNode {
     let right_expr = node_vec.pop().unwrap().expr().unwrap();
     node_vec.pop().unwrap().token().unwrap(); // Arrow token
-    let left_expr = node_vec.pop().unwrap().expr().unwrap();
+    let left_ident = node_vec.pop().unwrap().token().unwrap();
+    let left_expr = Box::new(Expression::new_primary(left_ident));
     Expression::new_pair(left_expr, right_expr).into()
 }

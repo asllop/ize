@@ -1,6 +1,23 @@
 //! # Expression Grammars
 //!
-//! Contains the grammar rules to parse IZE expressions.
+//! Contains the grammar rules to parse IZE expressions. From lower to higher precedence:
+//!
+//! - Chain: `a;b;c`
+//! - Let: `let var a`
+//! - Binary - Equality: `a == b`
+//! - Binary - Comparison: `a > b`
+//! - Binary - Logic: `a & b`
+//! - Binary - Term: `a + b`
+//! - Binary - Factor: `a * b`
+//! - Unary: `!a`
+//! - Dot: `a.b.c`
+//! - Select/Unwrap: `select (a) (b -> c)`
+//! - If-Else: `if (a) b else c`
+//! - Call: `foo(a,b)`
+//! - Group: `(a+b)`
+//! - Type: `Mux[A,B,C]`
+//! - Primary: Literals and identifiers.
+//!
 
 use alloc::vec::Vec;
 
@@ -251,7 +268,7 @@ pub fn expr_dot(input: &[Token]) -> IzeResult {
     )
 }
 
-/// Select/Unwrap expressions
+/// Parse a Select/Unwrap expressions
 pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
@@ -618,7 +635,10 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
             .into(),
             _ => panic!("Unexpected expression while parsing subtype: {:#?}", expr),
         },
-        _ => panic!("Unexpected node variant while parsing subtype: {:#?}", subtype),
+        _ => panic!(
+            "Unexpected node variant while parsing subtype: {:#?}",
+            subtype
+        ),
     }
 }
 
