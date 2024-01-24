@@ -1,11 +1,28 @@
 // Parse commands
 
 // Expression transfer
-transfer Suma a:Integer, b:Integer -> Integer
+transfer Suma a:Int, b:Int -> Int
     a + b
 
 // Model transfer
 transfer MyTransfer in:Tuple[A,B] -> C (
     one: 100,
     two: a+b
+)
+
+// Transfers with "_" as body are defined with the FFI in Rust.
+transfer Http input:None, config:Request -> Bytes _
+
+transfer HelloWorld -> Str
+    "Hello, World!\n"
+
+// Models with "_" as body are defined with the FFI in Rust.
+model ForeignModel _
+
+model MyAlias Map[Str, MyEvent]
+
+model MyEvent (
+    eventType: Str,
+    timestamp as "timestamp.ms": Int,
+    attributes: Map[Str, Str]
 )

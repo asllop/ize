@@ -200,6 +200,26 @@ impl Expression {
         Self {
             kind: ExpressionKind::Pair {
                 left_expr: left_expr.into(),
+                alias_token: None,
+                right_expr: right_expr.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
+    /// New Pair expression with alias.
+    pub fn new_pair_with_alias(
+        left_expr: Box<Expression>,
+        alias: Token,
+        right_expr: Box<Expression>,
+    ) -> Self {
+        let start_pos = left_expr.start_pos;
+        let end_pos = right_expr.end_pos;
+        Self {
+            kind: ExpressionKind::Pair {
+                left_expr: left_expr.into(),
+                alias_token: Some(alias.into()),
                 right_expr: right_expr.into(),
             },
             start_pos,
@@ -362,15 +382,13 @@ pub enum ExpressionKind {
         left_expr: AstNode,
         right_expr: AstNode,
     },
-    /// Pair expression, used by transfers, and pipes
+    /// Pair expression, used by transfers, models, and pipes
     Pair {
         left_expr: AstNode,
+        alias_token: Option<AstNode>,
         right_expr: AstNode,
     },
 }
-
-//TODO: create a Pair expression: EXPR ":" EXPR, used by models, transfer parameters, transfer body, and pipes
-//      with variants like: EXPR "as" STRING ":" EXPR only for models.
 
 #[derive(Debug, PartialEq)]
 /// Command type.
@@ -385,16 +403,35 @@ pub struct Command {
 
 impl Command {
     /// New transfer command.
-    pub fn new_transfer(ident: Token, params: Vec<AstNode>, ret_type: Box<Expression>, body: AstNode, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+    pub fn new_transfer(
+        ident: Token,
+        params: Vec<AstNode>,
+        ret_type: Box<Expression>,
+        body: AstNode,
+        start_pos: TokenPos,
+        end_pos: TokenPos,
+    ) -> Self {
         Self {
             kind: CommandKind::Transfer {
                 ident_token: ident.into(),
                 param_vec: params.into(),
                 return_type: ret_type.into(),
-                body
+                body,
             },
             start_pos,
-            end_pos
+            end_pos,
+        }
+    }
+
+    /// New model command.
+    pub fn new_model(ident: Token, body: AstNode, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+        Self {
+            kind: CommandKind::Model {
+                ident_token: ident.into(),
+                body,
+            },
+            start_pos,
+            end_pos,
         }
     }
 }
@@ -415,8 +452,13 @@ pub enum CommandKind {
         // Transfer body. Either an expression or a vector of Pair expressions.
         body: AstNode,
     },
-    /// TODO: Model command.
-    Model,
+    /// Model command.
+    Model {
+        /// Model name.
+        ident_token: AstNode,
+        /// Model body. Eather an alias (type/primary expression) or a struct (vector of Pair expressions).
+        body: AstNode,
+    },
     /// TODO: Pipe command.
     Pipe,
     /// TODO: Run command.

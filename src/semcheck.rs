@@ -1,4 +1,14 @@
-//! SEMANTIC CHECKER
+//! # Semantic checker
+//!
+//! The semantic checker ensures that an IZE program is semantically correct, looking for:
+//!
+//! - Type mismatches.
+//! - Undefined symbols.
+//! - Incorrect number of arguments.
+//! - Illegal expressions.
+//!
+//! It can also offer lint warning like: variable declared and never used, imported module never used, etc.
+//!
 
 /*
 Required checks:

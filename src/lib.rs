@@ -10,6 +10,7 @@
 //! - Deduplicate
 //! - Expand
 //! - Filter
+//! - Report
 //! - Route
 //! - Sample
 //! - Wrap

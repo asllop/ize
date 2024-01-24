@@ -19,8 +19,8 @@ fn main() {
     let mut input = tokens.as_slice();
 
     while !input.is_empty() {
-        let (rest, matched, _) = grammar_cmd::cmd(input).expect("Error parsing command");
-        println!("-------------------------\n{:#?}", matched);
+        let (rest, parsed, _) = grammar_cmd::cmd(input).expect("Error parsing command");
+        println!("-------------------------\n{:#?}", parsed);
         input = rest;
     }
 }
