@@ -128,6 +128,8 @@ pub enum TokenKind {
     Run,
     #[token("import")]
     Import,
+    #[token("const")]
+    Const,
 
     // Decision
     #[token("if")]

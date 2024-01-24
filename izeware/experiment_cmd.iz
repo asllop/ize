@@ -28,3 +28,5 @@ model MyEvent (
     timestamp as "timestamp.ms": Int,
     attributes: Map[Str, Str]
 )
+
+const URL "http://example.com"

@@ -434,6 +434,19 @@ impl Command {
             end_pos,
         }
     }
+
+    /// New const command.
+    pub fn new_const(ident: Token, value: Token, start_pos: TokenPos) -> Self {
+        let end_pos = value.pos;
+        Self {
+            kind: CommandKind::Const {
+                ident_token: ident.into(),
+                value_token: value.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -463,6 +476,11 @@ pub enum CommandKind {
     Pipe,
     /// TODO: Run command.
     Run,
-    /// TODO: Const command
-    Const,
+    /// Const command
+    Const {
+        /// Const name.
+        ident_token: AstNode,
+        /// Value literal.
+        value_token: AstNode,
+    },
 }

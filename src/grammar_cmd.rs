@@ -140,11 +140,30 @@ fn cmd_model(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                //1 => cmd_const(input),
+                1 => cmd_const(input),
                 //TODO: handle errors
                 _ => todo!("Model error = {:#?}", e),
             }
         },
+    )
+}
+
+/// Parse a Const command.
+fn cmd_const(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Tk(TokenKind::Const, 1),
+            Fun(token_ident, 2),
+            Fun(token_literal, 3),
+        ],
+        |mut node_vec| {
+            let value = node_vec.pop().unwrap().token().unwrap();
+            let ident = node_vec.pop().unwrap().token().unwrap();
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            Command::new_const(ident, value, start_pos).into()
+        },
+        |input, e| todo!("Const error = {:#?}", e),
     )
 }
 

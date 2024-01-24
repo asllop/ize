@@ -361,3 +361,22 @@ pub fn token_str(input: &[Token]) -> IzeResult {
         input,
     )
 }
+
+/// Parse a literal token.
+pub fn token_literal(input: &[Token]) -> IzeResult {
+    token_match(
+        |t| {
+            matches!(
+                t,
+                TokenKind::IntegerLiteral(_)
+                    | TokenKind::FloatLiteral(_)
+                    | TokenKind::BooleanLiteral(_)
+                    | TokenKind::StringLiteral(_)
+                    | TokenKind::NullLiteral
+                    | TokenKind::NoneLiteral
+            )
+        },
+        "Expected token string",
+        input,
+    )
+}
