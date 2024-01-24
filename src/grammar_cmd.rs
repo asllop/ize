@@ -7,7 +7,7 @@ use alloc::{boxed::Box, vec::Vec};
 use crate::{
     ast::{AstNode, Command, Expression},
     err::IzeErr,
-    grammar_expr::{expr, expr_primary, expr_type},
+    grammar_expr::{expr, expr_type},
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
 };
@@ -36,7 +36,6 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             Fun(expr_type, 7),
             Sel(&[
                 Con(&[
-                    //TODO: allow empty structs
                     Key(TokenKind::OpenParenth, 8),
                     Fun(transfer_body_struct, 9),
                     Tk(TokenKind::ClosingParenth, 10),
@@ -78,7 +77,7 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
                 // No parameters
                 (vec![], opt_args.token().unwrap())
             };
-            
+
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token "transfer"
 
             Command::new_transfer(ident, params, ret_type, body, start_pos, end_pos).into()
@@ -103,7 +102,10 @@ fn cmd_model(input: &[Token]) -> IzeResult {
             Fun(token_ident, 2),
             Sel(&[
                 Con(&[
-                    //TODO: allow empty structs
+                    Key(TokenKind::OpenParenth, 3),
+                    Tk(TokenKind::ClosingParenth, 5),
+                ]),
+                Con(&[
                     Key(TokenKind::OpenParenth, 3),
                     Fun(model_body_struct, 4),
                     Tk(TokenKind::ClosingParenth, 5),
@@ -112,9 +114,37 @@ fn cmd_model(input: &[Token]) -> IzeResult {
             ]),
         ],
         |mut node_vec| {
-            todo!("Model success = {:#?}", node_vec);
+            let body = node_vec.pop().unwrap();
+            let (body, end_pos) = if let AstNode::Vec(mut body_struct) = body {
+                // Body is a struct
+                if body_struct.len() == 2 {
+                    // Empty struct
+                    let end_pos = body_struct.pop().unwrap().token().unwrap().pos; // token ')'
+                    (AstNode::Vec(vec![]), end_pos)
+                } else {
+                    // Struct with attributes
+                    let end_pos = body_struct.pop().unwrap().token().unwrap().pos; // token ')'
+                    let pairs = body_struct.pop().unwrap();
+                    (pairs, end_pos)
+                }
+            } else {
+                // Body is an expression
+                let body = body.expr().unwrap();
+                let end_pos = body.end_pos;
+                (body.into(), end_pos)
+            };
+            let ident = node_vec.pop().unwrap().token().unwrap();
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            Command::new_model(ident, body, start_pos, end_pos).into()
         },
-        |input, e| todo!("Model error = {:#?}", e),
+        |input, e| {
+            match e.id {
+                // Precedence
+                //1 => cmd_const(input),
+                //TODO: handle errors
+                _ => todo!("Model error = {:#?}", e),
+            }
+        },
     )
 }
 

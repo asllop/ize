@@ -10,14 +10,16 @@ transfer MyTransfer in:Tuple[A,B] -> C (
     two: a+b
 )
 
-// Transfers with "_" as body are defined with the FFI in Rust.
-transfer Http input:None, config:Request -> Bytes _
-
 transfer HelloWorld -> Str
     "Hello, World!\n"
 
+// Transfers with "_" as body are defined with the FFI in Rust.
+transfer Http input:None, config:Request -> Bytes _
+
 // Models with "_" as body are defined with the FFI in Rust.
 model ForeignModel _
+
+model EmptyModel ()
 
 model MyAlias Map[Str, MyEvent]
 

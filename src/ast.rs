@@ -463,4 +463,6 @@ pub enum CommandKind {
     Pipe,
     /// TODO: Run command.
     Run,
+    /// TODO: Const command
+    Const,
 }

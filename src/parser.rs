@@ -160,6 +160,8 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     Err(e)
 }
 
+//TODO: should it return an empty vec when not matched? It will make collecting easier and more consistent.
+//      in this case, IzeOptResult won't be necessary anymore, and we can have only one single return type: IzeResult.
 /// Optionally execute a parser.
 pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeOptResult<'a> {
     match into_opt_res(concat(parsers, input)) {
