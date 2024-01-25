@@ -55,3 +55,8 @@
         "bye" -> result + " world",
         _ -> ""
     )
+
+    foo(
+        name: "Andreu",
+        value: a+b*3
+    )

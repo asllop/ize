@@ -15,11 +15,12 @@
 //! - If-Else: `if (a) b else c`
 //! - Call: `foo(a,b)`
 //! - Group: `(a+b)`
+//! - Pair: `id : a`
 //! - Type: `Mux[A,B,C]`
 //! - Primary: Literals and identifiers.
 //!
 
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     ast::{AstNode, Expression, ExpressionKind},
@@ -482,7 +483,7 @@ pub fn expr_group(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                1 => expr_type(input),
+                1 => expr_pair(input),
                 // Errors
                 2 => Err(IzeErr::new(
                     "Group expression expected expression after open parenthesis".into(),
@@ -496,6 +497,28 @@ pub fn expr_group(input: &[Token]) -> IzeResult {
                 .into()),
                 _ => Err(e),
             }
+        },
+    )
+}
+
+/// Parse a Pair expression.
+fn expr_pair(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[Fun(token_ident, 1), Tk(TokenKind::Colon, 2), Fun(expr, 3)],
+        |mut node_vec| {
+            let right_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // colon token
+            let left_ident = node_vec.pop().unwrap().token().unwrap();
+            let left_expr = Box::new(Expression::new_primary(left_ident));
+            Expression::new_pair(left_expr, right_expr).into()
+        },
+        |input, e| match e.id {
+            // Precedence
+            1 | 2 => expr_type(input),
+            // Errors
+            3 => Err(IzeErr::new("Expected expression after colon".into(), e.err.pos).into()),
+            _ => Err(e),
         },
     )
 }
@@ -670,47 +693,3 @@ fn binary_expr_error(_: &[Token], e: ParseErr) -> IzeResult {
         Err(e)
     }
 }
-
-/* Grammar changes:
-
-- Force argument name for transfers:
-    transfer NAME in_name: IN_TYPE -> OUT_TYPE ...
-
-- Two different syntaxes for transfers, one for key-value lists and one for expressions:
-    transfer NAME in_name: IN_TYPE -> OUT_TYPE ( key: val, key: val, ... )
-    transfer NAME in_name: IN_TYPE -> OUT_TYPE expression
-
-- Allow multiple arguments for transfers:
-    transfer NAME name_a:IN_TYPE_A, name_b:IN_TYPE_B, name_c:IN_TYPE_C -> OUT_TYPE ...
-  as a syntax sugar for:
-    transfer NAME Tuple[IN_TYPE_A, IN_TYPE_B, IN_TYPE_C] -> OUT_TYPE ...
-
-- Method calls:
-    If we have a transfer that accepts only one input, for example:
-        transfer Whatever in: String -> String ...
-    Then we can apply it to any "String" as a method:
-        "Hello World".Whatever()
-
-- Anonymous functions:
-    To pass as arguments to Foreach, and other higher order functions, that take transfers as arguments.
-
-        // "numbers" is a List[Int]
-
-        // Traditional way, referencing a transfer command
-        numbers.Foreach(Half) // Return a List[Float]
-
-        transfer Half val:Int -> Float
-            val.Float() / 2.0
-
-        // With a lambda expression
-        numbers.Foreach(
-            lambda val:Int -> Float
-                val.Float() / 2.0
-        )
-
-    We could even infer the return type from the expression and make it more compact:
-
-        numbers.Foreach(lambda val:Int -> val.Float() / 2.0)
-
-    The arrow is not necessary to parse without ambiguity, but it helps to visually differentiate args from the body.
-*/

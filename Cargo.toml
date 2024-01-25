@@ -10,4 +10,7 @@ logos = "0.13.0"
 rustc-hash = "1.1.0"
 
 [[example]]
-name = "demo"
+name = "expr"
+
+[[example]]
+name = "cmd"

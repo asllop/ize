@@ -382,7 +382,7 @@ pub enum ExpressionKind {
         left_expr: AstNode,
         right_expr: AstNode,
     },
-    /// Pair expression, used by transfers, models, and pipes
+    /// Pair expression.
     Pair {
         left_expr: AstNode,
         alias_token: Option<AstNode>,

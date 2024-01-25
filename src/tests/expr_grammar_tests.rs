@@ -985,4 +985,26 @@ fn check_select_unwrap() {
     )
 }
 
+#[test]
+fn check_pair() {
+    let code = r#"name: "Andreu""#;
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_pair(
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 0, 4, 0),
+                TokenKind::Identifier("name".into())
+            ))
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 6, 14, 6),
+                TokenKind::StringLiteral("\"Andreu\"".into())
+            ))
+            .into(),
+        )
+        .into()
+    )
+}
+
 //TODO: check complex expression combination
