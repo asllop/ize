@@ -40,7 +40,7 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
                     Fun(transfer_body_struct, 9),
                     Tk(TokenKind::ClosingParenth, 10),
                 ]),
-                Fun(expr, 8),
+                Fun(expr, 11),
             ]),
         ],
         |mut node_vec| {
@@ -86,8 +86,29 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             match e.id {
                 // Precedence
                 1 => cmd_model(input),
-                //TODO: handle errors
-                _ => todo!("Transfer error = {:#?}", e),
+                // Errors
+                2 => Err(
+                    IzeErr::new("Expected transfer name, an identifier".into(), e.err.pos).into(),
+                ),
+                5 => Err(IzeErr::new(
+                    format!("Expected parameter after comma: {}", e.err.message),
+                    e.err.pos,
+                )
+                .into()),
+                6 => Err(IzeErr::new("Expected arrow".into(), e.err.pos).into()),
+                7 => Err(IzeErr::new("Expected return type".into(), e.err.pos).into()),
+                9 => Err(IzeErr::new(
+                    format!("Expected struct body: {}", e.err.message),
+                    e.err.pos,
+                )
+                .into()),
+                10 => Err(IzeErr::new("Expected ')".into(), e.err.pos).into()),
+                11 => Err(IzeErr::new(
+                    format!("Expected expression body: {}", e.err.message),
+                    e.err.pos,
+                )
+                .into()),
+                _ => Err(e),
             }
         },
     )
@@ -103,14 +124,14 @@ fn cmd_model(input: &[Token]) -> IzeResult {
             Sel(&[
                 Con(&[
                     Key(TokenKind::OpenParenth, 3),
-                    Tk(TokenKind::ClosingParenth, 5),
+                    Tk(TokenKind::ClosingParenth, 4),
                 ]),
                 Con(&[
-                    Key(TokenKind::OpenParenth, 3),
-                    Fun(model_body_struct, 4),
-                    Tk(TokenKind::ClosingParenth, 5),
+                    Key(TokenKind::OpenParenth, 5),
+                    Fun(model_body_struct, 6),
+                    Tk(TokenKind::ClosingParenth, 7),
                 ]),
-                Fun(expr_type, 3),
+                Fun(expr_type, 8),
             ]),
         ],
         |mut node_vec| {
@@ -141,8 +162,14 @@ fn cmd_model(input: &[Token]) -> IzeResult {
             match e.id {
                 // Precedence
                 1 => cmd_const(input),
-                //TODO: handle errors
-                _ => todo!("Model error = {:#?}", e),
+                // Errors
+                2 => {
+                    Err(IzeErr::new("Expected model name, an identifier".into(), e.err.pos).into())
+                }
+                4 | 7 => Err(IzeErr::new("Expected ')'".into(), e.err.pos).into()),
+                6 => Err(IzeErr::new("Expected expression after '('".into(), e.err.pos).into()),
+                8 => Err(IzeErr::new("Expected expression as model body".into(), e.err.pos).into()),
+                _ => Err(e),
             }
         },
     )
@@ -163,7 +190,20 @@ fn cmd_const(input: &[Token]) -> IzeResult {
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
             Command::new_const(ident, value, start_pos).into()
         },
-        |input, e| todo!("Const error = {:#?}", e),
+        |input, e| {
+            match e.id {
+                // Precedence
+                1 => todo!("Try next command parser"),
+                // Errors
+                2 => Err(
+                    IzeErr::new("Expected constant name, an identifier".into(), e.err.pos).into(),
+                ),
+                3 => {
+                    Err(IzeErr::new("Expected constant value, a literal".into(), e.err.pos).into())
+                }
+                _ => Err(e),
+            }
+        },
     )
 }
 
@@ -191,8 +231,14 @@ fn model_body_struct(input: &[Token]) -> IzeResult {
             // Return a vec of pair expressions
             pairs.into()
         },
-        //TODO: error handling
-        |_, e| Err(e),
+        |_, e| match e.id {
+            1 | 3 => Err(IzeErr::new(
+                format!("Expected pair attribute-type: {}", e.err.message),
+                e.err.pos,
+            )
+            .into()),
+            _ => Err(e),
+        },
     )
 }
 
@@ -228,8 +274,17 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
                 Expression::new_pair(left_expr, right_expr).into()
             }
         },
-        //TODO: error handling
-        |_, e| Err(e),
+        |_, e| match e.id {
+            1 => Err(IzeErr::new("Expected attribute identifier".into(), e.err.pos).into()),
+            3 => Err(IzeErr::new("Expected alias string after 'as'".into(), e.err.pos).into()),
+            4 => Err(IzeErr::new("Expected colon after attribute name".into(), e.err.pos).into()),
+            5 => Err(IzeErr::new(
+                format!("Expected expression as value: {}", e.err.message),
+                e.err.pos,
+            )
+            .into()),
+            _ => Err(e),
+        },
     )
 }
 
@@ -253,8 +308,14 @@ fn transfer_body_struct(input: &[Token]) -> IzeResult {
             // Return a vec of pair expressions
             pairs.into()
         },
-        //TODO: error handling
-        |_, e| Err(e),
+        |_, e| match e.id {
+            1 | 3 => Err(IzeErr::new(
+                format!("Expected pair atttribute-expression: {}", e.err.message),
+                e.err.pos,
+            )
+            .into()),
+            _ => Err(e),
+        },
     )
 }
 
@@ -268,8 +329,12 @@ fn param_pair_expr(input: &[Token]) -> IzeResult {
             Fun(expr_type, 3),
         ],
         simple_pair_success,
-        //TODO: error handling
-        |_, e| Err(e),
+        |_, e| match e.id {
+            1 => Err(IzeErr::new("Expected identifier".into(), e.err.pos).into()),
+            2 => Err(IzeErr::new("Expected colon after identifier".into(), e.err.pos).into()),
+            3 => Err(IzeErr::new("Expected type after colon".into(), e.err.pos).into()),
+            _ => Err(e),
+        },
     )
 }
 
@@ -279,8 +344,12 @@ fn transfer_body_pair_expr(input: &[Token]) -> IzeResult {
         input,
         &[Fun(token_ident, 1), Tk(TokenKind::Colon, 2), Fun(expr, 3)],
         simple_pair_success,
-        //TODO: error handling
-        |_, e| Err(e),
+        |_, e| match e.id {
+            1 => Err(IzeErr::new("Expected identifier".into(), e.err.pos).into()),
+            2 => Err(IzeErr::new("Expected colon after identifier".into(), e.err.pos).into()),
+            3 => Err(IzeErr::new("Expected expression after colon".into(), e.err.pos).into()),
+            _ => Err(e),
+        },
     )
 }
 

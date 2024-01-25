@@ -376,7 +376,7 @@ pub fn token_literal(input: &[Token]) -> IzeResult {
                     | TokenKind::NoneLiteral
             )
         },
-        "Expected token string",
+        "Expected literal token",
         input,
     )
 }
