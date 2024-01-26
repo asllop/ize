@@ -116,6 +116,8 @@ pub enum TokenKind {
     Mux,
     #[token("Tuple")]
     Tuple,
+    #[token("Traf")]
+    Traf,
 
     // Commands
     #[token("model")]

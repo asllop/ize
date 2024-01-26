@@ -42,6 +42,8 @@ pipe MyPipe (
 
 pipe Empty ()
 
+run MyPipe
+
 run (
     Http(
         method: MethodGet(),
@@ -50,3 +52,8 @@ run (
     JsonDeser(MyModel),
     Stdout
 )
+
+run ()
+
+transfer ExecTransfer fn:Traf[Int,Str] -> Str
+    "Result is = " + fn(100)

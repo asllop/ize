@@ -596,7 +596,7 @@ fn arm_expr(input: &[Token]) -> IzeResult {
     )
 }
 
-/// Parse a type name.
+/// Parse a type name (only types that have subtypes).
 fn type_name(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
@@ -605,6 +605,7 @@ fn type_name(input: &[Token]) -> IzeResult {
             Tk(TokenKind::Map, 2),
             Tk(TokenKind::Mux, 3),
             Tk(TokenKind::Tuple, 4),
+            Tk(TokenKind::Traf, 5),
         ])],
         |mut node_vec| node_vec.pop().unwrap(),
         |_, e| Err(e),
