@@ -225,7 +225,42 @@ fn cmd_pipe(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
+                1 => cmd_run(input),
+                // Errors
+                2 => Err(IzeErr::new("Expected pipe name, an identifier".into(), e.err.pos).into()),
+                3 => Err(
+                    IzeErr::new(format!("Expected pipe body: {}", e.err.message), e.err.pos).into(),
+                ),
+                _ => Err(e),
+            }
+        },
+    )
+}
+
+/// Parse a Pipe command.
+fn cmd_run(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Tk(TokenKind::Run, 1),
+            Sel(&[Fun(token_ident, 2), Fun(pipe_body, 3)]),
+        ],
+        |mut node_vec| {
+            let pipe = node_vec.pop().unwrap();
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            if let AstNode::Token(_) = pipe {
+                let pipe_ident = pipe.token().unwrap();
+                Command::new_run_with_ident(pipe_ident, start_pos).into()
+            } else {
+                let pipe_body = pipe.expr().unwrap();
+                Command::new_run_with_body(pipe_body, start_pos).into()
+            }
+        },
+        |_, e| {
+            match e.id {
+                // Precedence
                 1 => todo!("Try next command parser"),
+                // Errors
                 2 => Err(IzeErr::new("Expected pipe name, an identifier".into(), e.err.pos).into()),
                 3 => Err(
                     IzeErr::new(format!("Expected pipe body: {}", e.err.message), e.err.pos).into(),

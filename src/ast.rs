@@ -476,6 +476,28 @@ impl Command {
             end_pos,
         }
     }
+
+    /// New run command.
+    pub fn new_run_with_body(pipe_body: Box<Expression>, start_pos: TokenPos) -> Self {
+        let end_pos = pipe_body.end_pos;
+        Self {
+            kind: CommandKind::Run {
+                pipe: pipe_body.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
+    /// New run command.
+    pub fn new_run_with_ident(ident: Token, start_pos: TokenPos) -> Self {
+        let end_pos = ident.pos;
+        Self {
+            kind: CommandKind::Run { pipe: ident.into() },
+            start_pos,
+            end_pos,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]

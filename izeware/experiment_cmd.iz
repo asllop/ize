@@ -41,3 +41,12 @@ pipe MyPipe (
 )
 
 pipe Empty ()
+
+run (
+    Http(
+        method: MethodGet(),
+        url: "https://api.ipify.org/?format=json"
+    ),
+    JsonDeser(MyModel),
+    Stdout
+)
