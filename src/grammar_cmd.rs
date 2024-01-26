@@ -226,7 +226,10 @@ fn cmd_pipe(input: &[Token]) -> IzeResult {
             match e.id {
                 // Precedence
                 1 => todo!("Try next command parser"),
-                // TODO: Errors
+                2 => Err(IzeErr::new("Expected pipe name, an identifier".into(), e.err.pos).into()),
+                3 => Err(
+                    IzeErr::new(format!("Expected pipe body: {}", e.err.message), e.err.pos).into(),
+                ),
                 _ => Err(e),
             }
         },
@@ -247,10 +250,10 @@ fn pipe_body(input: &[Token]) -> IzeResult {
                 Tk(TokenKind::ClosingParenth, 2),
             ]),
             Con(&[
-                Tk(TokenKind::OpenParenth, 1),
-                Fun(expr_call, 2),
-                Zero(&[Key(TokenKind::Comma, 3), Fun(expr_call, 4)]),
-                Tk(TokenKind::ClosingParenth, 5),
+                Tk(TokenKind::OpenParenth, 3),
+                Fun(expr_call, 4),
+                Zero(&[Key(TokenKind::Comma, 5), Fun(expr_call, 6)]),
+                Tk(TokenKind::ClosingParenth, 7),
             ]),
         ])],
         |mut node_vec| {
@@ -273,8 +276,13 @@ fn pipe_body(input: &[Token]) -> IzeResult {
                 Expression::new_pipe_body(pipe_body_vec, start_pos, end_pos).into()
             }
         },
-        //TODO: error handling
-        |_, e| Err(e),
+        |_, e| match e.id {
+            1 | 3 => Err(IzeErr::new("Expected '('".into(), e.err.pos).into()),
+            2 | 7 => Err(IzeErr::new("Expected ')'".into(), e.err.pos).into()),
+            4 => Err(IzeErr::new("Expected expression after '('".into(), e.err.pos).into()),
+            6 => Err(IzeErr::new("Expected expression after comma".into(), e.err.pos).into()),
+            _ => Err(e),
+        },
     )
 }
 
