@@ -9,6 +9,8 @@
 //!
 //! It can also offer lint warning like: variable declared and never used, imported module never used, etc.
 //!
+//! Semcheck is the last step before code generation.
+//!
 
 /*
 Required checks:

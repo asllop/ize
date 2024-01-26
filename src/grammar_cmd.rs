@@ -7,7 +7,7 @@ use alloc::{boxed::Box, vec::Vec};
 use crate::{
     ast::{AstNode, Command, Expression},
     err::IzeErr,
-    grammar_expr::{expr, expr_type},
+    grammar_expr::{expr, expr_call, expr_type},
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
 };
@@ -193,7 +193,7 @@ fn cmd_const(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                1 => todo!("Try next command parser"),
+                1 => cmd_pipe(input),
                 // Errors
                 2 => Err(
                     IzeErr::new("Expected constant name, an identifier".into(), e.err.pos).into(),
@@ -207,11 +207,78 @@ fn cmd_const(input: &[Token]) -> IzeResult {
     )
 }
 
+/// Parse a Pipe command.
+fn cmd_pipe(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Tk(TokenKind::Pipe, 1),
+            Fun(token_ident, 2),
+            Fun(pipe_body, 3),
+        ],
+        |mut node_vec| {
+            let pipe_body = node_vec.pop().unwrap().expr().unwrap();
+            let ident = node_vec.pop().unwrap().token().unwrap();
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            Command::new_pipe(ident, pipe_body, start_pos).into()
+        },
+        |input, e| {
+            match e.id {
+                // Precedence
+                1 => todo!("Try next command parser"),
+                // TODO: Errors
+                _ => Err(e),
+            }
+        },
+    )
+}
+
 ///////////////////////
 // Support functions //
 ///////////////////////
 
-// Parse the struct body of a model.
+/// Parse pipe body
+fn pipe_body(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[Sel(&[
+            Con(&[
+                Tk(TokenKind::OpenParenth, 1),
+                Tk(TokenKind::ClosingParenth, 2),
+            ]),
+            Con(&[
+                Tk(TokenKind::OpenParenth, 1),
+                Fun(expr_call, 2),
+                Zero(&[Key(TokenKind::Comma, 3), Fun(expr_call, 4)]),
+                Tk(TokenKind::ClosingParenth, 5),
+            ]),
+        ])],
+        |mut node_vec| {
+            let mut node_vec = node_vec.pop().unwrap().vec().unwrap();
+            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // token ')'
+            if node_vec.len() == 1 {
+                // Empty pipe
+                let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token '('
+                Expression::new_pipe_body(vec![], start_pos, end_pos).into()
+            } else {
+                let pipe_expressions = node_vec.pop().unwrap().vec().unwrap();
+                let first_pipe_expr = node_vec.pop().unwrap().expr().unwrap();
+                let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token '('
+                let mut pipe_body_vec: Vec<AstNode> = vec![first_pipe_expr.into()];
+                for pair in pipe_expressions {
+                    let mut pair = pair.vec().unwrap();
+                    let expr = pair.pop().unwrap().expr().unwrap();
+                    pipe_body_vec.push(expr.into());
+                }
+                Expression::new_pipe_body(pipe_body_vec, start_pos, end_pos).into()
+            }
+        },
+        //TODO: error handling
+        |_, e| Err(e),
+    )
+}
+
+/// Parse the struct body of a model.
 fn model_body_struct(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
@@ -288,7 +355,7 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
     )
 }
 
-// Parse the struct body of a transfer.
+/// Parse the struct body of a transfer.
 fn transfer_body_struct(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
@@ -353,7 +420,7 @@ fn transfer_body_pair_expr(input: &[Token]) -> IzeResult {
     )
 }
 
-// Collect Pair expression for grammar: IDENTIFIER ":" EXPRESSION
+/// Collect Pair expression for grammar: IDENTIFIER ":" EXPRESSION
 fn simple_pair_success(mut node_vec: Vec<AstNode>) -> AstNode {
     let right_expr = node_vec.pop().unwrap().expr().unwrap();
     node_vec.pop().unwrap().token().unwrap(); // colon token

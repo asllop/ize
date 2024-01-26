@@ -30,3 +30,14 @@ model MyEvent (
 )
 
 const URL "http://example.com"
+
+pipe MyPipe (
+    Http(
+        method: MethodGet(),
+        url: "https://api.ipify.org/?format=json"
+    ),
+    JsonDeser(MyModel),
+    Stdout
+)
+
+pipe Empty ()

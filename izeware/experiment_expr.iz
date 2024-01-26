@@ -58,5 +58,9 @@
 
     foo(
         name: "Andreu",
-        value: a+b*3
+        value: a+b,
+        attr: bar(
+            one: 1,
+            two: 2
+        )
     )

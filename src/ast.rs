@@ -331,6 +331,17 @@ impl Expression {
             end_pos,
         }
     }
+
+    /// New PipeBody expression.
+    pub fn new_pipe_body(body: Vec<AstNode>, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+        Self {
+            kind: ExpressionKind::PipeBody {
+                pipe_vec: AstNode::Vec(body),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -387,6 +398,11 @@ pub enum ExpressionKind {
         left_expr: AstNode,
         alias_token: Option<AstNode>,
         right_expr: AstNode,
+    },
+    /// Pipe body expression. Only used by commands Run and Pipe.
+    PipeBody {
+        /// Vector of expressions.
+        pipe_vec: AstNode,
     },
 }
 
@@ -447,6 +463,19 @@ impl Command {
             end_pos,
         }
     }
+
+    /// New pipe command.
+    pub fn new_pipe(ident: Token, pipe_body: Box<Expression>, start_pos: TokenPos) -> Self {
+        let end_pos = pipe_body.end_pos;
+        Self {
+            kind: CommandKind::Pipe {
+                ident_token: ident.into(),
+                pipe_body_expr: pipe_body.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -472,10 +501,18 @@ pub enum CommandKind {
         /// Model body. Eather an alias (type/primary expression) or a struct (vector of Pair expressions).
         body: AstNode,
     },
-    /// TODO: Pipe command.
-    Pipe,
-    /// TODO: Run command.
-    Run,
+    /// Pipe command.
+    Pipe {
+        /// Pipe name
+        ident_token: AstNode,
+        /// Pipe body expression.
+        pipe_body_expr: AstNode,
+    },
+    /// Run command.
+    Run {
+        /// Pipe. Either an identifier token or a pipe body expression.
+        pipe: AstNode,
+    },
     /// Const command
     Const {
         /// Const name.

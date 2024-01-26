@@ -14,11 +14,13 @@
 //! - Select/Unwrap: `select (a) (b -> c)`
 //! - If-Else: `if (a) b else c`
 //! - Call: `foo(a,b)`
-//! - Group: `(a+b)`
+//! - Group: `(a)`
 //! - Pair: `id : a`
 //! - Type: `Mux[A,B,C]`
 //! - Primary: Literals and identifiers.
 //!
+//! By calling an expression parser function, only that or higher precedence expressions can be parsed. For instance, calling [expr_pair](crate::grammar_expr::expr_pair)
+//! will only parse expressions Pair, Type and Primary. The top level function is [expr](crate::grammar_expr::expr) which can parse any kind of expression.
 
 use alloc::{boxed::Box, vec::Vec};
 
@@ -502,7 +504,7 @@ pub fn expr_group(input: &[Token]) -> IzeResult {
 }
 
 /// Parse a Pair expression.
-fn expr_pair(input: &[Token]) -> IzeResult {
+pub fn expr_pair(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[Fun(token_ident, 1), Tk(TokenKind::Colon, 2), Fun(expr, 3)],
