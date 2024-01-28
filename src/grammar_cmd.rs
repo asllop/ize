@@ -7,7 +7,7 @@ use alloc::{boxed::Box, vec::Vec};
 use crate::{
     ast::{AstNode, Command, Expression},
     err::IzeErr,
-    grammar_expr::{expr, expr_call, expr_type},
+    grammar_expr::{expr, expr_call, expr_dot, expr_type},
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
 };
@@ -237,7 +237,7 @@ fn cmd_pipe(input: &[Token]) -> IzeResult {
     )
 }
 
-/// Parse a Pipe command.
+/// Parse a Run command.
 fn cmd_run(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
@@ -256,10 +256,10 @@ fn cmd_run(input: &[Token]) -> IzeResult {
                 Command::new_run_with_body(pipe_body, start_pos).into()
             }
         },
-        |_, e| {
+        |input, e| {
             match e.id {
                 // Precedence
-                1 => todo!("Try next command parser"),
+                1 => cmd_import(input),
                 // Errors
                 2 => Err(IzeErr::new("Expected pipe name, an identifier".into(), e.err.pos).into()),
                 3 => Err(
@@ -271,9 +271,83 @@ fn cmd_run(input: &[Token]) -> IzeResult {
     )
 }
 
+/// Parse an Import command.
+fn cmd_import(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Tk(TokenKind::Import, 1),
+            Sel(&[
+                Con(&[
+                    Key(TokenKind::OpenParenth, 2),
+                    Fun(import_path, 1),
+                    Zero(&[Key(TokenKind::Comma, 3), Fun(import_path, 4)]),
+                    Tk(TokenKind::ClosingParenth, 5),
+                ]),
+                Fun(import_path, 1),
+            ]),
+        ],
+        |mut node_vec| {
+            if let AstNode::Vec(_) = node_vec.last().unwrap() {
+                // List of modules
+                let mut block_vec = node_vec.pop().unwrap().vec().unwrap();
+                let end_pos = block_vec.pop().unwrap().token().unwrap().pos; // token ')'
+                let module_vec = block_vec.pop().unwrap().vec().unwrap();
+                let first_module = block_vec.pop().unwrap().expr().unwrap();
+                let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token 'import'
+                let mut modules = vec![first_module.into()];
+                for module_pair in module_vec {
+                    let module = module_pair.vec().unwrap().pop().unwrap().expr().unwrap();
+                    modules.push(module.into());
+                }
+                Command::new_import(modules, start_pos, end_pos).into()
+            } else {
+                // Single module
+                let path = node_vec.pop().unwrap().expr().unwrap();
+                let end_pos = path.end_pos;
+                let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+                Command::new_import(vec![path.into()], start_pos, end_pos).into()
+            }
+        },
+        |_, e| {
+            match e.id {
+                1 => Err(IzeErr::new("Unknown command".into(), e.err.pos).into()),
+                //TODO: error handling
+                _ => Err(e),
+            }
+        },
+    )
+}
+
 ///////////////////////
 // Support functions //
 ///////////////////////
+
+/// Parse import path.
+fn import_path(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fun(expr_dot, 1),
+            Opt(&[Key(TokenKind::As, 2), Fun(token_ident, 3)]),
+        ],
+        |mut node_vec| {
+            if node_vec.len() == 1 {
+                let module_expr = node_vec.pop().unwrap().expr().unwrap();
+                Expression::new_path(module_expr).into()
+            } else {
+                let mut as_alias = node_vec.pop().unwrap().vec().unwrap();
+                let module_expr = node_vec.pop().unwrap().expr().unwrap();
+                let alias = as_alias.pop().unwrap().token().unwrap();
+                Expression::new_path_with_alias(module_expr, alias).into()
+            }
+        },
+        |_, e| match e.id {
+            //TODO
+            _ => Err(e),
+        },
+    )
+}
 
 /// Parse pipe body
 fn pipe_body(input: &[Token]) -> IzeResult {

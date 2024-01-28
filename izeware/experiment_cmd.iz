@@ -57,3 +57,17 @@ run ()
 
 transfer ExecTransfer fn:Traf[Int,Str] -> Str
     "Result is = " + fn(100)
+
+run ("Hello, World!\n", Stdout)
+
+// Test unicode identifiers and string literals
+transfer こんにちは _:None -> Str "こんにちは世界！"
+run (こんにちは, Stdout)
+
+import com.newrelic.Model as NRModel
+
+import (
+    one.two.three,
+    hello.bye.go as foo,
+    yes
+)

@@ -102,6 +102,7 @@ pub enum TokenKind {
     NoneLiteral,
     #[token("null")]
     NullLiteral,
+    //TODO: check valid formatting for escape sequences: \n \t \r \\ \" \0 \xXX (2 digits, up to 0x7F) \u{XXXX} (up to 6 digits)
     #[regex(r#""([^"\\]|\\"|\\)*""#, parse_callback::<String>)]
     StringLiteral(String),
     #[regex(r#"[\p{Alphabetic}_]([\p{Alphabetic}_0-9]+)?"#, parse_callback::<String>)]

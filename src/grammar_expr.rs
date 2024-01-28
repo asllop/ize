@@ -507,6 +507,8 @@ pub fn expr_group(input: &[Token]) -> IzeResult {
 pub fn expr_pair(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
+        //TODO: EXPR ":" EXPR
+        // així la podem emprar per inicialitzar Maps inline.
         &[Fun(token_ident, 1), Tk(TokenKind::Colon, 2), Fun(expr, 3)],
         |mut node_vec| {
             let right_expr = node_vec.pop().unwrap().expr().unwrap();

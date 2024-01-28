@@ -342,6 +342,34 @@ impl Expression {
             end_pos,
         }
     }
+
+    /// New Path expression.
+    pub fn new_path(module_expr: Box<Expression>) -> Self {
+        let start_pos = module_expr.start_pos;
+        let end_pos = module_expr.end_pos;
+        Self {
+            kind: ExpressionKind::Path {
+                module_expr: module_expr.into(),
+                alias_token: None,
+            },
+            start_pos,
+            end_pos,
+        }
+    }
+
+    /// New Path expression with alias.
+    pub fn new_path_with_alias(module_expr: Box<Expression>, alias: Token) -> Self {
+        let start_pos = module_expr.start_pos;
+        let end_pos = alias.pos;
+        Self {
+            kind: ExpressionKind::Path {
+                module_expr: module_expr.into(),
+                alias_token: Some(alias.into()),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -403,6 +431,13 @@ pub enum ExpressionKind {
     PipeBody {
         /// Vector of expressions.
         pipe_vec: AstNode,
+    },
+    /// Path expression. Only used by the import command.
+    Path {
+        /// Module path, either a Dot or a Primary (identifier) expression.
+        module_expr: AstNode,
+        /// Module alias.
+        alias_token: Option<AstNode>,
     },
 }
 
@@ -498,13 +533,27 @@ impl Command {
             end_pos,
         }
     }
+
+    /// New import command.
+    pub fn new_import(path_vec: Vec<AstNode>, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+        Self {
+            kind: CommandKind::Import {
+                path_vec: path_vec.into(),
+            },
+            start_pos,
+            end_pos,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
 /// Expression kind.
 pub enum CommandKind {
-    /// TODO: Import command.
-    Import,
+    /// Import command.
+    Import {
+        /// Vector of Path expressions.
+        path_vec: AstNode,
+    },
     /// Transfer command.
     Transfer {
         /// Transfer name.
