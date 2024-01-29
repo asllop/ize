@@ -135,3 +135,108 @@ fn check_const() {
         .into()
     );
 }
+
+#[test]
+fn check_transfer() {
+    let code = "transfer Suma a:Int, b:Int -> Int a + b";
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_transfer(
+            Token::new(
+                TokenPos::new(0, 9, 13, 9),
+                TokenKind::Identifier("Suma".into())
+            ),
+            vec![
+                Expression::new_pair(
+                    Box::new(Expression::new_primary(Token::new(
+                        TokenPos::new(0, 14, 15, 14),
+                        TokenKind::Identifier("a".into())
+                    ))),
+                    Box::new(Expression::new_primary(Token::new(
+                        TokenPos::new(0, 16, 19, 16),
+                        TokenKind::Identifier("Int".into())
+                    ))),
+                )
+                .into(),
+                Expression::new_pair(
+                    Box::new(Expression::new_primary(Token::new(
+                        TokenPos::new(0, 21, 22, 21),
+                        TokenKind::Identifier("b".into())
+                    ))),
+                    Box::new(Expression::new_primary(Token::new(
+                        TokenPos::new(0, 23, 26, 23),
+                        TokenKind::Identifier("Int".into())
+                    ))),
+                )
+                .into()
+            ],
+            Box::new(Expression::new_primary(Token::new(
+                TokenPos::new(0, 30, 33, 30),
+                TokenKind::Identifier("Int".into())
+            ))),
+            Expression::new_binary(
+                Token::new(TokenPos::new(0, 36, 37, 36), TokenKind::Plus),
+                Box::new(Expression::new_primary(Token::new(
+                    TokenPos::new(0, 34, 35, 34),
+                    TokenKind::Identifier("a".into())
+                ))),
+                Box::new(Expression::new_primary(Token::new(
+                    TokenPos::new(0, 38, 39, 38),
+                    TokenKind::Identifier("b".into())
+                ))),
+            )
+            .into(),
+            TokenPos::new(0, 0, 8, 0),
+            TokenPos::new(0, 38, 39, 38)
+        )
+        .into()
+    );
+
+    let code = "transfer X -> O (a: 0, b: 1)";
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_transfer(
+            Token::new(
+                TokenPos::new(0, 9, 10, 9),
+                TokenKind::Identifier("X".into())
+            ),
+            vec![],
+            Box::new(Expression::new_primary(Token::new(
+                TokenPos::new(0, 14, 15, 14),
+                TokenKind::Identifier("O".into())
+            ))),
+            vec![
+                Expression::new_pair(
+                    Box::new(Expression::new_primary(Token::new(
+                        TokenPos::new(0, 17, 18, 17),
+                        TokenKind::Identifier("a".into())
+                    ))),
+                    Box::new(Expression::new_primary(Token::new(
+                        TokenPos::new(0, 20, 21, 20),
+                        TokenKind::IntegerLiteral(0)
+                    ))),
+                )
+                .into(),
+                Expression::new_pair(
+                    Box::new(Expression::new_primary(Token::new(
+                        TokenPos::new(0, 23, 24, 23),
+                        TokenKind::Identifier("b".into())
+                    ))),
+                    Box::new(Expression::new_primary(Token::new(
+                        TokenPos::new(0, 26, 27, 26),
+                        TokenKind::IntegerLiteral(1)
+                    ))),
+                )
+                .into()
+            ]
+            .into(),
+            TokenPos::new(0, 0, 8, 0),
+            TokenPos::new(0, 27, 28, 27)
+        )
+        .into()
+    )
+}
