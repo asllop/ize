@@ -1,4 +1,4 @@
-//! # IZE Language
+//! # IZE Language: The glue code for data pipelines
 //!
 //! IZE is a Turing-complete, domain-specific programming language, specialized in data pipelines and ETL processes, designed to accomplish, among others, the following data related tasks:
 //!
