@@ -280,11 +280,11 @@ fn cmd_import(input: &[Token]) -> IzeResult {
             Sel(&[
                 Con(&[
                     Key(TokenKind::OpenParenth, 2),
-                    Fun(import_path, 1),
-                    Zero(&[Key(TokenKind::Comma, 3), Fun(import_path, 4)]),
-                    Tk(TokenKind::ClosingParenth, 5),
+                    Fun(import_path, 3),
+                    Zero(&[Key(TokenKind::Comma, 4), Fun(import_path, 5)]),
+                    Tk(TokenKind::ClosingParenth, 6),
                 ]),
-                Fun(import_path, 1),
+                Fun(import_path, 7),
             ]),
         ],
         |mut node_vec| {
@@ -309,12 +309,11 @@ fn cmd_import(input: &[Token]) -> IzeResult {
                 Command::new_import(vec![path.into()], start_pos, end_pos).into()
             }
         },
-        |_, e| {
-            match e.id {
-                1 => Err(IzeErr::new("Unknown command".into(), e.err.pos).into()),
-                //TODO: error handling
-                _ => Err(e),
-            }
+        |_, e| match e.id {
+            1 => Err(IzeErr::new("Unknown command".into(), e.err.pos).into()),
+            3 | 5 | 7 => Err(IzeErr::new("Expected module path".into(), e.err.pos).into()),
+            6 => Err(IzeErr::new("Expected ')'".into(), e.err.pos).into()),
+            _ => Err(e),
         },
     )
 }
@@ -343,7 +342,8 @@ fn import_path(input: &[Token]) -> IzeResult {
             }
         },
         |_, e| match e.id {
-            //TODO
+            1 => Err(IzeErr::new("Expected dot expression".into(), e.err.pos).into()),
+            2 => Err(IzeErr::new("Expected identifier after 'as'".into(), e.err.pos).into()),
             _ => Err(e),
         },
     )

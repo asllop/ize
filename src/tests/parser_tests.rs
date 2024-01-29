@@ -166,7 +166,6 @@ fn check_opt_after_key() {
     ];
 
     // Input code: def my_var = 100
-    //TODO: OK
     let input = &[
         Token::new(TokenPos::default(), TokenKind::Identifier("def".into())),
         Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
@@ -210,13 +209,4 @@ fn check_opt_after_key() {
     let res = concat(grammar, input);
     assert!(res.is_err());
     assert_eq!(res.err().unwrap().id, 5);
-
-    // let res = concat(grammar, input);
-    // if res.is_ok() {
-    //     let (_, node, _) = res.unwrap();
-    //     todo!("{:#?}", node);
-    // } else {
-    //     let err = res.err().unwrap();
-    //     todo!("{:#?}", err);
-    // }
 }

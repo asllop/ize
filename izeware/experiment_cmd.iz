@@ -71,3 +71,7 @@ import (
     hello.bye.go as foo,
     yes
 )
+
+// Hello World in IZE
+import ize.io.Stdout
+run ("Hello, World!\n", Stdout)
