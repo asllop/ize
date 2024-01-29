@@ -116,3 +116,22 @@ fn check_model() {
         .into()
     );
 }
+
+#[test]
+fn check_const() {
+    let code = r#"const X "hello world""#;
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_const(
+            Token::new(TokenPos::new(0, 6, 7, 6), TokenKind::Identifier("X".into())),
+            Token::new(
+                TokenPos::new(0, 8, 21, 8),
+                TokenKind::StringLiteral("\"hello world\"".into())
+            ),
+            TokenPos::new(0, 0, 5, 0)
+        )
+        .into()
+    );
+}
