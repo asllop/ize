@@ -1004,6 +1004,29 @@ fn check_pair() {
             .into(),
         )
         .into()
+    );
+
+    let code = "MyKey(): myVal";
+    let expr = parse_single_expr(code);
+    assert_eq!(
+        expr,
+        Expression::new_pair(
+            Expression::new_call(
+                Token::new(
+                    TokenPos::new(0, 0, 5, 0),
+                    TokenKind::Identifier("MyKey".into())
+                ),
+                vec![],
+                TokenPos::new(0, 6, 7, 6)
+            )
+            .into(),
+            Expression::new_primary(Token::new(
+                TokenPos::new(0, 9, 14, 9),
+                TokenKind::Identifier("myVal".into())
+            ))
+            .into(),
+        )
+        .into()
     )
 }
 

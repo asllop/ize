@@ -10,19 +10,19 @@
 //! - Binary - Term: `a + b`
 //! - Binary - Factor: `a * b`
 //! - Unary: `!a`
+//! - Pair: `a : b`
 //! - Dot: `a.b.c`
 //! - Select/Unwrap: `select (a) (b -> c)`
 //! - If-Else: `if (a) b else c`
 //! - Call: `foo(a,b)`
 //! - Group: `(a)`
-//! - Pair: `id : a`
 //! - Type: `Mux[A,B,C]`
 //! - Primary: Literals and identifiers.
 //!
 //! By calling an expression parser function, only that or higher precedence expressions can be parsed. For instance, calling [expr_pair](crate::grammar_expr::expr_pair)
 //! will only parse expressions Pair, Type and Primary. The top level function is [expr](crate::grammar_expr::expr) which can parse any kind of expression.
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::vec::Vec;
 
 use crate::{
     ast::{AstNode, Expression, ExpressionKind},
@@ -223,7 +223,7 @@ pub fn expr_unary(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                1 => expr_dot(input),
+                1 => expr_pair(input),
                 // Errors
                 2 => Err(
                     IzeErr::new("Expected expression after unary operator".into(), e.err.pos)
@@ -231,6 +231,28 @@ pub fn expr_unary(input: &[Token]) -> IzeResult {
                 ),
                 _ => Err(e),
             }
+        },
+    )
+}
+
+/// Parse a Pair expression.
+pub fn expr_pair(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        //TODO: improve by setting (":" EXPR) optional and do precedence in the success block, reusing the already parsed left expr.
+        &[Fun(expr_dot, 1), Tk(TokenKind::Colon, 2), Fun(expr, 3)],
+        |mut node_vec| {
+            let right_expr = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // colon token
+            let left_expr = node_vec.pop().unwrap().expr().unwrap();
+            Expression::new_pair(left_expr, right_expr).into()
+        },
+        |input, e| match e.id {
+            // Precedence
+            1 | 2 => expr_dot(input),
+            // Errors
+            3 => Err(IzeErr::new("Expected expression after colon".into(), e.err.pos).into()),
+            _ => Err(e),
         },
     )
 }
@@ -485,7 +507,7 @@ pub fn expr_group(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                1 => expr_pair(input),
+                1 => expr_type(input),
                 // Errors
                 2 => Err(IzeErr::new(
                     "Group expression expected expression after open parenthesis".into(),
@@ -499,30 +521,6 @@ pub fn expr_group(input: &[Token]) -> IzeResult {
                 .into()),
                 _ => Err(e),
             }
-        },
-    )
-}
-
-/// Parse a Pair expression.
-pub fn expr_pair(input: &[Token]) -> IzeResult {
-    def_grammar(
-        input,
-        //TODO: EXPR ":" EXPR
-        // així la podem emprar per inicialitzar Maps inline.
-        &[Fun(token_ident, 1), Tk(TokenKind::Colon, 2), Fun(expr, 3)],
-        |mut node_vec| {
-            let right_expr = node_vec.pop().unwrap().expr().unwrap();
-            node_vec.pop().unwrap().token().unwrap(); // colon token
-            let left_ident = node_vec.pop().unwrap().token().unwrap();
-            let left_expr = Box::new(Expression::new_primary(left_ident));
-            Expression::new_pair(left_expr, right_expr).into()
-        },
-        |input, e| match e.id {
-            // Precedence
-            1 | 2 => expr_type(input),
-            // Errors
-            3 => Err(IzeErr::new("Expected expression after colon".into(), e.err.pos).into()),
-            _ => Err(e),
         },
     )
 }
