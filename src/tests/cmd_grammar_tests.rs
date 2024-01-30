@@ -319,3 +319,81 @@ fn check_import() {
         .into()
     );
 }
+
+#[test]
+fn check_pipe() {
+    let code = "pipe X (A, B())";
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_pipe(
+            Token::new(TokenPos::new(0, 5, 6, 5), TokenKind::Identifier("X".into())),
+            Box::new(Expression::new_pipe_body(
+                vec![
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 8, 9, 8),
+                        TokenKind::Identifier("A".into())
+                    ))
+                    .into(),
+                    Expression::new_call(
+                        Token::new(
+                            TokenPos::new(0, 11, 12, 11),
+                            TokenKind::Identifier("B".into())
+                        ),
+                        vec![],
+                        TokenPos::new(0, 13, 14, 13)
+                    )
+                    .into()
+                ],
+                TokenPos::new(0, 7, 8, 7),
+                TokenPos::new(0, 14, 15, 14)
+            )),
+            TokenPos::new(0, 0, 4, 0)
+        )
+        .into()
+    )
+}
+
+#[test]
+fn check_run() {
+    let code = "run X";
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_run_with_ident(
+            Token::new(TokenPos::new(0, 4, 5, 4), TokenKind::Identifier("X".into())),
+            TokenPos::new(0, 0, 3, 0)
+        )
+        .into()
+    );
+
+    let code = "run (A, B())";
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_run_with_body(
+            Box::new(Expression::new_pipe_body(
+                vec![
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 5, 6, 5),
+                        TokenKind::Identifier("A".into())
+                    ))
+                    .into(),
+                    Expression::new_call(
+                        Token::new(TokenPos::new(0, 8, 9, 8), TokenKind::Identifier("B".into())),
+                        vec![],
+                        TokenPos::new(0, 10, 11, 10)
+                    )
+                    .into()
+                ],
+                TokenPos::new(0, 4, 5, 4),
+                TokenPos::new(0, 11, 12, 11)
+            )),
+            TokenPos::new(0, 0, 3, 0)
+        )
+        .into()
+    )
+}
