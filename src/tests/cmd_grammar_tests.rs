@@ -240,3 +240,82 @@ fn check_transfer() {
         .into()
     )
 }
+
+#[test]
+fn check_import() {
+    let code = "import com.example.Something";
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_import(
+            vec![Expression::new_path(Box::new(Expression::new_dot(vec![
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 7, 10, 7),
+                    TokenKind::Identifier("com".into())
+                ))
+                .into(),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 11, 18, 11),
+                    TokenKind::Identifier("example".into())
+                ))
+                .into(),
+                Expression::new_primary(Token::new(
+                    TokenPos::new(0, 19, 28, 19),
+                    TokenKind::Identifier("Something".into())
+                ))
+                .into(),
+            ])))
+            .into()],
+            TokenPos::new(0, 0, 6, 0),
+            TokenPos::new(0, 19, 28, 19)
+        )
+        .into()
+    );
+
+    let code = "import (com.example.Something as thing, state)";
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_import(
+            vec![
+                Expression::new_path_with_alias(
+                    Box::new(Expression::new_dot(vec![
+                        Expression::new_primary(Token::new(
+                            TokenPos::new(0, 8, 11, 8),
+                            TokenKind::Identifier("com".into())
+                        ))
+                        .into(),
+                        Expression::new_primary(Token::new(
+                            TokenPos::new(0, 12, 19, 12),
+                            TokenKind::Identifier("example".into())
+                        ))
+                        .into(),
+                        Expression::new_primary(Token::new(
+                            TokenPos::new(0, 20, 29, 20),
+                            TokenKind::Identifier("Something".into())
+                        ))
+                        .into(),
+                    ])),
+                    Token::new(
+                        TokenPos::new(0, 33, 38, 33),
+                        TokenKind::Identifier("thing".into())
+                    )
+                )
+                .into(),
+                Expression::new_path(Box::new(
+                    Expression::new_primary(Token::new(
+                        TokenPos::new(0, 40, 45, 40),
+                        TokenKind::Identifier("state".into())
+                    ))
+                    .into()
+                ))
+                .into()
+            ],
+            TokenPos::new(0, 0, 6, 0),
+            TokenPos::new(0, 45, 46, 45)
+        )
+        .into()
+    );
+}
