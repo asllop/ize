@@ -59,6 +59,7 @@ fn check_opt() {
     let nodes = nodes.vec();
     assert!(nodes.is_some());
     let mut nodes = nodes.unwrap();
+    assert_eq!(nodes.pop(), Some(vec![].into()));
     assert_eq!(
         nodes.pop(),
         Some(Token::new(TokenPos::default(), TokenKind::Identifier("x".into())).into())
@@ -113,6 +114,7 @@ fn check_opt() {
     let nodes = nodes.vec();
     assert!(nodes.is_some());
     let mut nodes = nodes.unwrap();
+    assert_eq!(nodes.pop(), Some(vec![].into()));
     assert_eq!(
         nodes.pop(),
         Some(Token::new(TokenPos::default(), TokenKind::Identifier("x".into())).into())
@@ -140,6 +142,7 @@ fn check_opt() {
     let nodes = nodes.vec();
     assert!(nodes.is_some());
     let mut nodes = nodes.unwrap();
+    assert_eq!(nodes.pop(), Some(vec![].into()));
     assert_eq!(
         nodes.pop(),
         Some(Token::new(TokenPos::default(), TokenKind::Identifier("x".into())).into())

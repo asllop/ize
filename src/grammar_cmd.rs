@@ -60,9 +60,8 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             node_vec.pop().unwrap().token().unwrap(); // Arrow token
 
             // Block of optional parameters
-            let opt_args = node_vec.pop().unwrap();
-            let (params, ident) = if let AstNode::Vec(mut opt_args) = opt_args {
-                // Collect parameters
+            let mut opt_args = node_vec.pop().unwrap().vec().unwrap();
+            let params = if opt_args.len() > 0 {
                 let params_vec = opt_args.pop().unwrap().vec().unwrap();
                 let first_param = opt_args.pop().unwrap().expr().unwrap();
                 let mut params: Vec<AstNode> = vec![first_param.into()];
@@ -71,12 +70,12 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
                     let pair = param.pop().unwrap().expr().unwrap();
                     params.push(pair.into());
                 }
-                let ident = node_vec.pop().unwrap().token().unwrap();
-                (params, ident)
+                params
             } else {
-                // No parameters
-                (vec![], opt_args.token().unwrap())
+                vec![]
             };
+
+            let ident = node_vec.pop().unwrap().token().unwrap();
 
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token "transfer"
 
@@ -331,13 +330,13 @@ fn import_path(input: &[Token]) -> IzeResult {
             Opt(&[Key(TokenKind::As, 2), Fun(token_ident, 3)]),
         ],
         |mut node_vec| {
-            if node_vec.len() == 1 {
+            let mut opt_as_ident = node_vec.pop().unwrap().vec().unwrap();
+            if opt_as_ident.len() == 0 {
                 let module_expr = node_vec.pop().unwrap().expr().unwrap();
                 Expression::new_path(module_expr).into()
             } else {
-                let mut as_alias = node_vec.pop().unwrap().vec().unwrap();
                 let module_expr = node_vec.pop().unwrap().expr().unwrap();
-                let alias = as_alias.pop().unwrap().token().unwrap();
+                let alias = opt_as_ident.pop().unwrap().token().unwrap();
                 Expression::new_path_with_alias(module_expr, alias).into()
             }
         },
@@ -439,23 +438,19 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let right_expr = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // colon token
-            let ident_or_alias = node_vec.pop().unwrap();
-            let (left_ident, alias) = if let AstNode::Vec(mut alias_vec) = ident_or_alias {
-                // Is alias
-                let alias = alias_vec.pop().unwrap().token().unwrap();
-                let left_ident = node_vec.pop().unwrap().token().unwrap();
-                (left_ident, Some(alias))
-            } else {
-                // Is ident
-                let left_ident = ident_or_alias.token().unwrap();
-                (left_ident, None)
-            };
-            let left_expr = Box::new(Expression::new_primary(left_ident));
 
-            if let Some(alias) = alias {
-                Expression::new_pair_with_alias(left_expr, alias, right_expr).into()
-            } else {
+            let mut opt_as_alias = node_vec.pop().unwrap().vec().unwrap();
+            if opt_as_alias.len() == 0 {
+                // No alias
+                let left_ident = node_vec.pop().unwrap().token().unwrap();
+                let left_expr = Box::new(Expression::new_primary(left_ident));
                 Expression::new_pair(left_expr, right_expr).into()
+            } else {
+                // Alias
+                let alias = opt_as_alias.pop().unwrap().token().unwrap();
+                let left_ident = node_vec.pop().unwrap().token().unwrap();
+                let left_expr = Box::new(Expression::new_primary(left_ident));
+                Expression::new_pair_with_alias(left_expr, alias, right_expr).into()
             }
         },
         |_, e| match e.id {

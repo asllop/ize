@@ -57,15 +57,6 @@ type AfterKey = bool;
 /// Result type alias for parsers.
 pub type IzeResult<'a> = Result<(&'a [Token], AstNode, AfterKey), ParseErr>;
 
-/// Result type alias for parsers with optional result.
-pub type IzeOptResult<'a> = Result<(Option<(&'a [Token], AstNode)>, AfterKey), ParseErr>;
-
-/// Convert [IzeResult](crate::parser::IzeResult) into [IzeOptResult](crate::parser::IzeOptResult).
-pub fn into_opt_res(value: IzeResult) -> IzeOptResult {
-    let (rest, node, after_key) = value?;
-    Ok((Some((rest, node)), after_key))
-}
-
 /// Define a grammar.
 pub fn def_grammar<'a>(
     input: &'a [Token],
@@ -105,22 +96,22 @@ pub enum Parser<'a> {
 
 impl<'a> Parser<'a> {
     /// Run a parser element.
-    pub fn run(&self, input: &'a [Token]) -> IzeOptResult {
+    pub fn run(&self, input: &'a [Token]) -> IzeResult {
         let (res, id) = match self {
             Self::Key(token_kind, id) => {
                 let r = match token(token_kind, input) {
-                    Ok((rest, node, _)) => Ok((Some((rest, node)), true)),
+                    Ok((rest, node, _)) => Ok((rest, node, true)),
                     Err(e) => Err(e),
                 };
                 (r, Some(*id))
             }
-            Self::Fun(parser_fn, id) => (into_opt_res(parser_fn(input)), Some(*id)),
-            Self::Tk(token_kind, id) => (into_opt_res(token(token_kind, input)), Some(*id)),
-            Self::Sel(parsers) => (into_opt_res(select(parsers, input)), None),
-            Self::Con(parsers) => (into_opt_res(concat(parsers, input)), None),
+            Self::Fun(parser_fn, id) => (parser_fn(input), Some(*id)),
+            Self::Tk(token_kind, id) => (token(token_kind, input), Some(*id)),
+            Self::Sel(parsers) => (select(parsers, input), None),
+            Self::Con(parsers) => (concat(parsers, input), None),
             Self::Opt(parsers) => (optional(parsers, input), None),
-            Self::Zero(parsers) => (into_opt_res(zero_plus(parsers, input)), None),
-            Self::One(parsers) => (into_opt_res(one_plus(parsers, input)), None),
+            Self::Zero(parsers) => (zero_plus(parsers, input), None),
+            Self::One(parsers) => (one_plus(parsers, input), None),
         };
         if let Err(mut e) = res {
             if let Some(id) = id {
@@ -138,8 +129,7 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     let mut last_failed_id = 0;
     for parser in parsers {
         match parser.run(input) {
-            Ok((Some((rest, node)), after_key)) => return Ok((rest, node, after_key)),
-            Ok((None, _)) => {}
+            Ok((rest, node, after_key)) => return Ok((rest, node, after_key)),
             Err(e) => last_failed_id = e.id,
         }
     }
@@ -160,18 +150,16 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     Err(e)
 }
 
-//TODO: should it return an empty vec when not matched? It will make collecting easier and more consistent.
-//      in this case, IzeOptResult won't be necessary anymore, and we can have only one single return type: IzeResult.
-/// Optionally execute a parser.
-pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeOptResult<'a> {
-    match into_opt_res(concat(parsers, input)) {
+/// Optionally execute a parser. If it doesn't match, it will return an empty [AstNode::Vec].
+pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
+    match concat(parsers, input) {
         Ok(r) => Ok(r),
         Err(e) => {
             if e.after_key {
                 Err(e)
             } else {
                 // TODO: if we could report the "e.id" in an Ok, we could improve parser error generation
-                Ok((None, false))
+                Ok((input, AstNode::Vec(vec![]), false))
             }
         }
     }
@@ -183,14 +171,9 @@ pub fn concat<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<'a
     let mut did_parse_key = false;
     for parser in parsers {
         match parser.run(input) {
-            Ok((Some((result, node)), after_key)) => {
+            Ok((result, node, after_key)) => {
                 results.push(node);
                 input = result;
-                if after_key {
-                    did_parse_key = true;
-                }
-            }
-            Ok((None, after_key)) => {
                 if after_key {
                     did_parse_key = true;
                 }
@@ -212,18 +195,13 @@ pub fn zero_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult
     let mut results = vec![];
     let mut did_parse_key = false;
     loop {
-        match into_opt_res(concat(parsers, input)) {
-            Ok((r, after_key)) => {
+        match concat(parsers, input) {
+            Ok((rest, node, after_key)) => {
                 if after_key {
                     did_parse_key = true;
                 }
-                if let Some((rest, node)) = r {
-                    results.push(node);
-                    input = rest;
-                } else {
-                    //TODO: Remove into_opt_res and this case. This can't actually happen, because concat always returns something.
-                    break;
-                }
+                results.push(node);
+                input = rest;
             }
             Err(e) => {
                 if e.after_key {
