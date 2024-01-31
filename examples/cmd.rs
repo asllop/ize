@@ -18,9 +18,11 @@ fn main() {
 
     let mut input = tokens.as_slice();
 
+    let mut ast = vec![];
     while !input.is_empty() {
         let (rest, parsed, _) = grammar_cmd::cmd(input).expect("Error parsing command");
         println!("-------------------------\n{:#?}", parsed);
         input = rest;
+        ast.push(parsed);
     }
 }
