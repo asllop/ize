@@ -75,3 +75,10 @@ import (
 // Hello World in IZE
 import ize.io.Stdout
 run ("Hello, World!\n", Stdout)
+
+model MyEvent (
+    eventType: Str,
+    timestamp as "timestamp.ms": Int,
+    attributes: Map[Str, Str],
+    rest: ...
+)

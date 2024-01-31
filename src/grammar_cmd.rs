@@ -433,10 +433,14 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
             Fun(token_ident, 1),
             Opt(&[Key(TokenKind::As, 2), Fun(token_str, 3)]),
             Tk(TokenKind::Colon, 4),
-            Fun(expr_type, 5),
+            Sel(&[Fun(expr_type, 5), Tk(TokenKind::ThreeDots, 5)]),
         ],
         |mut node_vec| {
-            let right_expr = node_vec.pop().unwrap().expr().unwrap();
+            let right_expr = match node_vec.pop().unwrap() {
+                AstNode::Token(token) => Box::new(Expression::new_primary(token)),
+                AstNode::Expression(right_expr) => right_expr,
+                _ => panic!("Unexpected right expression"),
+            };
             node_vec.pop().unwrap().token().unwrap(); // colon token
 
             let mut opt_as_alias = node_vec.pop().unwrap().vec().unwrap();
