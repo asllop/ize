@@ -25,4 +25,8 @@ fn main() {
         input = rest;
         ast.push(parsed);
     }
+
+    //TODO: semcheck
+
+    //TODO: transpile
 }

@@ -59,5 +59,8 @@ pub mod grammar_cmd;
 /// Semantic checker.
 pub mod semcheck;
 
+/// Rust transpiler.
+pub mod transpiler;
+
 #[cfg(test)]
 mod tests;

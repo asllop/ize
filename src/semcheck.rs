@@ -1,4 +1,4 @@
-//! # Semantic checker
+//! # TODO: Semantic checker
 //!
 //! The semantic checker has two main jobs:
 //!
@@ -22,7 +22,7 @@
 
 use crate::{
     ast::{AstNode, CommandKind},
-    err::IzeErr
+    err::IzeErr,
 };
 use alloc::{string::String, vec::Vec};
 use rustc_hash::FxHashMap;
@@ -41,16 +41,12 @@ pub struct SymbolTable {
 
 /// Symbol information and metadata.
 pub enum Symbol {
-    Model {
-        body: ModelBody
-    },
+    Model { body: ModelBody },
     //TODO: transfers, with environments and scopes for variables (let symbols)
     Transfer,
     //TODO: pipe
     Pipe,
-    Const {
-        value_type: LiteralType
-    },
+    Const { value_type: LiteralType },
 }
 
 /// Types of literals. Used by const symbols.
@@ -66,9 +62,7 @@ pub enum LiteralType {
 /// Model content.
 pub enum ModelBody {
     Alias(Type),
-    Struct(
-        FxHashMap<Identifier, (Option<Alias>, Type)>
-    )
+    Struct(FxHashMap<Identifier, (Option<Alias>, Type)>),
 }
 
 /// Representation of a type.
@@ -84,20 +78,35 @@ pub fn check_ast(ast: &[AstNode]) -> Result<(), IzeErr> {
         match node {
             AstNode::Command(cmd) => match &cmd.kind {
                 CommandKind::Model { ident_token, body } => check_model_cmd(ident_token, body)?,
-                CommandKind::Import { path_vec } => todo!(),
-                CommandKind::Transfer { ident_token, param_vec, return_type, body } => todo!(),
-                CommandKind::Pipe { ident_token, pipe_body_expr } => todo!(),
-                CommandKind::Run { pipe } => todo!(),
-                CommandKind::Const { ident_token, value_token } => todo!(),
+                CommandKind::Import { path_vec: _ } => todo!(),
+                CommandKind::Transfer {
+                    ident_token: _,
+                    param_vec: _,
+                    return_type: _,
+                    body: _,
+                } => todo!(),
+                CommandKind::Pipe {
+                    ident_token: _,
+                    pipe_body_expr: _,
+                } => todo!(),
+                CommandKind::Run { pipe: _ } => todo!(),
+                CommandKind::Const {
+                    ident_token: _,
+                    value_token: _,
+                } => todo!(),
             },
-            _ => return Err(IzeErr::new("All nodes in the root node must be commands".into(), Default::default()))
+            _ => {
+                return Err(IzeErr::new(
+                    "All nodes in the root node must be commands".into(),
+                    Default::default(),
+                ))
+            }
         }
     }
     Ok(())
 }
 
-fn check_model_cmd(ident_token: &AstNode, body: &AstNode) -> Result<(), IzeErr> {
-
+fn check_model_cmd(_ident_token: &AstNode, _body: &AstNode) -> Result<(), IzeErr> {
     todo!()
 }
 
@@ -138,6 +147,11 @@ RUN:
     - If it's a pipe id, check that the id exists and it's a pipe.
     - If it's an inline pipe, same checks as PIPE apply.
 
+IMPORT:
+
+    - Check that imported entities do exist.
+    - Check name clashes.
+
 CONST:
 
     - Check there is no repeated const names.
@@ -149,7 +163,6 @@ Expressions:
         - Check that compound types are correctly formed (List, Map, Tuple, etc).
         - Make sure that Mux types with the same subtypes in different order are actually the same type.
 */
-
 
 /* TODO
 

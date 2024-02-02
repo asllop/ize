@@ -16,6 +16,15 @@ use crate::{
 // Command parsers //
 /////////////////////
 
+/* TODO: IMPORT MODULES
+We have to parse the code from imports:
+1. Convert import path into an actual file path.
+2. Read the file through a callback provided by the implementer.
+3. Parse the code.
+5. Link the base AST (the one that contains the import) with the new AST, so the semcheck can find it.
+4. Append the new AST to the array trat will be passed to the semcheck and transpiler.
+*/
+
 /// Parse a command.
 pub fn cmd(input: &[Token]) -> IzeResult {
     cmd_transfer(input)
