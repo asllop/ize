@@ -78,6 +78,16 @@ impl AstNode {
             None
         }
     }
+
+    /// Starting position of node.
+    pub fn start_pos(&self) -> TokenPos {
+        match self {
+            AstNode::Token(t) => t.pos,
+            AstNode::Expression(e) => e.start_pos,
+            AstNode::Command(c) => c.start_pos,
+            AstNode::Vec(v) => if v.len() > 0 { v[0].start_pos() } else { Default::default() },
+        }
+    }
 }
 
 impl From<Token> for AstNode {

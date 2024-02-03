@@ -1,9 +1,9 @@
 //! # Transpiler
 //!
 //! Takes an IZE AST and converts it into Rust code.
-//! 
+//!
 //! The transpiler works in two steps:
-//! 
+//!
 //! - From the IZE AST, generate an intermediate AST that is closer to structured, imperative languages, like Rust (or Java, Go, JS, Python, etc).
 //! - From the intermediate AST, generate the target language's AST (Rust), and finally deserialize it into code.
 
@@ -56,4 +56,4 @@ NOTES:  All identifiers are prefixed. For example, a model named MyModel will tr
             - Some useful constants and reimports.
  */
 
- //TODO: create an AST type for Rust that accepts all parts of rust grammar and converts itself into rust code.
+//TODO: create an AST type for Rust that accepts all parts of rust grammar and converts itself into rust code.
