@@ -9,7 +9,7 @@
 //! - Incorrect arguments.
 //! - Illegal expressions.
 //!
-//! 2nd, generate a symbol table and decorate the AST:
+//! 2nd, generate a symbol table and an intermediate AST:
 //!
 //! - Specify the entity of each symbol (is it a transfer, a module, etc).
 //! - Convert identifiers into Type expressions when necessary.
@@ -22,68 +22,17 @@
 
 use crate::{
     ast::{AstNode, Command, CommandKind, ExpressionKind},
+    symbols::*,
     err::IzeErr,
-    lexer::{TokenKind, TokenPos},
+    lexer::TokenKind,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use rustc_hash::FxHashMap;
-
-type Identifier = String;
-type Alias = String;
 
 //TODO: imports must fill the ST with the symbols imported from other modules.
 //      Or the checker must inspect the ST of the other ASTs (we have an AST per module/file).
 
 //TODO: chain expressions define a scope for variables. Chains can contain other chains, thhat inherit the parent scope plus adding its own.
-
-/// Table of symbols present in the AST.
-#[derive(Debug, Default)]
-pub struct SymbolTable {
-    pub symbols: FxHashMap<Identifier, Symbol>,
-}
-
-/// Symbol information and metadata.
-#[derive(Debug)]
-pub enum Symbol {
-    Model {
-        body: ModelBody,
-        start_pos: TokenPos,
-    },
-    //TODO: transfers, with environments and scopes for variables (let symbols)
-    Transfer,
-    //TODO: pipe
-    Pipe,
-    Const {
-        value_type: LiteralType,
-        start_pos: TokenPos,
-    },
-}
-
-/// Types of literals. Used by const symbols.
-#[derive(Debug)]
-pub enum LiteralType {
-    String,
-    Integer,
-    Float,
-    Boolean,
-    None,
-    Null,
-}
-
-/// Model content.
-#[derive(Debug)]
-pub enum ModelBody {
-    Alias(Type),
-    Struct(FxHashMap<Identifier, (Option<Alias>, Type)>),
-}
-
-/// Representation of a type.
-#[derive(Debug, Default)]
-pub struct Type {
-    pub name: String,
-    pub subtypes: Vec<Type>,
-    pub start_pos: TokenPos,
-}
 
 /// Check AST validity.
 pub fn check_ast(ast: &[AstNode]) -> Result<SymbolTable, IzeErr> {
@@ -123,10 +72,13 @@ fn build_st_for_model_cmd(symtab: &mut SymbolTable, cmd: &Command) -> Result<(),
         AstNode::Expression(expr) => match &expr.kind {
             ExpressionKind::Primary { token } => {
                 let type_obj = build_type_from_primary_expr(token)?;
-                let symbol = Symbol::Model {
-                    body: ModelBody::Alias(type_obj),
-                    start_pos: cmd.start_pos,
-                };
+                let symbol = Symbol::new(
+                    SymbolKind::Model {
+                        body: ModelBody::Alias(type_obj),
+                        body_pos: expr.as_ref().into()
+                    },
+                    cmd.into()
+                );
                 symtab.symbols.insert(model_name, symbol);
             }
             ExpressionKind::Type {
@@ -134,10 +86,13 @@ fn build_st_for_model_cmd(symtab: &mut SymbolTable, cmd: &Command) -> Result<(),
                 subtypes_vec,
             } => {
                 let type_obj = build_type_from_type_expr(ident_token, subtypes_vec)?;
-                let symbol = Symbol::Model {
-                    body: ModelBody::Alias(type_obj),
-                    start_pos: cmd.start_pos,
-                };
+                let symbol = Symbol::new(
+                    SymbolKind::Model {
+                        body: ModelBody::Alias(type_obj),
+                        body_pos: expr.as_ref().into()
+                    },
+                    cmd.into()
+                );
                 symtab.symbols.insert(model_name, symbol);
             },
             _ => {
@@ -156,10 +111,13 @@ fn build_st_for_model_cmd(symtab: &mut SymbolTable, cmd: &Command) -> Result<(),
             }
 
             // Create entry in the symbol table
-            let symbol = Symbol::Model {
-                body: ModelBody::Struct(model_struct),
-                start_pos: cmd.start_pos,
-            };
+            let symbol = Symbol::new(
+                SymbolKind::Model {
+                    body: ModelBody::Struct(model_struct),
+                    body_pos: pairs_vec.as_slice().into(),
+                },
+                cmd.into()
+            );
             symtab.symbols.insert(model_name, symbol);
         }
         _ => {
@@ -184,7 +142,7 @@ fn build_type_from_primary_expr(primary_token: &AstNode) -> Result<Type, IzeErr>
         Ok(Type {
             name: ident_type.clone(),
             subtypes: vec![],
-            start_pos: token.pos,
+            pos: token.into(),
         })
     } else {
         return Err(IzeErr::new(
@@ -244,7 +202,7 @@ fn build_type_from_type_expr(ident_token: &AstNode, subtypes_vec: &AstNode) -> R
     let type_obj = Type {
         name: ident_type,
         subtypes,
-        start_pos: token.pos,
+        pos: token.into(),
     };
 
     Ok(type_obj)

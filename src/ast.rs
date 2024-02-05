@@ -88,6 +88,16 @@ impl AstNode {
             AstNode::Vec(v) => if v.len() > 0 { v[0].start_pos() } else { Default::default() },
         }
     }
+
+    /// Ending position of node.
+    pub fn end_pos(&self) -> TokenPos {
+        match self {
+            AstNode::Token(t) => t.pos,
+            AstNode::Expression(e) => e.end_pos,
+            AstNode::Command(c) => c.end_pos,
+            AstNode::Vec(v) => if v.len() > 0 { v[v.len() - 1].end_pos() } else { Default::default() },
+        }
+    }
 }
 
 impl From<Token> for AstNode {
