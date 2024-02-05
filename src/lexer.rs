@@ -111,6 +111,7 @@ pub enum TokenKind {
     // Types
     #[token("List")]
     List,
+    //TODO: rename to "Dict" (prefered), "Tab" or "Table".
     #[token("Map")]
     Map,
     #[token("Mux")]

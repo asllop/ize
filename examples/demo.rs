@@ -18,6 +18,8 @@ fn main() {
 
     let mut input = tokens.as_slice();
 
+    println!("\n========== PARSER ==========\n\n");
+
     let mut ast = vec![];
     while !input.is_empty() {
         let (rest, parsed, _) = grammar_cmd::cmd(input).expect("Error parsing command");
@@ -26,7 +28,7 @@ fn main() {
         ast.push(parsed);
     }
 
-    println!("-------------------------\n");
+    println!("\n========== SEMCHECKER ==========\n\n");
 
     let symtab = semcheck::check_ast(&ast).expect("Error semchecking the AST");
     println!("Symbol table = {:#?}", symtab);

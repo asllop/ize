@@ -91,7 +91,10 @@ pub fn check_ast(ast: &[AstNode]) -> Result<SymbolTable, IzeErr> {
     for node in ast {
         match node {
             AstNode::Command(cmd) => match &cmd.kind {
-                CommandKind::Model { .. } => check_model_cmd(&mut symtab, cmd)?,
+                //TODO: Two stages:
+                //  1. Put all models in the ST.
+                //  2. Check for invalid types inspecting the ST (unknown types, incorrect subtypes, etc).
+                CommandKind::Model { .. } => build_st_for_model_cmd(&mut symtab, cmd)?,
                 CommandKind::Import { .. } => todo!(),
                 CommandKind::Transfer { .. } => todo!(),
                 CommandKind::Pipe { .. } => todo!(),
@@ -109,63 +112,28 @@ pub fn check_ast(ast: &[AstNode]) -> Result<SymbolTable, IzeErr> {
     Ok(symtab)
 }
 
-//TODO: Two stages:
-//  1. Put all models in the ST.
-//  2. Check for invalid types inspecting the ST (unknown types, incorrect subtypes, etc).
-fn check_model_cmd(symtab: &mut SymbolTable, cmd: &Command) -> Result<(), IzeErr> {
-    let (ident_token, body) = if let CommandKind::Model { ident_token, body } = &cmd.kind {
-        (ident_token, body)
-    } else {
-        return Err(IzeErr::new(
-            "Command is not a model".into(),
-            cmd.start_pos,
-        ));
-    };
-    let model_name = if let Some(tk) = ident_token.token_ref() {
-        tk
-    } else {
-        return Err(IzeErr::new(
-            "Model identifier must be a token".into(),
-            ident_token.start_pos(),
-        ));
-    };
-    let model_name = if let TokenKind::Identifier(id) = &model_name.kind {
-        id.clone()
-    } else {
-        return Err(IzeErr::new(
-            "Model identifier must be an identifier token".into(),
-            ident_token.start_pos(),
-        ));
-    };
+//////////////////////////////
+// Model checking functions //
+//////////////////////////////
+
+/// Put all models in the symbol table.
+fn build_st_for_model_cmd(symtab: &mut SymbolTable, cmd: &Command) -> Result<(), IzeErr> {
+    let (model_name, body) = unwrap_model_cmd(cmd)?;
     match body {
         AstNode::Expression(expr) => match &expr.kind {
-            ExpressionKind::Primary {
-                token: AstNode::Token(token),
-            } => {
-                if let TokenKind::Identifier(ident_type) = &token.kind {
-                    // Create entry in the symbol table
-                    let symbol = Symbol::Model {
-                        body: ModelBody::Alias(Type {
-                            name: ident_type.clone(),
-                            subtypes: vec![],
-                            start_pos: token.pos,
-                        }),
-                        start_pos: cmd.start_pos,
-                    };
-                    symtab.symbols.insert(model_name, symbol);
-                } else {
-                    return Err(IzeErr::new(
-                        "Model type must be an identifier token".into(),
-                        token.pos,
-                    ));
-                }
+            ExpressionKind::Primary { token } => {
+                let type_obj = build_type_from_primary_expr(token)?;
+                let symbol = Symbol::Model {
+                    body: ModelBody::Alias(type_obj),
+                    start_pos: cmd.start_pos,
+                };
+                symtab.symbols.insert(model_name, symbol);
             }
             ExpressionKind::Type {
                 ident_token,
                 subtypes_vec,
             } => {
-                let type_obj = build_type(ident_token, subtypes_vec)?;
-                // Create entry in the symbol table
+                let type_obj = build_type_from_type_expr(ident_token, subtypes_vec)?;
                 let symbol = Symbol::Model {
                     body: ModelBody::Alias(type_obj),
                     start_pos: cmd.start_pos,
@@ -180,50 +148,11 @@ fn check_model_cmd(symtab: &mut SymbolTable, cmd: &Command) -> Result<(), IzeErr
             }
         },
         AstNode::Vec(pairs_vec) => {
-            //TODO: generate model symbol from vector body
             let mut model_struct = FxHashMap::default();
 
             for pair_expr in pairs_vec {
-                if let AstNode::Expression(pair_expr) = pair_expr {
-                    if let ExpressionKind::Pair { left_expr, alias_token, right_expr } = &pair_expr.kind {
-                        let identifier = if let AstNode::Expression(left_expr) = left_expr {
-                            if let ExpressionKind::Primary { token: AstNode::Token(token) } = &left_expr.kind {
-                                if let TokenKind::Identifier(key) = &token.kind {
-                                    key.clone()
-                                } else {
-                                    return Err(IzeErr::new(
-                                        "Token must be an identifier".into(),
-                                        token.pos,
-                                    ))   
-                                }
-                            } else {
-                                return Err(IzeErr::new(
-                                    "Left expression must be a primary expression".into(),
-                                    left_expr.start_pos,
-                                ))
-                            }
-                        } else {
-                            return Err(IzeErr::new(
-                                "Left part of pair must be an expression".into(),
-                                left_expr.start_pos(),
-                            ))
-                        };
-
-                        //TODO: alias_token must be an identifier token
-
-                        //TODO: right_expr must be either a type or a primary identifier expression
-                    } else {
-                        return Err(IzeErr::new(
-                            "Each entry of a model vector body must be a pair expression".into(),
-                            pair_expr.start_pos,
-                        ))
-                    }
-                } else {
-                    return Err(IzeErr::new(
-                        "Each entry of a model vector body must be an expression".into(),
-                        pair_expr.start_pos(),
-                    ))
-                };
+                let (identifier, alias_opt, type_obj) = build_struct_tuple_from_pair_expr(pair_expr)?;
+                model_struct.insert(identifier, (alias_opt, type_obj));
             }
 
             // Create entry in the symbol table
@@ -243,15 +172,36 @@ fn check_model_cmd(symtab: &mut SymbolTable, cmd: &Command) -> Result<(), IzeErr
     Ok(())
 }
 
-fn build_type(ident_token: &AstNode, subtypes_vec: &AstNode) -> Result<Type, IzeErr> {
-    let token = if let Some(token) = ident_token.token_ref() {
-        token
+/// Get the contents of a ExpressionKind::Primary and generates a Type struct.
+fn build_type_from_primary_expr(primary_token: &AstNode) -> Result<Type, IzeErr> {
+    let token = primary_token.token_ref().ok_or(
+        IzeErr::new(
+            "Primary expresion must contain a token".into(),
+            primary_token.start_pos(),
+        )
+    )?;
+    if let TokenKind::Identifier(ident_type) = &token.kind {
+        Ok(Type {
+            name: ident_type.clone(),
+            subtypes: vec![],
+            start_pos: token.pos,
+        })
     } else {
         return Err(IzeErr::new(
-            "Model identifier must be a token".into(),
-            ident_token.start_pos(),
+            "Type must be an identifier token".into(),
+            token.pos,
         ));
-    };
+    }
+}
+
+/// Get the contents of a ExpressionKind::Type and generates a Type struct.
+fn build_type_from_type_expr(ident_token: &AstNode, subtypes_vec: &AstNode) -> Result<Type, IzeErr> {
+    let token = ident_token.token_ref().ok_or(
+        IzeErr::new(
+            "Type identifier must be a token".into(),
+            ident_token.start_pos(),
+        )
+    )?;
     let ident_type = match &token.kind {
         TokenKind::List => "List".into(),
         TokenKind::Map => "Map".into(),
@@ -260,24 +210,22 @@ fn build_type(ident_token: &AstNode, subtypes_vec: &AstNode) -> Result<Type, Ize
         TokenKind::Traf => "Traf".into(),
         TokenKind::Identifier(id) => id.clone(),
         _ => return Err(IzeErr::new(
-            format!("Model has an unknown type identifier token {:?}", token.kind),
+            format!("Type has an unknown identifier token {:?}", token.kind),
             token.pos,
         ))
     };
-    let subtypes_vec = if let AstNode::Vec(v) = subtypes_vec {
-        v
-    } else {
-        return Err(IzeErr::new(
+    let subtypes_vec = subtypes_vec.vec_ref().ok_or(
+        IzeErr::new(
             "Subtypes of a type expression must be a vector".into(),
             subtypes_vec.start_pos(),
-        ))
-    };
+        )
+    )?;
 
     let mut subtypes = vec![];
     for subtype in subtypes_vec {
         if let AstNode::Expression(e) = subtype {
             if let ExpressionKind::Type { ident_token, subtypes_vec } = &e.kind {
-                let type_obj = build_type(ident_token, subtypes_vec)?;
+                let type_obj = build_type_from_type_expr(ident_token, subtypes_vec)?;
                 subtypes.push(type_obj);
             } else {
                 return Err(IzeErr::new(
@@ -300,6 +248,112 @@ fn build_type(ident_token: &AstNode, subtypes_vec: &AstNode) -> Result<Type, Ize
     };
 
     Ok(type_obj)
+}
+
+/// Return identifier and body parts from a CommandKind::Model.
+fn unwrap_model_cmd(cmd: &Command) -> Result<(String, &AstNode), IzeErr> {
+    let (ident_token, body) = if let CommandKind::Model { ident_token, body } = &cmd.kind {
+        (ident_token, body)
+    } else {
+        return Err(IzeErr::new(
+            "Command is not a model".into(),
+            cmd.start_pos,
+        ));
+    };
+    let ident_token = ident_token.token_ref().ok_or(
+        IzeErr::new(
+            "Model identifier must be a token".into(),
+            ident_token.start_pos(),
+        )
+    )?;
+    let model_name = if let TokenKind::Identifier(id) = &ident_token.kind {
+        id.clone()
+    } else {
+        return Err(IzeErr::new(
+            "Model identifier must be an identifier token".into(),
+            ident_token.pos,
+        ));
+    };
+
+    Ok((model_name, body))
+}
+
+/// Generate a (String, Option<String>, Type) tuple from a Pair expression.
+fn build_struct_tuple_from_pair_expr(pair_expr: &AstNode) -> Result<(Identifier, Option<Alias>, Type), IzeErr> {
+    if let AstNode::Expression(pair_expr) = pair_expr {
+        if let ExpressionKind::Pair { left_expr, alias_token, right_expr } = &pair_expr.kind {
+            let identifier = if let AstNode::Expression(left_expr) = left_expr {
+                if let ExpressionKind::Primary { token: AstNode::Token(token) } = &left_expr.kind {
+                    if let TokenKind::Identifier(key) = &token.kind {
+                        key.clone()
+                    } else {
+                        return Err(IzeErr::new(
+                            "Token must be an identifier".into(),
+                            token.pos,
+                        ))   
+                    }
+                } else {
+                    return Err(IzeErr::new(
+                        "Left expression must be a primary expression".into(),
+                        left_expr.start_pos,
+                    ))
+                }
+            } else {
+                return Err(IzeErr::new(
+                    "Left part of pair must be an expression".into(),
+                    left_expr.start_pos(),
+                ))
+            };
+
+            let alias_opt = if let Some(alias_token) = alias_token {
+                let alias_token = alias_token.token_ref().ok_or(
+                    IzeErr::new(
+                        "Alias must be a token".into(),
+                        alias_token.start_pos(),
+                    )
+                )?;
+                let alias = if let TokenKind::StringLiteral(alias) = &alias_token.kind {
+                    alias.clone()
+                } else {
+                    return Err(IzeErr::new(
+                        "Alias must be a string literal".into(),
+                        left_expr.start_pos(),
+                    ))
+                };
+                Some(alias)
+            } else {
+                None
+            };
+
+            let right_expr = right_expr.expr_ref().ok_or(
+                IzeErr::new(
+                    "Right expression must be an expression".into(),
+                    left_expr.start_pos(),
+                )
+            )?;
+
+            let type_obj = match &right_expr.kind {
+                ExpressionKind::Primary { token } => build_type_from_primary_expr(token)?,
+                ExpressionKind::Type { ident_token, subtypes_vec } => build_type_from_type_expr(ident_token, subtypes_vec)?,
+                _ => return Err(IzeErr::new(
+                    "Right expression must be either a Type or a Primary expression".into(),
+                    left_expr.start_pos(),
+                ))
+            };
+
+            Ok((identifier, alias_opt, type_obj))
+        } else {
+            return Err(IzeErr::new(
+                "Each entry of a model vector body must be a pair expression".into(),
+                pair_expr.start_pos,
+            ))
+        }
+    } else {
+        return Err(IzeErr::new(
+            "Each entry of a model vector body must be an expression".into(),
+            pair_expr.start_pos(),
+        ))
+    }
 }
 
 /*
@@ -326,6 +380,7 @@ MODELS:
     - Check there is no repeated alias.
     - Check no more than one "..." field is present.
     - Check all types actually exist (need ST).
+    - Recursive references (or we can use a Box to avoid problems).
 
 PIPE:
 

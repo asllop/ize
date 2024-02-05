@@ -1,5 +1,5 @@
 model Event (
-    msg: Str,
+    msg as "message": Str,
     timestamp: Int,
     data: EventData
 )
