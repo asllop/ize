@@ -34,15 +34,14 @@ use rustc_hash::FxHashMap;
 
 //TODO: chain expressions define a scope for variables. Chains can contain other chains, thhat inherit the parent scope plus adding its own.
 
+//TODO: return the intermediate AST.
 /// Check AST validity.
 pub fn check_ast(ast: &[AstNode]) -> Result<SymbolTable, IzeErr> {
+    // Build the symbol table
     let mut symtab = SymbolTable::default();
     for node in ast {
         match node {
             AstNode::Command(cmd) => match &cmd.kind {
-                //TODO: Two stages:
-                //  1. Put all models in the ST.
-                //  2. Check for invalid types inspecting the ST (unknown types, incorrect subtypes, etc).
                 CommandKind::Model { .. } => build_st_for_model_cmd(&mut symtab, cmd)?,
                 CommandKind::Import { .. } => todo!(),
                 CommandKind::Transfer { .. } => todo!(),
@@ -58,12 +57,71 @@ pub fn check_ast(ast: &[AstNode]) -> Result<SymbolTable, IzeErr> {
             }
         }
     }
+
+    // Run semantic checks
+    check_model_semantics(&symtab)?;
+
     Ok(symtab)
 }
 
 //////////////////////////////
 // Model checking functions //
 //////////////////////////////
+
+//TODO: Check for invalid types inspecting the ST (unknown types, incorrect subtypes, etc).
+fn check_model_semantics(symtab: &SymbolTable) -> Result<(), IzeErr> {
+    for (_, symbol) in &symtab.symbols {
+        if let SymbolKind::Model { body, .. } = &symbol.kind {
+            match body {
+                ModelBody::Alias(type_obj) => {
+                    // Check if it's a primitive type first
+                    if is_primitive_type(type_obj) {
+                        continue;
+                    }
+                    if check_primitive_compo_type(type_obj)? {
+                        continue;
+                    }
+                    // Is a defined model, check the ST
+                    if !symtab.id_exists(&type_obj.name) {
+                        return Err(IzeErr::new(
+                            format!("Symbol '{}' not defined", type_obj.name),
+                            type_obj.pos.start.to_tokenpos(),
+                        ))
+                    }
+                    if !symtab.id_is_model(&type_obj.name) {
+                        return Err(IzeErr::new(
+                            format!("Symbol '{}' is not a model", type_obj.name),
+                            type_obj.pos.start.to_tokenpos(),
+                        ))
+                    }
+                },
+                ModelBody::Struct(_attrs) => {
+                    //TODO: check struct body
+                },
+            }
+        }
+    }
+    Ok(())
+}
+
+fn is_primitive_type(type_obj: &Type) -> bool {
+    match type_obj.name.as_str() {
+        "Str" | "Int" | "Float" | "Bool" | "None" | "Null" => true,
+        _ => false
+    }
+}
+
+fn check_primitive_compo_type(type_obj: &Type) -> Result<bool, IzeErr> {
+    //TODO: check integrity of subtypes
+    match type_obj.name.as_str() {
+        "Map" => Ok(true),
+        "List" => Ok(true),
+        "Mux" => Ok(true),
+        "Tuple" => Ok(true),
+        "Traf" => Ok(true),
+        _ => Ok(false)
+    }
+}
 
 /// Put all models in the symbol table.
 fn build_st_for_model_cmd(symtab: &mut SymbolTable, cmd: &Command) -> Result<(), IzeErr> {

@@ -23,7 +23,7 @@ pub struct Pos {
 
 impl Pos {
     /// Build Pos from the start of a TokenPos
-    fn start(value: TokenPos) -> Self {
+    pub fn start(value: TokenPos) -> Self {
         Self { 
             line: value.line,
             col: value.start_col,
@@ -32,12 +32,16 @@ impl Pos {
     }
 
     /// Build Pos from the end of a TokenPos
-    fn end(value: TokenPos) -> Self {
+    pub fn end(value: TokenPos) -> Self {
         Self { 
             line: value.line,
             col: value.end_col,
             seek: (value.end_col - value.start_col) + value.seek,
         }
+    }
+
+    pub fn to_tokenpos(&self) -> TokenPos {
+        TokenPos::new(self.line, self.col, self.col, self.seek)
     }
 }
 
@@ -92,6 +96,19 @@ impl From<&[AstNode]> for RangePos {
 #[derive(Debug, Default)]
 pub struct SymbolTable {
     pub symbols: FxHashMap<Identifier, Symbol>,
+}
+
+impl SymbolTable {
+    pub fn id_exists(&self, identifier: &str) -> bool {
+        self.symbols.contains_key(identifier)
+    }
+
+    pub fn id_is_model(&self, identifier: &str) -> bool {
+        match self.symbols.get(identifier) {
+            Some(Symbol { kind: SymbolKind::Model { .. }, .. }) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug)]
