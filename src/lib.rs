@@ -38,6 +38,9 @@
 #[macro_use]
 extern crate alloc;
 
+/// Position types.
+pub mod pos;
+
 /// Error type.
 pub mod err;
 

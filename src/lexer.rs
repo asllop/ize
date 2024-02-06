@@ -2,7 +2,10 @@
 //!
 //! Lexical analyzer. Generate [Token](crate::lexer::Token)s from the raw source code.
 
-use crate::err::IzeErr;
+use crate::{
+    pos::RangePos,
+    err::IzeErr
+};
 use alloc::{string::String, vec::Vec};
 use core::{fmt::Debug, str::FromStr};
 use logos::{Lexer, Logos, Skip};
@@ -145,43 +148,18 @@ pub enum TokenKind {
     Unwrap,
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
-/// Position of a token in the code.
-pub struct TokenPos {
-    /// Line.
-    pub line: usize,
-    /// Starting column.
-    pub start_col: usize,
-    /// Ending column.
-    pub end_col: usize,
-    /// Absolute position from start of file.
-    pub seek: usize,
-}
-
-impl TokenPos {
-    /// New token position.
-    pub fn new(line: usize, start_col: usize, end_col: usize, seek: usize) -> Self {
-        Self {
-            line,
-            start_col,
-            end_col,
-            seek,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 /// Token type.
 pub struct Token {
     /// Token kind.
     pub kind: TokenKind,
     /// Token position.
-    pub pos: TokenPos,
+    pub pos: RangePos,
 }
 
 impl Token {
     /// New token from position and kind.
-    pub fn new(pos: TokenPos, kind: TokenKind) -> Self {
+    pub fn new(pos: RangePos, kind: TokenKind) -> Self {
         Self { kind, pos }
     }
 }
@@ -194,7 +172,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, IzeErr> {
         let line = lex.extras.line;
         let start_col = lex.span().start - lex.extras.pos_last_eol;
         let end_col = lex.span().end - lex.extras.pos_last_eol;
-        let pos = TokenPos::new(line, start_col, end_col, lex.span().start);
+        let pos = RangePos::inline_new(line, start_col, end_col, lex.span().start);
         if let Ok(token_kind) = r {
             tokens.push(Token::new(pos, token_kind));
         } else {

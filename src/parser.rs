@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use crate::{
     ast::AstNode,
     err::IzeErr,
-    lexer::{Token, TokenKind, TokenPos},
+    lexer::{Token, TokenKind}
 };
 
 #[derive(Debug, Default)]
@@ -282,7 +282,7 @@ fn token_match<'a>(
 /// Parse a token matching a [TokenKind](crate::lexer::TokenKind).
 pub fn token<'a>(token_kind: &'a TokenKind, input: &'a [Token]) -> IzeResult<'a> {
     if !input.is_empty() {
-        let pos: TokenPos = input[0].pos;
+        let pos = input[0].pos;
         if token_kind == &input[0].kind {
             let token = Token::new(pos, input[0].kind.clone());
             let rest = &input[1..];

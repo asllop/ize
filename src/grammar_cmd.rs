@@ -56,13 +56,13 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             let body = node_vec.pop().unwrap();
             let (body, end_pos) = if let AstNode::Vec(mut body_vec) = body {
                 // It's a struct body
-                let end_pos = body_vec.pop().unwrap().token().unwrap().pos; // token ')'
+                let end_pos = body_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
                 let pair_vec = body_vec.pop().unwrap();
                 (pair_vec, end_pos)
             } else {
                 // It's an expression body
                 let body = body.expr().unwrap();
-                let end_pos = body.end_pos;
+                let end_pos = body.pos.end;
                 (body.into(), end_pos)
             };
             let ret_type = node_vec.pop().unwrap().expr().unwrap();
@@ -86,9 +86,9 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
 
             let ident = node_vec.pop().unwrap().token().unwrap();
 
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token "transfer"
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token "transfer"
 
-            Command::new_transfer(ident, params, ret_type, body, start_pos, end_pos).into()
+            Command::new_transfer(ident, params, ret_type, body, end_pos - start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -148,23 +148,23 @@ fn cmd_model(input: &[Token]) -> IzeResult {
                 // Body is a struct
                 if body_struct.len() == 2 {
                     // Empty struct
-                    let end_pos = body_struct.pop().unwrap().token().unwrap().pos; // token ')'
+                    let end_pos = body_struct.pop().unwrap().token().unwrap().pos.end; // token ')'
                     (AstNode::Vec(vec![]), end_pos)
                 } else {
                     // Struct with attributes
-                    let end_pos = body_struct.pop().unwrap().token().unwrap().pos; // token ')'
+                    let end_pos = body_struct.pop().unwrap().token().unwrap().pos.end; // token ')'
                     let pairs = body_struct.pop().unwrap();
                     (pairs, end_pos)
                 }
             } else {
                 // Body is an expression
                 let body = body.expr().unwrap();
-                let end_pos = body.end_pos;
+                let end_pos = body.pos.end;
                 (body.into(), end_pos)
             };
             let ident = node_vec.pop().unwrap().token().unwrap();
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
-            Command::new_model(ident, body, start_pos, end_pos).into()
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
+            Command::new_model(ident, body, end_pos - start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -195,7 +195,7 @@ fn cmd_const(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let value = node_vec.pop().unwrap().token().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
             Command::new_const(ident, value, start_pos).into()
         },
         |input, e| {
@@ -227,7 +227,7 @@ fn cmd_pipe(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let pipe_body = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
             Command::new_pipe(ident, pipe_body, start_pos).into()
         },
         |input, e| {
@@ -255,7 +255,7 @@ fn cmd_run(input: &[Token]) -> IzeResult {
         ],
         |mut node_vec| {
             let pipe = node_vec.pop().unwrap();
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
             if let AstNode::Token(_) = pipe {
                 let pipe_ident = pipe.token().unwrap();
                 Command::new_run_with_ident(pipe_ident, start_pos).into()
@@ -299,22 +299,22 @@ fn cmd_import(input: &[Token]) -> IzeResult {
             if let AstNode::Vec(_) = node_vec.last().unwrap() {
                 // List of modules
                 let mut block_vec = node_vec.pop().unwrap().vec().unwrap();
-                let end_pos = block_vec.pop().unwrap().token().unwrap().pos; // token ')'
+                let end_pos = block_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
                 let module_vec = block_vec.pop().unwrap().vec().unwrap();
                 let first_module = block_vec.pop().unwrap().expr().unwrap();
-                let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token 'import'
+                let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token 'import'
                 let mut modules = vec![first_module.into()];
                 for module_pair in module_vec {
                     let module = module_pair.vec().unwrap().pop().unwrap().expr().unwrap();
                     modules.push(module.into());
                 }
-                Command::new_import(modules, start_pos, end_pos).into()
+                Command::new_import(modules, end_pos - start_pos).into()
             } else {
                 // Single module
                 let path = node_vec.pop().unwrap().expr().unwrap();
-                let end_pos = path.end_pos;
-                let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
-                Command::new_import(vec![path.into()], start_pos, end_pos).into()
+                let end_pos = path.pos.end;
+                let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
+                Command::new_import(vec![path.into()], end_pos - start_pos).into()
             }
         },
         |_, e| match e.id {
@@ -375,22 +375,22 @@ fn pipe_body(input: &[Token]) -> IzeResult {
         ])],
         |mut node_vec| {
             let mut node_vec = node_vec.pop().unwrap().vec().unwrap();
-            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // token ')'
+            let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
             if node_vec.len() == 1 {
                 // Empty pipe
-                let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token '('
-                Expression::new_pipe_body(vec![], start_pos, end_pos).into()
+                let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token '('
+                Expression::new_pipe_body(vec![], end_pos - start_pos).into()
             } else {
                 let pipe_expressions = node_vec.pop().unwrap().vec().unwrap();
                 let first_pipe_expr = node_vec.pop().unwrap().expr().unwrap();
-                let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // token '('
+                let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token '('
                 let mut pipe_body_vec: Vec<AstNode> = vec![first_pipe_expr.into()];
                 for pair in pipe_expressions {
                     let mut pair = pair.vec().unwrap();
                     let expr = pair.pop().unwrap().expr().unwrap();
                     pipe_body_vec.push(expr.into());
                 }
-                Expression::new_pipe_body(pipe_body_vec, start_pos, end_pos).into()
+                Expression::new_pipe_body(pipe_body_vec, end_pos - start_pos).into()
             }
         },
         |_, e| match e.id {

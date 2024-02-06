@@ -4,10 +4,10 @@ use std::{
     str::{self},
 };
 
-use ize::{grammar_cmd, lexer, semcheck};
+use ize::{grammar_cmd, lexer};
 
 fn main() {
-    let file_path = "izeware/experiment_semcheck.iz";
+    let file_path = "izeware/experiment_cmd.iz";
     let file = File::open(file_path).expect("Error opening file");
     let mut reader = BufReader::new(file);
     let mut buf = Vec::<u8>::new();
@@ -28,10 +28,10 @@ fn main() {
         ast.push(parsed);
     }
 
-    println!("\n========== SEMCHECKER ==========\n\n");
+    // println!("\n========== SEMCHECKER ==========\n\n");
 
-    let symtab = semcheck::check_ast(&ast).expect("Error semchecking the AST");
-    println!("Symbol table = {:#?}", symtab);
+    // let symtab = semcheck::check_ast(&ast).expect("Error semchecking the AST");
+    // println!("Symbol table = {:#?}", symtab);
 
     //TODO: transpile
 }

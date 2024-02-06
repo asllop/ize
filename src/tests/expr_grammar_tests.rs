@@ -5,7 +5,8 @@ use alloc::vec::Vec;
 use crate::{
     ast::{AstNode, Expression},
     grammar_expr,
-    lexer::{self, Token, TokenKind, TokenPos},
+    lexer::{self, Token, TokenKind},
+    pos::{Pos, RangePos}
 };
 
 fn parse(code: &str) -> Vec<AstNode> {
@@ -41,7 +42,7 @@ fn check_primary() {
     assert_eq!(
         expr,
         Expression::new_primary(Token::new(
-            TokenPos::new(0, 0, 3, 0),
+            RangePos::inline_new(0, 0, 3, 0),
             TokenKind::IntegerLiteral(100)
         ))
         .into()
@@ -52,7 +53,7 @@ fn check_primary() {
     assert_eq!(
         expr,
         Expression::new_primary(Token::new(
-            TokenPos::new(0, 0, 6, 0),
+            RangePos::inline_new(0, 0, 6, 0),
             TokenKind::FloatLiteral(100.01)
         ))
         .into()
@@ -63,7 +64,7 @@ fn check_primary() {
     assert_eq!(
         expr,
         Expression::new_primary(Token::new(
-            TokenPos::new(0, 0, 4, 0),
+            RangePos::inline_new(0, 0, 4, 0),
             TokenKind::BooleanLiteral(true)
         ))
         .into()
@@ -74,7 +75,7 @@ fn check_primary() {
     assert_eq!(
         expr,
         Expression::new_primary(Token::new(
-            TokenPos::new(0, 0, 5, 0),
+            RangePos::inline_new(0, 0, 5, 0),
             TokenKind::BooleanLiteral(false)
         ))
         .into()
@@ -85,7 +86,7 @@ fn check_primary() {
     assert_eq!(
         expr,
         Expression::new_primary(Token::new(
-            TokenPos::new(0, 0, 4, 0),
+            RangePos::inline_new(0, 0, 4, 0),
             TokenKind::NoneLiteral
         ))
         .into()
@@ -96,7 +97,7 @@ fn check_primary() {
     assert_eq!(
         expr,
         Expression::new_primary(Token::new(
-            TokenPos::new(0, 0, 4, 0),
+            RangePos::inline_new(0, 0, 4, 0),
             TokenKind::NullLiteral
         ))
         .into()
@@ -107,7 +108,7 @@ fn check_primary() {
     assert_eq!(
         expr,
         Expression::new_primary(Token::new(
-            TokenPos::new(0, 0, 13, 0),
+            RangePos::inline_new(0, 0, 13, 0),
             TokenKind::StringLiteral("\"Hello World\"".into())
         ))
         .into()
@@ -118,7 +119,7 @@ fn check_primary() {
     assert_eq!(
         expr,
         Expression::new_primary(Token::new(
-            TokenPos::new(0, 0, 7, 0),
+            RangePos::inline_new(0, 0, 7, 0),
             TokenKind::Identifier("_my_var".into())
         ))
         .into()
@@ -132,14 +133,14 @@ fn check_binary_term() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(TokenPos::new(0, 2, 3, 2), TokenKind::Plus),
+            Token::new(RangePos::inline_new(0, 2, 3, 2), TokenKind::Plus),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 0, 1, 0),
+                RangePos::inline_new(0, 0, 1, 0),
                 TokenKind::IntegerLiteral(1)
             ))
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 4, 5, 4),
+                RangePos::inline_new(0, 4, 5, 4),
                 TokenKind::IntegerLiteral(2)
             ))
             .into()
@@ -152,23 +153,23 @@ fn check_binary_term() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(TokenPos::new(0, 6, 7, 6), TokenKind::Minus),
+            Token::new(RangePos::inline_new(0, 6, 7, 6), TokenKind::Minus),
             Expression::new_binary(
-                Token::new(TokenPos::new(0, 2, 3, 2), TokenKind::Plus),
+                Token::new(RangePos::inline_new(0, 2, 3, 2), TokenKind::Plus),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 0, 1, 0),
+                    RangePos::inline_new(0, 0, 1, 0),
                     TokenKind::IntegerLiteral(1)
                 ))
                 .into(),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 4, 5, 4),
+                    RangePos::inline_new(0, 4, 5, 4),
                     TokenKind::IntegerLiteral(2)
                 ))
                 .into()
             )
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 8, 9, 8),
+                RangePos::inline_new(0, 8, 9, 8),
                 TokenKind::Identifier("c".into())
             ))
             .into()
@@ -184,21 +185,21 @@ fn check_binary_factor() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(TokenPos::new(0, 1, 2, 1), TokenKind::Plus),
+            Token::new(RangePos::inline_new(0, 1, 2, 1), TokenKind::Plus),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 0, 1, 0),
+                RangePos::inline_new(0, 0, 1, 0),
                 TokenKind::Identifier("a".into())
             ))
             .into(),
             Expression::new_binary(
-                Token::new(TokenPos::new(0, 3, 4, 3), TokenKind::Star),
+                Token::new(RangePos::inline_new(0, 3, 4, 3), TokenKind::Star),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 2, 3, 2),
+                    RangePos::inline_new(0, 2, 3, 2),
                     TokenKind::Identifier("b".into())
                 ))
                 .into(),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 4, 5, 4),
+                    RangePos::inline_new(0, 4, 5, 4),
                     TokenKind::Identifier("c".into())
                 ))
                 .into()
@@ -213,16 +214,16 @@ fn check_binary_factor() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(TokenPos::new(0, 1, 2, 1), TokenKind::Star),
+            Token::new(RangePos::inline_new(0, 1, 2, 1), TokenKind::Star),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 0, 1, 0),
+                RangePos::inline_new(0, 0, 1, 0),
                 TokenKind::Identifier("x".into())
             ))
             .into(),
             Expression::new_unary(
-                Token::new(TokenPos::new(0, 2, 3, 2), TokenKind::Minus),
+                Token::new(RangePos::inline_new(0, 2, 3, 2), TokenKind::Minus),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 3, 4, 3),
+                    RangePos::inline_new(0, 3, 4, 3),
                     TokenKind::IntegerLiteral(1)
                 ))
                 .into()
@@ -240,42 +241,42 @@ fn check_binary_precedence() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(TokenPos::new(0, 1, 3, 1), TokenKind::TwoEquals),
+            Token::new(RangePos::inline_new(0, 1, 3, 1), TokenKind::TwoEquals),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 0, 1, 0),
+                RangePos::inline_new(0, 0, 1, 0),
                 TokenKind::Identifier("a".into())
             ))
             .into(),
             Expression::new_binary(
-                Token::new(TokenPos::new(0, 4, 5, 4), TokenKind::GreaterThan),
+                Token::new(RangePos::inline_new(0, 4, 5, 4), TokenKind::GreaterThan),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 3, 4, 3),
+                    RangePos::inline_new(0, 3, 4, 3),
                     TokenKind::Identifier("b".into())
                 ))
                 .into(),
                 Expression::new_binary(
-                    Token::new(TokenPos::new(0, 6, 7, 6), TokenKind::And),
+                    Token::new(RangePos::inline_new(0, 6, 7, 6), TokenKind::And),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 5, 6, 5),
+                        RangePos::inline_new(0, 5, 6, 5),
                         TokenKind::Identifier("c".into())
                     ))
                     .into(),
                     Expression::new_binary(
-                        Token::new(TokenPos::new(0, 8, 9, 8), TokenKind::Plus),
+                        Token::new(RangePos::inline_new(0, 8, 9, 8), TokenKind::Plus),
                         Expression::new_primary(Token::new(
-                            TokenPos::new(0, 7, 8, 7),
+                            RangePos::inline_new(0, 7, 8, 7),
                             TokenKind::Identifier("d".into())
                         ))
                         .into(),
                         Expression::new_binary(
-                            Token::new(TokenPos::new(0, 10, 11, 10), TokenKind::Star),
+                            Token::new(RangePos::inline_new(0, 10, 11, 10), TokenKind::Star),
                             Expression::new_primary(Token::new(
-                                TokenPos::new(0, 9, 10, 9),
+                                RangePos::inline_new(0, 9, 10, 9),
                                 TokenKind::Identifier("e".into())
                             ))
                             .into(),
                             Expression::new_primary(Token::new(
-                                TokenPos::new(0, 11, 12, 11),
+                                RangePos::inline_new(0, 11, 12, 11),
                                 TokenKind::Identifier("f".into())
                             ))
                             .into(),
@@ -296,50 +297,50 @@ fn check_binary_precedence() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(TokenPos::new(0, 9, 11, 9), TokenKind::TwoEquals),
+            Token::new(RangePos::inline_new(0, 9, 11, 9), TokenKind::TwoEquals),
             Expression::new_binary(
-                Token::new(TokenPos::new(0, 7, 8, 7), TokenKind::GreaterThan),
+                Token::new(RangePos::inline_new(0, 7, 8, 7), TokenKind::GreaterThan),
                 Expression::new_binary(
-                    Token::new(TokenPos::new(0, 5, 6, 5), TokenKind::And),
+                    Token::new(RangePos::inline_new(0, 5, 6, 5), TokenKind::And),
                     Expression::new_binary(
-                        Token::new(TokenPos::new(0, 3, 4, 3), TokenKind::Plus),
+                        Token::new(RangePos::inline_new(0, 3, 4, 3), TokenKind::Plus),
                         Expression::new_binary(
-                            Token::new(TokenPos::new(0, 1, 2, 1), TokenKind::Star),
+                            Token::new(RangePos::inline_new(0, 1, 2, 1), TokenKind::Star),
                             Expression::new_primary(Token::new(
-                                TokenPos::new(0, 0, 1, 0),
+                                RangePos::inline_new(0, 0, 1, 0),
                                 TokenKind::Identifier("a".into())
                             ))
                             .into(),
                             Expression::new_primary(Token::new(
-                                TokenPos::new(0, 2, 3, 2),
+                                RangePos::inline_new(0, 2, 3, 2),
                                 TokenKind::Identifier("b".into())
                             ))
                             .into(),
                         )
                         .into(),
                         Expression::new_primary(Token::new(
-                            TokenPos::new(0, 4, 5, 4),
+                            RangePos::inline_new(0, 4, 5, 4),
                             TokenKind::Identifier("c".into())
                         ))
                         .into(),
                     )
                     .into(),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 6, 7, 6),
+                        RangePos::inline_new(0, 6, 7, 6),
                         TokenKind::Identifier("d".into())
                     ))
                     .into(),
                 )
                 .into(),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 8, 9, 8),
+                    RangePos::inline_new(0, 8, 9, 8),
                     TokenKind::Identifier("e".into())
                 ))
                 .into(),
             )
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 11, 12, 11),
+                RangePos::inline_new(0, 11, 12, 11),
                 TokenKind::Identifier("f".into())
             ))
             .into(),
@@ -355,9 +356,9 @@ fn check_unary() {
     assert_eq!(
         expr,
         Expression::new_unary(
-            Token::new(TokenPos::new(0, 0, 1, 0), TokenKind::Minus),
+            Token::new(RangePos::inline_new(0, 0, 1, 0), TokenKind::Minus),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 1, 2, 1),
+                RangePos::inline_new(0, 1, 2, 1),
                 TokenKind::Identifier("a".into())
             ))
             .into()
@@ -370,9 +371,9 @@ fn check_unary() {
     assert_eq!(
         expr,
         Expression::new_unary(
-            Token::new(TokenPos::new(0, 0, 1, 0), TokenKind::Not),
+            Token::new(RangePos::inline_new(0, 0, 1, 0), TokenKind::Not),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 1, 2, 1),
+                RangePos::inline_new(0, 1, 2, 1),
                 TokenKind::Identifier("a".into())
             ))
             .into()
@@ -385,15 +386,15 @@ fn check_unary() {
     assert_eq!(
         expr,
         Expression::new_unary(
-            Token::new(TokenPos::new(0, 0, 1, 0), TokenKind::Minus),
+            Token::new(RangePos::inline_new(0, 0, 1, 0), TokenKind::Minus),
             Expression::new_unary(
-                Token::new(TokenPos::new(0, 1, 2, 1), TokenKind::Not),
+                Token::new(RangePos::inline_new(0, 1, 2, 1), TokenKind::Not),
                 Expression::new_unary(
-                    Token::new(TokenPos::new(0, 2, 3, 2), TokenKind::Minus),
+                    Token::new(RangePos::inline_new(0, 2, 3, 2), TokenKind::Minus),
                     Expression::new_unary(
-                        Token::new(TokenPos::new(0, 3, 4, 3), TokenKind::Not),
+                        Token::new(RangePos::inline_new(0, 3, 4, 3), TokenKind::Not),
                         Expression::new_primary(Token::new(
-                            TokenPos::new(0, 4, 5, 4),
+                            RangePos::inline_new(0, 4, 5, 4),
                             TokenKind::Identifier("a".into())
                         ))
                         .into()
@@ -416,21 +417,20 @@ fn check_group() {
         expr,
         Expression::new_group(
             Expression::new_binary(
-                Token::new(TokenPos::new(0, 3, 4, 3), TokenKind::Plus),
+                Token::new(RangePos::inline_new(0, 3, 4, 3), TokenKind::Plus),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 1, 2, 1),
+                    RangePos::inline_new(0, 1, 2, 1),
                     TokenKind::IntegerLiteral(1)
                 ))
                 .into(),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 5, 6, 5),
+                    RangePos::inline_new(0, 5, 6, 5),
                     TokenKind::IntegerLiteral(2)
                 ))
                 .into()
             )
             .into(),
-            TokenPos::new(0, 0, 1, 0),
-            TokenPos::new(0, 6, 7, 6)
+            Pos::new(0, 7, 7) - Pos::new(0, 0, 0),
         )
         .into()
     );
@@ -444,15 +444,15 @@ fn check_let() {
         expr,
         Expression::new_let(
             Token::new(
-                TokenPos::new(0, 4, 7, 4),
+                RangePos::inline_new(0, 4, 7, 4),
                 TokenKind::Identifier("num".into())
             ),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 8, 11, 8),
+                RangePos::inline_new(0, 8, 11, 8),
                 TokenKind::IntegerLiteral(100)
             ))
             .into(),
-            TokenPos::new(0, 0, 3, 0)
+            Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -463,24 +463,24 @@ fn check_let() {
         expr,
         Expression::new_let(
             Token::new(
-                TokenPos::new(0, 4, 7, 4),
+                RangePos::inline_new(0, 4, 7, 4),
                 TokenKind::Identifier("var".into())
             ),
             Expression::new_binary(
-                Token::new(TokenPos::new(0, 9, 10, 9), TokenKind::Plus),
+                Token::new(RangePos::inline_new(0, 9, 10, 9), TokenKind::Plus),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 8, 9, 8),
+                    RangePos::inline_new(0, 8, 9, 8),
                     TokenKind::Identifier("a".into())
                 ))
                 .into(),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 10, 11, 10),
+                    RangePos::inline_new(0, 10, 11, 10),
                     TokenKind::Identifier("b".into())
                 ))
                 .into()
             )
             .into(),
-            TokenPos::new(0, 0, 3, 0)
+            Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -490,21 +490,21 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            Token::new(TokenPos::new(0, 4, 5, 4), TokenKind::Identifier("a".into())),
+            Token::new(RangePos::inline_new(0, 4, 5, 4), TokenKind::Identifier("a".into())),
             Expression::new_let(
                 Token::new(
-                    TokenPos::new(0, 10, 11, 10),
+                    RangePos::inline_new(0, 10, 11, 10),
                     TokenKind::Identifier("b".into())
                 ),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 12, 15, 12),
+                    RangePos::inline_new(0, 12, 15, 12),
                     TokenKind::IntegerLiteral(100)
                 ))
                 .into(),
-                TokenPos::new(0, 6, 9, 6)
+                Pos::new(0, 6, 6)
             )
             .into(),
-            TokenPos::new(0, 0, 3, 0)
+            Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -515,28 +515,27 @@ fn check_let() {
         expr,
         Expression::new_let(
             Token::new(
-                TokenPos::new(0, 4, 7, 4),
+                RangePos::inline_new(0, 4, 7, 4),
                 TokenKind::Identifier("var".into())
             ),
             Expression::new_group(
                 Expression::new_chain(vec![
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 9, 12, 9),
+                        RangePos::inline_new(0, 9, 12, 9),
                         TokenKind::IntegerLiteral(100)
                     ))
                     .into(),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 13, 14, 13),
+                        RangePos::inline_new(0, 13, 14, 13),
                         TokenKind::Identifier("x".into())
                     ))
                     .into()
                 ])
                 .into(),
-                TokenPos::new(0, 8, 9, 8),
-                TokenPos::new(0, 14, 15, 14)
+                Pos::new(0, 15, 15) - Pos::new(0, 8, 8)
             )
             .into(),
-            TokenPos::new(0, 0, 3, 0)
+            Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -550,17 +549,17 @@ fn check_chain() {
         expr,
         Expression::new_chain(vec![
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 0, 1, 0),
+                RangePos::inline_new(0, 0, 1, 0),
                 TokenKind::Identifier("a".into())
             ))
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 2, 3, 2),
+                RangePos::inline_new(0, 2, 3, 2),
                 TokenKind::Identifier("b".into())
             ))
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 4, 5, 4),
+                RangePos::inline_new(0, 4, 5, 4),
                 TokenKind::Identifier("c".into())
             ))
             .into()
@@ -575,19 +574,19 @@ fn check_chain() {
         Expression::new_chain(vec![
             Expression::new_let(
                 Token::new(
-                    TokenPos::new(0, 4, 7, 4),
+                    RangePos::inline_new(0, 4, 7, 4),
                     TokenKind::Identifier("var".into())
                 ),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 8, 11, 8),
+                    RangePos::inline_new(0, 8, 11, 8),
                     TokenKind::IntegerLiteral(100)
                 ))
                 .into(),
-                TokenPos::new(0, 0, 3, 0)
+                Pos::new(0, 0, 0)
             )
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 13, 16, 13),
+                RangePos::inline_new(0, 13, 16, 13),
                 TokenKind::Identifier("var".into())
             ))
             .into()
@@ -604,21 +603,21 @@ fn check_if_else() {
         expr,
         Expression::new_ifelse(
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 4, 8, 4),
+                RangePos::inline_new(0, 4, 8, 4),
                 TokenKind::BooleanLiteral(true)
             ))
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 10, 12, 10),
+                RangePos::inline_new(0, 10, 12, 10),
                 TokenKind::IntegerLiteral(10)
             ))
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 18, 20, 18),
+                RangePos::inline_new(0, 18, 20, 18),
                 TokenKind::IntegerLiteral(20)
             ))
             .into(),
-            TokenPos::new(0, 0, 2, 0)
+            Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -632,31 +631,30 @@ fn check_dot() {
         expr,
         Expression::new_dot(vec![
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 0, 1, 0),
+                RangePos::inline_new(0, 0, 1, 0),
                 TokenKind::Identifier("a".into())
             ))
             .into(),
             Expression::new_group(
                 Expression::new_binary(
-                    Token::new(TokenPos::new(0, 4, 5, 4), TokenKind::Plus),
+                    Token::new(RangePos::inline_new(0, 4, 5, 4), TokenKind::Plus),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 3, 4, 3),
+                        RangePos::inline_new(0, 3, 4, 3),
                         TokenKind::Identifier("b".into())
                     ))
                     .into(),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 5, 6, 5),
+                        RangePos::inline_new(0, 5, 6, 5),
                         TokenKind::Identifier("c".into())
                     ))
                     .into(),
                 )
                 .into(),
-                TokenPos::new(0, 2, 3, 2),
-                TokenPos::new(0, 6, 7, 6)
+                Pos::new(0, 7, 7) - Pos::new(0, 2, 2),
             )
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 8, 9, 8),
+                RangePos::inline_new(0, 8, 9, 8),
                 TokenKind::Identifier("d".into())
             ))
             .into(),
@@ -673,11 +671,11 @@ fn check_call() {
         expr,
         Expression::new_call(
             Token::new(
-                TokenPos::new(0, 0, 3, 0),
+                RangePos::inline_new(0, 0, 3, 0),
                 TokenKind::Identifier("foo".into())
             ),
             vec![],
-            TokenPos::new(0, 4, 5, 4)
+            Pos::new(0, 5, 5)
         )
         .into()
     );
@@ -688,15 +686,15 @@ fn check_call() {
         expr,
         Expression::new_call(
             Token::new(
-                TokenPos::new(0, 0, 3, 0),
+                RangePos::inline_new(0, 0, 3, 0),
                 TokenKind::Identifier("foo".into())
             ),
             vec![Expression::new_primary(Token::new(
-                TokenPos::new(0, 4, 5, 4),
+                RangePos::inline_new(0, 4, 5, 4),
                 TokenKind::Identifier("a".into())
             ))
             .into()],
-            TokenPos::new(0, 5, 6, 5)
+            Pos::new(0, 6, 6)
         )
         .into()
     );
@@ -707,27 +705,27 @@ fn check_call() {
         expr,
         Expression::new_call(
             Token::new(
-                TokenPos::new(0, 0, 3, 0),
+                RangePos::inline_new(0, 0, 3, 0),
                 TokenKind::Identifier("foo".into())
             ),
             vec![
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 4, 5, 4),
+                    RangePos::inline_new(0, 4, 5, 4),
                     TokenKind::Identifier("a".into())
                 ))
                 .into(),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 6, 7, 6),
+                    RangePos::inline_new(0, 6, 7, 6),
                     TokenKind::Identifier("b".into())
                 ))
                 .into(),
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 8, 9, 8),
+                    RangePos::inline_new(0, 8, 9, 8),
                     TokenKind::Identifier("c".into())
                 ))
                 .into(),
             ],
-            TokenPos::new(0, 9, 10, 9)
+            Pos::new(0, 10, 10)
         )
         .into()
     );
@@ -738,37 +736,37 @@ fn check_call() {
         expr,
         Expression::new_call(
             Token::new(
-                TokenPos::new(0, 0, 3, 0),
+                RangePos::inline_new(0, 0, 3, 0),
                 TokenKind::Identifier("foo".into())
             ),
             vec![
                 Expression::new_primary(Token::new(
-                    TokenPos::new(0, 4, 5, 4),
+                    RangePos::inline_new(0, 4, 5, 4),
                     TokenKind::Identifier("a".into())
                 ))
                 .into(),
                 Expression::new_call(
                     Token::new(
-                        TokenPos::new(0, 6, 9, 6),
+                        RangePos::inline_new(0, 6, 9, 6),
                         TokenKind::Identifier("bar".into())
                     ),
                     vec![
                         Expression::new_primary(Token::new(
-                            TokenPos::new(0, 10, 11, 10),
+                            RangePos::inline_new(0, 10, 11, 10),
                             TokenKind::Identifier("b".into())
                         ))
                         .into(),
                         Expression::new_primary(Token::new(
-                            TokenPos::new(0, 12, 13, 12),
+                            RangePos::inline_new(0, 12, 13, 12),
                             TokenKind::Identifier("c".into())
                         ))
                         .into()
                     ],
-                    TokenPos::new(0, 13, 14, 13)
+                    Pos::new(0, 14, 14)
                 )
                 .into()
             ],
-            TokenPos::new(0, 14, 15, 14)
+            Pos::new(0, 15, 15)
         )
         .into()
     );
@@ -783,35 +781,35 @@ fn check_dot_with_calls() {
         Expression::new_dot(vec![
             Expression::new_call(
                 Token::new(
-                    TokenPos::new(0, 0, 3, 0),
+                    RangePos::inline_new(0, 0, 3, 0),
                     TokenKind::Identifier("foo".into())
                 ),
                 vec![],
-                TokenPos::new(0, 4, 5, 4)
+                Pos::new(0, 5, 5)
             )
             .into(),
             Expression::new_call(
                 Token::new(
-                    TokenPos::new(0, 6, 9, 6),
+                    RangePos::inline_new(0, 6, 9, 6),
                     TokenKind::Identifier("bar".into())
                 ),
                 vec![
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 10, 11, 10),
+                        RangePos::inline_new(0, 10, 11, 10),
                         TokenKind::Identifier("a".into())
                     ))
                     .into(),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 12, 13, 12),
+                        RangePos::inline_new(0, 12, 13, 12),
                         TokenKind::Identifier("b".into())
                     ))
                     .into(),
                 ],
-                TokenPos::new(0, 13, 14, 13)
+                Pos::new(0, 14, 14)
             )
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 15, 16, 15),
+                RangePos::inline_new(0, 15, 16, 15),
                 TokenKind::Identifier("z".into())
             ))
             .into(),
@@ -827,17 +825,17 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            Token::new(TokenPos::new(0, 0, 4, 0), TokenKind::List),
+            Token::new(RangePos::inline_new(0, 0, 4, 0), TokenKind::List),
             vec![Expression::new_type(
                 Token::new(
-                    TokenPos::new(0, 5, 11, 5),
+                    RangePos::inline_new(0, 5, 11, 5),
                     TokenKind::Identifier("String".into())
                 ),
                 vec![],
-                TokenPos::new(0, 5, 11, 5)
+                Pos::new(0, 11, 11)
             )
             .into()],
-            TokenPos::new(0, 11, 12, 11)
+            Pos::new(0, 12, 12)
         )
         .into()
     );
@@ -847,28 +845,28 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            Token::new(TokenPos::new(0, 0, 3, 0), TokenKind::Map),
+            Token::new(RangePos::inline_new(0, 0, 3, 0), TokenKind::Map),
             vec![
                 Expression::new_type(
                     Token::new(
-                        TokenPos::new(0, 4, 10, 4),
+                        RangePos::inline_new(0, 4, 10, 4),
                         TokenKind::Identifier("String".into())
                     ),
                     vec![],
-                    TokenPos::new(0, 4, 10, 4)
+                    Pos::new(0, 10, 10)
                 )
                 .into(),
                 Expression::new_type(
                     Token::new(
-                        TokenPos::new(0, 12, 19, 12),
+                        RangePos::inline_new(0, 12, 19, 12),
                         TokenKind::Identifier("Integer".into())
                     ),
                     vec![],
-                    TokenPos::new(0, 12, 19, 12)
+                    Pos::new(0, 19, 19)
                 )
                 .into()
             ],
-            TokenPos::new(0, 19, 20, 19)
+            Pos::new(0, 20, 20)
         )
         .into()
     );
@@ -878,44 +876,44 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            Token::new(TokenPos::new(0, 0, 5, 0), TokenKind::Tuple),
+            Token::new(RangePos::inline_new(0, 0, 5, 0), TokenKind::Tuple),
             vec![
                 Expression::new_type(
-                    Token::new(TokenPos::new(0, 6, 9, 6), TokenKind::Mux),
+                    Token::new(RangePos::inline_new(0, 6, 9, 6), TokenKind::Mux),
                     vec![
                         Expression::new_type(
                             Token::new(
-                                TokenPos::new(0, 10, 15, 10),
+                                RangePos::inline_new(0, 10, 15, 10),
                                 TokenKind::Identifier("Float".into())
                             ),
                             vec![],
-                            TokenPos::new(0, 10, 15, 10)
+                            Pos::new(0, 15, 15)
                         )
                         .into(),
                         Expression::new_type(
                             Token::new(
-                                TokenPos::new(0, 17, 24, 17),
+                                RangePos::inline_new(0, 17, 24, 17),
                                 TokenKind::Identifier("Integer".into())
                             ),
                             vec![],
-                            TokenPos::new(0, 17, 24, 17)
+                            Pos::new(0, 24, 24)
                         )
                         .into()
                     ],
-                    TokenPos::new(0, 24, 25, 24)
+                    Pos::new(0, 25, 25)
                 )
                 .into(),
                 Expression::new_type(
                     Token::new(
-                        TokenPos::new(0, 27, 33, 27),
+                        RangePos::inline_new(0, 27, 33, 27),
                         TokenKind::Identifier("String".into())
                     ),
                     vec![],
-                    TokenPos::new(0, 27, 33, 27)
+                    Pos::new(0, 33, 33)
                 )
                 .into()
             ],
-            TokenPos::new(0, 33, 34, 33)
+            Pos::new(0, 34, 34)
         )
         .into()
     );
@@ -928,25 +926,25 @@ fn check_select_unwrap() {
     assert_eq!(
         expr,
         Expression::new_select_unwrap(
-            Token::new(TokenPos::new(0, 0, 6, 0), TokenKind::Select),
+            Token::new(RangePos::inline_new(0, 0, 6, 0), TokenKind::Select),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 8, 9, 8),
+                RangePos::inline_new(0, 8, 9, 8),
                 TokenKind::Identifier("v".into())
             ))
             .into(),
             Some(Token::new(
-                TokenPos::new(0, 13, 14, 13),
+                RangePos::inline_new(0, 13, 14, 13),
                 TokenKind::Identifier("i".into())
             )),
             vec![
                 Expression::new_arm(
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 17, 18, 17),
+                        RangePos::inline_new(0, 17, 18, 17),
                         TokenKind::Identifier("a".into())
                     ))
                     .into(),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 22, 23, 22),
+                        RangePos::inline_new(0, 22, 23, 22),
                         TokenKind::Identifier("x".into())
                     ))
                     .into(),
@@ -954,12 +952,12 @@ fn check_select_unwrap() {
                 .into(),
                 Expression::new_arm(
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 25, 26, 25),
+                        RangePos::inline_new(0, 25, 26, 25),
                         TokenKind::Identifier("b".into())
                     ))
                     .into(),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 30, 31, 30),
+                        RangePos::inline_new(0, 30, 31, 30),
                         TokenKind::Identifier("y".into())
                     ))
                     .into(),
@@ -967,19 +965,19 @@ fn check_select_unwrap() {
                 .into(),
                 Expression::new_arm(
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 33, 34, 33),
+                        RangePos::inline_new(0, 33, 34, 33),
                         TokenKind::Identifier("_".into())
                     ))
                     .into(),
                     Expression::new_primary(Token::new(
-                        TokenPos::new(0, 38, 39, 38),
+                        RangePos::inline_new(0, 38, 39, 38),
                         TokenKind::Identifier("z".into())
                     ))
                     .into(),
                 )
                 .into(),
             ],
-            TokenPos::new(0, 39, 40, 39)
+            Pos::new(0, 40, 40)
         )
         .into()
     )
@@ -993,12 +991,12 @@ fn check_pair() {
         expr,
         Expression::new_pair(
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 0, 4, 0),
+                RangePos::inline_new(0, 0, 4, 0),
                 TokenKind::Identifier("name".into())
             ))
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 6, 14, 6),
+                RangePos::inline_new(0, 6, 14, 6),
                 TokenKind::StringLiteral("\"Andreu\"".into())
             ))
             .into(),
@@ -1013,15 +1011,15 @@ fn check_pair() {
         Expression::new_pair(
             Expression::new_call(
                 Token::new(
-                    TokenPos::new(0, 0, 5, 0),
+                    RangePos::inline_new(0, 0, 5, 0),
                     TokenKind::Identifier("MyKey".into())
                 ),
                 vec![],
-                TokenPos::new(0, 6, 7, 6)
+                Pos::new(0, 7, 7)
             )
             .into(),
             Expression::new_primary(Token::new(
-                TokenPos::new(0, 9, 14, 9),
+                RangePos::inline_new(0, 9, 14, 9),
                 TokenKind::Identifier("myVal".into())
             ))
             .into(),

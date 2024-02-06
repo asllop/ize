@@ -9,7 +9,10 @@
 
 use alloc::{boxed::Box, vec::Vec};
 
-use crate::lexer::{Token, TokenPos};
+use crate::{
+    pos::{Pos, RangePos},
+    lexer::Token
+};
 
 #[derive(Debug, PartialEq)]
 /// AST node type. It can contain tokens, expressions, commands or vectors of other nodes.
@@ -80,21 +83,21 @@ impl AstNode {
     }
 
     /// Starting position of node.
-    pub fn start_pos(&self) -> TokenPos {
+    pub fn start_pos(&self) -> Pos {
         match self {
-            AstNode::Token(t) => t.pos,
-            AstNode::Expression(e) => e.start_pos,
-            AstNode::Command(c) => c.start_pos,
+            AstNode::Token(t) => t.pos.start,
+            AstNode::Expression(e) => e.pos.start,
+            AstNode::Command(c) => c.pos.start,
             AstNode::Vec(v) => if v.len() > 0 { v[0].start_pos() } else { Default::default() },
         }
     }
 
     /// Ending position of node.
-    pub fn end_pos(&self) -> TokenPos {
+    pub fn end_pos(&self) -> Pos {
         match self {
-            AstNode::Token(t) => t.pos,
-            AstNode::Expression(e) => e.end_pos,
-            AstNode::Command(c) => c.end_pos,
+            AstNode::Token(t) => t.pos.start,
+            AstNode::Expression(e) => e.pos.end,
+            AstNode::Command(c) => c.pos.end,
             AstNode::Vec(v) => if v.len() > 0 { v[v.len() - 1].end_pos() } else { Default::default() },
         }
     }
@@ -135,10 +138,8 @@ impl From<Vec<AstNode>> for AstNode {
 pub struct Expression {
     /// Expression kind.
     pub kind: ExpressionKind,
-    /// Expression starting position.
-    pub start_pos: TokenPos,
-    /// Expression ending position.
-    pub end_pos: TokenPos,
+    /// Expression position.
+    pub pos: RangePos,
 }
 
 impl Expression {
@@ -147,30 +148,28 @@ impl Expression {
         cond: Box<Expression>,
         if_expr: Box<Expression>,
         else_expr: Box<Expression>,
-        start_pos: TokenPos,
+        start_pos: Pos,
     ) -> Self {
-        let end_pos = else_expr.end_pos;
+        let end_pos = else_expr.pos.end;
         Self {
             kind: ExpressionKind::IfElse {
                 cond_expr: cond.into(),
                 if_expr: if_expr.into(),
                 else_expr: else_expr.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Let expression.
-    pub fn new_let(ident: Token, expr: Box<Expression>, start_pos: TokenPos) -> Self {
-        let end_pos = expr.end_pos;
+    pub fn new_let(ident: Token, expr: Box<Expression>, start_pos: Pos) -> Self {
+        let end_pos = expr.pos.end;
         Self {
             kind: ExpressionKind::Let {
                 ident_token: ident.into(),
                 expr: expr.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
@@ -180,9 +179,9 @@ impl Expression {
         expr: Box<Expression>,
         alias_token: Option<Token>,
         arms: Vec<AstNode>,
-        end_pos: TokenPos,
+        end_pos: Pos,
     ) -> Self {
-        let start_pos = op.pos;
+        let start_pos = op.pos.start;
         Self {
             kind: ExpressionKind::SelectUnwrap {
                 op_token: op.into(),
@@ -194,37 +193,34 @@ impl Expression {
                 },
                 arms_vec: arms.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Arm expression.
     pub fn new_arm(left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
-        let start_pos = left_expr.start_pos;
-        let end_pos = right_expr.end_pos;
+        let start_pos = left_expr.pos.start;
+        let end_pos = right_expr.pos.end;
         Self {
             kind: ExpressionKind::Arm {
                 left_expr: left_expr.into(),
                 right_expr: right_expr.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Pair expression.
     pub fn new_pair(left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
-        let start_pos = left_expr.start_pos;
-        let end_pos = right_expr.end_pos;
+        let start_pos = left_expr.pos.start;
+        let end_pos = right_expr.pos.end;
         Self {
             kind: ExpressionKind::Pair {
                 left_expr: left_expr.into(),
                 alias_token: None,
                 right_expr: right_expr.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
@@ -234,163 +230,173 @@ impl Expression {
         alias: Token,
         right_expr: Box<Expression>,
     ) -> Self {
-        let start_pos = left_expr.start_pos;
-        let end_pos = right_expr.end_pos;
+        let start_pos = left_expr.pos.start;
+        let end_pos = right_expr.pos.end;
         Self {
             kind: ExpressionKind::Pair {
                 left_expr: left_expr.into(),
                 alias_token: Some(alias.into()),
                 right_expr: right_expr.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Binary expression.
     pub fn new_binary(op: Token, left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
-        let start_pos = left_expr.start_pos;
-        let end_pos = right_expr.end_pos;
+        let start_pos = left_expr.pos.start;
+        let end_pos = right_expr.pos.end;
         Self {
             kind: ExpressionKind::Binary {
                 op_token: op.into(),
                 left_expr: left_expr.into(),
                 right_expr: right_expr.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Unary expression.
     pub fn new_unary(op: Token, expr: Box<Expression>) -> Self {
-        let start_pos = op.pos;
-        let end_pos = expr.end_pos;
+        let start_pos = op.pos.start;
+        let end_pos = expr.pos.end;
         Self {
             kind: ExpressionKind::Unary {
                 op_token: op.into(),
                 expr: expr.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Chain expression.
     pub fn new_chain(chain: Vec<AstNode>) -> Self {
-        let start_pos = chain.first().unwrap().expr_ref().unwrap().start_pos;
-        let end_pos = chain.last().unwrap().expr_ref().unwrap().end_pos;
+        let start_pos = chain.first().unwrap().expr_ref().unwrap().pos.start;
+        let end_pos = chain.last().unwrap().expr_ref().unwrap().pos.end;
         Self {
             kind: ExpressionKind::Chain {
                 expr_vec: AstNode::Vec(chain),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Group expression.
-    pub fn new_group(expr: Box<Expression>, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+    pub fn new_group(expr: Box<Expression>, pos: RangePos) -> Self {
         Self {
             kind: ExpressionKind::Group {
                 expr: AstNode::Expression(expr),
             },
-            start_pos,
-            end_pos,
+            pos
         }
     }
 
     /// New Group expression.
-    pub fn new_call(ident: Token, args: Vec<AstNode>, end_pos: TokenPos) -> Self {
-        let start_pos = ident.pos;
+    pub fn new_call(ident: Token, args: Vec<AstNode>, end_pos: Pos) -> Self {
+        let start_pos = ident.pos.start;
         Self {
             kind: ExpressionKind::Call {
                 ident_token: ident.into(),
                 args_vec: AstNode::Vec(args),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Dot expression.
     pub fn new_dot(dots: Vec<AstNode>) -> Self {
-        let start_pos = dots.first().unwrap().expr_ref().unwrap().start_pos;
-        let end_pos = dots.last().unwrap().expr_ref().unwrap().end_pos;
+        let start_pos = dots.first().unwrap().expr_ref().unwrap().pos.start;
+        let end_pos = dots.last().unwrap().expr_ref().unwrap().pos.end;
         Self {
             kind: ExpressionKind::Dot {
                 expr_vec: AstNode::Vec(dots),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Type expression.
-    pub fn new_type(ident: Token, subtypes: Vec<AstNode>, end_pos: TokenPos) -> Self {
-        let start_pos = ident.pos;
+    pub fn new_type(ident: Token, subtypes: Vec<AstNode>, end_pos: Pos) -> Self {
+        let start_pos = ident.pos.start;
         Self {
             kind: ExpressionKind::Type {
                 ident_token: ident.into(),
                 subtypes_vec: AstNode::Vec(subtypes),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New Primary expression.
     pub fn new_primary(token: Token) -> Self {
-        let start_pos = token.pos;
-        let end_pos = token.pos;
+        let pos = token.pos;
         Self {
             kind: ExpressionKind::Primary {
                 token: AstNode::Token(token),
             },
-            start_pos,
-            end_pos,
+            pos
         }
     }
 
     /// New PipeBody expression.
-    pub fn new_pipe_body(body: Vec<AstNode>, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+    pub fn new_pipe_body(body: Vec<AstNode>, pos: RangePos) -> Self {
         Self {
             kind: ExpressionKind::PipeBody {
                 pipe_vec: AstNode::Vec(body),
             },
-            start_pos,
-            end_pos,
+            pos
         }
     }
 
     /// New Path expression.
     pub fn new_path(module_expr: Box<Expression>) -> Self {
-        let start_pos = module_expr.start_pos;
-        let end_pos = module_expr.end_pos;
+        let pos = module_expr.pos;
         Self {
             kind: ExpressionKind::Path {
                 module_expr: module_expr.into(),
                 alias_token: None,
             },
-            start_pos,
-            end_pos,
+            pos
         }
     }
 
     /// New Path expression with alias.
     pub fn new_path_with_alias(module_expr: Box<Expression>, alias: Token) -> Self {
-        let start_pos = module_expr.start_pos;
-        let end_pos = alias.pos;
+        let start_pos = module_expr.pos.start;
+        let end_pos = alias.pos.end;
         Self {
             kind: ExpressionKind::Path {
                 module_expr: module_expr.into(),
                 alias_token: Some(alias.into()),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 }
+
+//TODO: make variants more specific, instead of generic AstNode we should use specific types. Example:
+/*
+pub enum ExpressionKind {
+    Primary(Primary),
+    ...
+}
+
+enum Primary {
+    Identifier(String),
+    Literal(Literal)
+}
+
+enum Literal {
+    String(String),
+    Integer(i64),
+    Float(f64),
+    Boolean(bool),
+    Null,
+    None
+}
+
+It makes semcheck and transpile way easier.
+ */
 
 #[derive(Debug, PartialEq)]
 /// Expression kind.
@@ -466,10 +472,8 @@ pub enum ExpressionKind {
 pub struct Command {
     /// Command kind.
     pub kind: CommandKind,
-    /// Command starting position.
-    pub start_pos: TokenPos,
-    /// Command ending position.
-    pub end_pos: TokenPos,
+    /// Command position.
+    pub pos: RangePos,
 }
 
 impl Command {
@@ -479,8 +483,7 @@ impl Command {
         params: Vec<AstNode>,
         ret_type: Box<Expression>,
         body: AstNode,
-        start_pos: TokenPos,
-        end_pos: TokenPos,
+        pos: RangePos,
     ) -> Self {
         Self {
             kind: CommandKind::Transfer {
@@ -489,79 +492,72 @@ impl Command {
                 return_type: ret_type.into(),
                 body,
             },
-            start_pos,
-            end_pos,
+            pos
         }
     }
 
     /// New model command.
-    pub fn new_model(ident: Token, body: AstNode, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+    pub fn new_model(ident: Token, body: AstNode, pos: RangePos) -> Self {
         Self {
             kind: CommandKind::Model {
                 ident_token: ident.into(),
                 body,
             },
-            start_pos,
-            end_pos,
+            pos
         }
     }
 
     /// New const command.
-    pub fn new_const(ident: Token, value: Token, start_pos: TokenPos) -> Self {
-        let end_pos = value.pos;
+    pub fn new_const(ident: Token, value: Token, start_pos: Pos) -> Self {
+        let end_pos = value.pos.end;
         Self {
             kind: CommandKind::Const {
                 ident_token: ident.into(),
                 value_token: value.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New pipe command.
-    pub fn new_pipe(ident: Token, pipe_body: Box<Expression>, start_pos: TokenPos) -> Self {
-        let end_pos = pipe_body.end_pos;
+    pub fn new_pipe(ident: Token, pipe_body: Box<Expression>, start_pos: Pos) -> Self {
+        let end_pos = pipe_body.pos.end;
         Self {
             kind: CommandKind::Pipe {
                 ident_token: ident.into(),
                 pipe_body_expr: pipe_body.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New run command.
-    pub fn new_run_with_body(pipe_body: Box<Expression>, start_pos: TokenPos) -> Self {
-        let end_pos = pipe_body.end_pos;
+    pub fn new_run_with_body(pipe_body: Box<Expression>, start_pos: Pos) -> Self {
+        let end_pos = pipe_body.pos.end;
         Self {
             kind: CommandKind::Run {
                 pipe: pipe_body.into(),
             },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New run command.
-    pub fn new_run_with_ident(ident: Token, start_pos: TokenPos) -> Self {
-        let end_pos = ident.pos;
+    pub fn new_run_with_ident(ident: Token, start_pos: Pos) -> Self {
+        let end_pos = ident.pos.end;
         Self {
             kind: CommandKind::Run { pipe: ident.into() },
-            start_pos,
-            end_pos,
+            pos: RangePos::new(start_pos, end_pos)
         }
     }
 
     /// New import command.
-    pub fn new_import(path_vec: Vec<AstNode>, start_pos: TokenPos, end_pos: TokenPos) -> Self {
+    pub fn new_import(path_vec: Vec<AstNode>, pos: RangePos) -> Self {
         Self {
             kind: CommandKind::Import {
                 path_vec: path_vec.into(),
             },
-            start_pos,
-            end_pos,
+            pos
         }
     }
 }

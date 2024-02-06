@@ -1,8 +1,9 @@
 //! # PARSER COMPOSER TESTS
 
 use crate::{
+    pos::RangePos,
     ast::AstNode,
-    lexer::{Token, TokenKind, TokenPos},
+    lexer::{Token, TokenKind},
     parser::*,
 };
 
@@ -19,9 +20,9 @@ fn check_opt() {
 
     // Input code: x -> y
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("x".into())),
-        Token::new(TokenPos::default(), TokenKind::Arrow),
-        Token::new(TokenPos::default(), TokenKind::Identifier("y".into())),
+        Token::new(RangePos::default(), TokenKind::Identifier("x".into())),
+        Token::new(RangePos::default(), TokenKind::Arrow),
+        Token::new(RangePos::default(), TokenKind::Identifier("y".into())),
     ];
     let res = concat(grammar, input);
 
@@ -35,19 +36,19 @@ fn check_opt() {
     assert_eq!(
         nodes.pop(),
         Some(AstNode::Vec(vec![
-            Token::new(TokenPos::default(), TokenKind::Arrow).into(),
-            Token::new(TokenPos::default(), TokenKind::Identifier("y".into())).into(),
+            Token::new(RangePos::default(), TokenKind::Arrow).into(),
+            Token::new(RangePos::default(), TokenKind::Identifier("y".into())).into(),
         ]))
     );
     assert_eq!(
         nodes.pop(),
-        Some(Token::new(TokenPos::default(), TokenKind::Identifier("x".into())).into())
+        Some(Token::new(RangePos::default(), TokenKind::Identifier("x".into())).into())
     );
     assert_eq!(nodes.pop(), None);
 
     // Input code: x
     let input = &[Token::new(
-        TokenPos::default(),
+        RangePos::default(),
         TokenKind::Identifier("x".into()),
     )];
     let res = concat(grammar, input);
@@ -62,14 +63,14 @@ fn check_opt() {
     assert_eq!(nodes.pop(), Some(vec![].into()));
     assert_eq!(
         nodes.pop(),
-        Some(Token::new(TokenPos::default(), TokenKind::Identifier("x".into())).into())
+        Some(Token::new(RangePos::default(), TokenKind::Identifier("x".into())).into())
     );
     assert_eq!(nodes.pop(), None);
 
     // Input code: x ->
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("x".into())),
-        Token::new(TokenPos::default(), TokenKind::Arrow),
+        Token::new(RangePos::default(), TokenKind::Identifier("x".into())),
+        Token::new(RangePos::default(), TokenKind::Arrow),
     ];
     let res = concat(grammar, input);
 
@@ -80,9 +81,9 @@ fn check_opt() {
 
     // Input code: x -> 10
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("x".into())),
-        Token::new(TokenPos::default(), TokenKind::Arrow),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(10)),
+        Token::new(RangePos::default(), TokenKind::Identifier("x".into())),
+        Token::new(RangePos::default(), TokenKind::Arrow),
+        Token::new(RangePos::default(), TokenKind::IntegerLiteral(10)),
     ];
     let res = concat(grammar, input);
 
@@ -102,14 +103,14 @@ fn check_opt() {
 
     // Input code: x ->
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("x".into())),
-        Token::new(TokenPos::default(), TokenKind::Arrow),
+        Token::new(RangePos::default(), TokenKind::Identifier("x".into())),
+        Token::new(RangePos::default(), TokenKind::Arrow),
     ];
     let res = concat(grammar, input);
 
     assert!(res.is_ok());
     let (rest, nodes, after_key) = res.unwrap();
-    assert_eq!(rest, &[Token::new(TokenPos::default(), TokenKind::Arrow)]);
+    assert_eq!(rest, &[Token::new(RangePos::default(), TokenKind::Arrow)]);
     assert_eq!(after_key, false);
     let nodes = nodes.vec();
     assert!(nodes.is_some());
@@ -117,15 +118,15 @@ fn check_opt() {
     assert_eq!(nodes.pop(), Some(vec![].into()));
     assert_eq!(
         nodes.pop(),
-        Some(Token::new(TokenPos::default(), TokenKind::Identifier("x".into())).into())
+        Some(Token::new(RangePos::default(), TokenKind::Identifier("x".into())).into())
     );
     assert_eq!(nodes.pop(), None);
 
     // Input code: x -> 10
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("x".into())),
-        Token::new(TokenPos::default(), TokenKind::Arrow),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(10)),
+        Token::new(RangePos::default(), TokenKind::Identifier("x".into())),
+        Token::new(RangePos::default(), TokenKind::Arrow),
+        Token::new(RangePos::default(), TokenKind::IntegerLiteral(10)),
     ];
     let res = concat(grammar, input);
 
@@ -134,8 +135,8 @@ fn check_opt() {
     assert_eq!(
         rest,
         &[
-            Token::new(TokenPos::default(), TokenKind::Arrow),
-            Token::new(TokenPos::default(), TokenKind::IntegerLiteral(10))
+            Token::new(RangePos::default(), TokenKind::Arrow),
+            Token::new(RangePos::default(), TokenKind::IntegerLiteral(10))
         ]
     );
     assert_eq!(after_key, false);
@@ -145,7 +146,7 @@ fn check_opt() {
     assert_eq!(nodes.pop(), Some(vec![].into()));
     assert_eq!(
         nodes.pop(),
-        Some(Token::new(TokenPos::default(), TokenKind::Identifier("x".into())).into())
+        Some(Token::new(RangePos::default(), TokenKind::Identifier("x".into())).into())
     );
     assert_eq!(nodes.pop(), None);
 }
@@ -170,34 +171,34 @@ fn check_opt_after_key() {
 
     // Input code: def my_var = 100
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("def".into())),
-        Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
-        Token::new(TokenPos::default(), TokenKind::Identifier("=".into())),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100)),
+        Token::new(RangePos::default(), TokenKind::Identifier("def".into())),
+        Token::new(RangePos::default(), TokenKind::Identifier("my_var".into())),
+        Token::new(RangePos::default(), TokenKind::Identifier("=".into())),
+        Token::new(RangePos::default(), TokenKind::IntegerLiteral(100)),
     ];
     assert!(concat(grammar, input).is_ok());
 
     // Input code: def my_var as "alias" = 100
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("def".into())),
-        Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
-        Token::new(TokenPos::default(), TokenKind::As),
+        Token::new(RangePos::default(), TokenKind::Identifier("def".into())),
+        Token::new(RangePos::default(), TokenKind::Identifier("my_var".into())),
+        Token::new(RangePos::default(), TokenKind::As),
         Token::new(
-            TokenPos::default(),
+            RangePos::default(),
             TokenKind::StringLiteral("alias".into()),
         ),
-        Token::new(TokenPos::default(), TokenKind::Identifier("=".into())),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100)),
+        Token::new(RangePos::default(), TokenKind::Identifier("=".into())),
+        Token::new(RangePos::default(), TokenKind::IntegerLiteral(100)),
     ];
     assert!(concat(grammar, input).is_ok());
 
     // Input code: def my_var as = 100
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("def".into())),
-        Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
-        Token::new(TokenPos::default(), TokenKind::As),
-        Token::new(TokenPos::default(), TokenKind::Identifier("=".into())),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100)),
+        Token::new(RangePos::default(), TokenKind::Identifier("def".into())),
+        Token::new(RangePos::default(), TokenKind::Identifier("my_var".into())),
+        Token::new(RangePos::default(), TokenKind::As),
+        Token::new(RangePos::default(), TokenKind::Identifier("=".into())),
+        Token::new(RangePos::default(), TokenKind::IntegerLiteral(100)),
     ];
     let res = concat(grammar, input);
     assert!(res.is_err());
@@ -205,9 +206,9 @@ fn check_opt_after_key() {
 
     // Input code: def my_var 100
     let input = &[
-        Token::new(TokenPos::default(), TokenKind::Identifier("def".into())),
-        Token::new(TokenPos::default(), TokenKind::Identifier("my_var".into())),
-        Token::new(TokenPos::default(), TokenKind::IntegerLiteral(100)),
+        Token::new(RangePos::default(), TokenKind::Identifier("def".into())),
+        Token::new(RangePos::default(), TokenKind::Identifier("my_var".into())),
+        Token::new(RangePos::default(), TokenKind::IntegerLiteral(100)),
     ];
     let res = concat(grammar, input);
     assert!(res.is_err());

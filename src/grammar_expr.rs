@@ -92,7 +92,7 @@ pub fn expr_let(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
             Expression::new_let(ident, expr, start_pos).into()
         },
         |input, e| {
@@ -309,7 +309,7 @@ pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
             Tk(TokenKind::ClosingParenth, 11),
         ],
         |mut node_vec| {
-            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // token ")"
+            let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // token ")"
             let arms = node_vec.pop().unwrap().vec().unwrap();
             let first_arm = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // token "("
@@ -388,7 +388,7 @@ pub fn expr_ifelse(input: &[Token]) -> IzeResult {
             node_vec.pop().unwrap().token().unwrap(); // Token ")"
             let cond_expr = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // Token "("
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos; // Token "if"
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // Token "if"
             Expression::new_ifelse(cond_expr, if_expr, else_expr, start_pos).into()
         },
         |input, e| {
@@ -437,7 +437,7 @@ pub fn expr_call(input: &[Token]) -> IzeResult {
             Tk(TokenKind::ClosingParenth, 3),
         ],
         |mut node_vec| {
-            let end_pos = node_vec.pop().unwrap().token().unwrap().pos;
+            let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end;
             node_vec.pop().unwrap().token().unwrap(); // Discard token "("
             let ident = node_vec.pop().unwrap().token().unwrap();
             Expression::new_call(ident, Default::default(), end_pos).into()
@@ -465,7 +465,7 @@ fn expr_call_with_args(input: &[Token]) -> IzeResult {
             Tk(TokenKind::ClosingParenth, 6),
         ],
         |mut node_vec| {
-            let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // ")" token
+            let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // ")" token
             let arg_pairs_vec = node_vec.pop().unwrap().vec().unwrap();
             let first_arg = node_vec.pop().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // discard "(" token
@@ -499,10 +499,10 @@ pub fn expr_group(input: &[Token]) -> IzeResult {
             Tk(TokenKind::ClosingParenth, 3),
         ],
         |mut node_vec| {
-            let end = node_vec.pop().unwrap().token().unwrap().pos; // Token ")"
+            let end = node_vec.pop().unwrap().token().unwrap().pos.end; // Token ")"
             let expr = node_vec.pop().unwrap().expr().unwrap();
-            let start = node_vec.pop().unwrap().token().unwrap().pos; // Token "("
-            Expression::new_group(expr, start, end).into()
+            let start = node_vec.pop().unwrap().token().unwrap().pos.start; // Token "("
+            Expression::new_group(expr, end - start).into()
         },
         |input, e| {
             match e.id {
@@ -616,7 +616,7 @@ fn type_name(input: &[Token]) -> IzeResult {
 fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
     let mut subtypes_vec = vec![];
 
-    let end_pos = node_vec.pop().unwrap().token().unwrap().pos; // token "]"
+    let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // token "]"
     let following_subtypes_vec = node_vec.pop().unwrap().vec().unwrap(); // Each element is a pair of Comma - Type -> Either a Vec (a type ready to be collected) or a Primary ident.
     let first_subtype = node_vec.pop().unwrap(); // Either a Vec (a type ready to be collected) or a Primary ident
     node_vec.pop().unwrap().token().unwrap(); // token "["
@@ -643,7 +643,7 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
         AstNode::Expression(expr) => match expr.kind {
             ExpressionKind::Primary { token } => {
                 let token = token.token().unwrap();
-                let end_pos = token.pos;
+                let end_pos = token.pos.end;
                 let node = Expression::new_type(token, vec![], end_pos).into();
                 node
             }
@@ -655,8 +655,7 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
                     ident_token,
                     subtypes_vec,
                 },
-                start_pos: expr.start_pos,
-                end_pos: expr.end_pos,
+                pos: expr.pos
             }
             .into(),
             _ => panic!("Unexpected expression while parsing subtype: {:#?}", expr),
