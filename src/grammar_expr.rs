@@ -218,8 +218,9 @@ pub fn expr_unary(input: &[Token]) -> IzeResult {
         ],
         |mut node_vec| {
             let expr = node_vec.pop().unwrap().expr().unwrap();
-            let op = node_vec.pop().unwrap().token().unwrap();
-            Expression::new_unary(op, expr).into()
+            let op_token = node_vec.pop().unwrap().token().unwrap();
+            let start_pos = op_token.pos.start;
+            Expression::new_unary(op_token.try_into().unwrap(), expr, start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -694,7 +695,8 @@ fn binary_expr_success(mut node_vec: Vec<AstNode>) -> AstNode {
             let mut expr_pair = expr_pair.vec().unwrap();
             let right_expr = expr_pair.pop().unwrap().expr().unwrap();
             let op = expr_pair.pop().unwrap().token().unwrap();
-            final_expr = Expression::new_binary(op, final_expr, right_expr).into();
+            final_expr =
+                Expression::new_binary(op.try_into().unwrap(), final_expr, right_expr).into();
         }
         final_expr.into()
     } else {

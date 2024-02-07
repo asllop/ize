@@ -158,7 +158,7 @@ pub struct Expression {
 impl Expression {
     /// New If-Else expression.
     pub fn new_ifelse(
-        cond: Box<Expression>,
+        cond_expr: Box<Expression>,
         if_expr: Box<Expression>,
         else_expr: Box<Expression>,
         start_pos: Pos,
@@ -166,9 +166,9 @@ impl Expression {
         let end_pos = else_expr.pos.end;
         Self {
             kind: ExpressionKind::IfElse {
-                cond_expr: cond.into(),
-                if_expr: if_expr.into(),
-                else_expr: else_expr.into(),
+                cond_expr,
+                if_expr,
+                else_expr,
             },
             pos: RangePos::new(start_pos, end_pos),
         }
@@ -256,28 +256,29 @@ impl Expression {
     }
 
     /// New Binary expression.
-    pub fn new_binary(op: Token, left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
+    pub fn new_binary(
+        op: BinaryOp,
+        left_expr: Box<Expression>,
+        right_expr: Box<Expression>,
+    ) -> Self {
         let start_pos = left_expr.pos.start;
         let end_pos = right_expr.pos.end;
+
         Self {
             kind: ExpressionKind::Binary {
-                op_token: op.into(),
-                left_expr: left_expr.into(),
-                right_expr: right_expr.into(),
+                op,
+                left_expr,
+                right_expr,
             },
             pos: RangePos::new(start_pos, end_pos),
         }
     }
 
     /// New Unary expression.
-    pub fn new_unary(op: Token, expr: Box<Expression>) -> Self {
-        let start_pos = op.pos.start;
+    pub fn new_unary(op: UnaryOp, expr: Box<Expression>, start_pos: Pos) -> Self {
         let end_pos = expr.pos.end;
         Self {
-            kind: ExpressionKind::Unary {
-                op_token: op.into(),
-                expr: expr.into(),
-            },
+            kind: ExpressionKind::Unary { op, expr },
             pos: RangePos::new(start_pos, end_pos),
         }
     }
@@ -295,9 +296,7 @@ impl Expression {
     /// New Group expression.
     pub fn new_group(expr: Box<Expression>, pos: RangePos) -> Self {
         Self {
-            kind: ExpressionKind::Group {
-                expr: AstNode::Expression(expr),
-            },
+            kind: ExpressionKind::Group(expr),
             pos,
         }
     }
@@ -382,30 +381,6 @@ impl Expression {
     }
 }
 
-//TODO: make variants more specific, instead of generic AstNode we should use specific types. Example:
-/*
-pub enum ExpressionKind {
-    Primary(Primary),
-    ...
-}
-
-enum Primary {
-    Identifier(String),
-    Literal(Literal)
-}
-
-enum Literal {
-    String(String),
-    Integer(i64),
-    Float(f64),
-    Boolean(bool),
-    Null,
-    None
-}
-
-It makes semcheck and transpile way easier.
- */
-
 #[derive(Debug, PartialEq)]
 /// Expression kind.
 pub enum ExpressionKind {
@@ -414,21 +389,21 @@ pub enum ExpressionKind {
     /// Chain expression.
     Chain(Vec<Expression>),
     /// Group expression.
-    Group { expr: AstNode },
+    Group(Box<Expression>),
     /// If-Else expression.
     IfElse {
-        cond_expr: AstNode,
-        if_expr: AstNode,
-        else_expr: AstNode,
+        cond_expr: Box<Expression>,
+        if_expr: Box<Expression>,
+        else_expr: Box<Expression>,
     },
     /// Binary expression.
     Binary {
-        op_token: AstNode,
-        left_expr: AstNode,
-        right_expr: AstNode,
+        op: BinaryOp,
+        left_expr: Box<Expression>,
+        right_expr: Box<Expression>,
     },
     /// Unary expression.
-    Unary { op_token: AstNode, expr: AstNode },
+    Unary { op: UnaryOp, expr: Box<Expression> },
     /// Let expression.
     Let { ident_token: AstNode, expr: AstNode },
     /// Call expression.
@@ -514,6 +489,76 @@ pub enum Literal {
     Boolean(bool),
     Null,
     None,
+}
+
+#[derive(Debug, PartialEq)]
+/// Binary operation
+pub enum BinaryOp {
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    LesserThan,
+    GreaterThan,
+    GtEqual,
+    LtEqual,
+    And,
+    TwoAnds,
+    Or,
+    TwoOrs,
+    TwoEquals,
+    NotEqual,
+}
+
+impl TryFrom<Token> for BinaryOp {
+    type Error = IzeErr;
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.kind {
+            TokenKind::Plus => Ok(BinaryOp::Plus),
+            TokenKind::Minus => Ok(BinaryOp::Minus),
+            TokenKind::Star => Ok(BinaryOp::Star),
+            TokenKind::Slash => Ok(BinaryOp::Slash),
+            TokenKind::Percent => Ok(BinaryOp::Percent),
+            TokenKind::LesserThan => Ok(BinaryOp::LesserThan),
+            TokenKind::GreaterThan => Ok(BinaryOp::GreaterThan),
+            TokenKind::GtEqual => Ok(BinaryOp::GtEqual),
+            TokenKind::LtEqual => Ok(BinaryOp::LtEqual),
+            TokenKind::And => Ok(BinaryOp::And),
+            TokenKind::TwoAnds => Ok(BinaryOp::TwoAnds),
+            TokenKind::Or => Ok(BinaryOp::Or),
+            TokenKind::TwoOrs => Ok(BinaryOp::TwoOrs),
+            TokenKind::TwoEquals => Ok(BinaryOp::TwoEquals),
+            TokenKind::NotEqual => Ok(BinaryOp::NotEqual),
+            _ => Err(IzeErr::new(
+                "Token must be a binary operator".into(),
+                value.pos,
+            )),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+/// Unary operation
+pub enum UnaryOp {
+    Minus,
+    Not,
+}
+
+impl TryFrom<Token> for UnaryOp {
+    type Error = IzeErr;
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.kind {
+            TokenKind::Minus => Ok(UnaryOp::Minus),
+            TokenKind::Not => Ok(UnaryOp::Not),
+            _ => Err(IzeErr::new(
+                "Token must be a unary operator".into(),
+                value.pos,
+            )),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]

@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::{AstNode, Expression, Literal, Primary},
+    ast::{AstNode, BinaryOp, Expression, Literal, Primary, UnaryOp},
     grammar_expr,
     lexer::{self, Token, TokenKind},
     pos::{Pos, RangePos},
@@ -133,7 +133,7 @@ fn check_binary_term() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(RangePos::inline_new(0, 2, 3, 2), TokenKind::Plus),
+            BinaryOp::Plus,
             Expression::new_primary(
                 Primary::Literal(Literal::Integer(1)),
                 RangePos::inline_new(0, 0, 1, 0)
@@ -153,9 +153,9 @@ fn check_binary_term() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(RangePos::inline_new(0, 6, 7, 6), TokenKind::Minus),
+            BinaryOp::Minus,
             Expression::new_binary(
-                Token::new(RangePos::inline_new(0, 2, 3, 2), TokenKind::Plus),
+                BinaryOp::Plus,
                 Expression::new_primary(
                     Primary::Literal(Literal::Integer(1)),
                     RangePos::inline_new(0, 0, 1, 0)
@@ -185,14 +185,14 @@ fn check_binary_factor() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(RangePos::inline_new(0, 1, 2, 1), TokenKind::Plus),
+            BinaryOp::Plus,
             Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 0, 1, 0)
             )
             .into(),
             Expression::new_binary(
-                Token::new(RangePos::inline_new(0, 3, 4, 3), TokenKind::Star),
+                BinaryOp::Star,
                 Expression::new_primary(
                     Primary::Identifier("b".into()),
                     RangePos::inline_new(0, 2, 3, 2)
@@ -214,19 +214,20 @@ fn check_binary_factor() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(RangePos::inline_new(0, 1, 2, 1), TokenKind::Star),
+            BinaryOp::Star,
             Expression::new_primary(
                 Primary::Identifier("x".into()),
                 RangePos::inline_new(0, 0, 1, 0),
             )
             .into(),
             Expression::new_unary(
-                Token::new(RangePos::inline_new(0, 2, 3, 2), TokenKind::Minus),
+                UnaryOp::Minus,
                 Expression::new_primary(
                     Primary::Literal(Literal::Integer(1)),
                     RangePos::inline_new(0, 3, 4, 3)
                 )
-                .into()
+                .into(),
+                Pos::new(0, 2, 2)
             )
             .into()
         )
@@ -241,35 +242,35 @@ fn check_binary_precedence() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(RangePos::inline_new(0, 1, 3, 1), TokenKind::TwoEquals),
+            BinaryOp::TwoEquals,
             Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 0, 1, 0)
             )
             .into(),
             Expression::new_binary(
-                Token::new(RangePos::inline_new(0, 4, 5, 4), TokenKind::GreaterThan),
+                BinaryOp::GreaterThan,
                 Expression::new_primary(
                     Primary::Identifier("b".into()),
                     RangePos::inline_new(0, 3, 4, 3)
                 )
                 .into(),
                 Expression::new_binary(
-                    Token::new(RangePos::inline_new(0, 6, 7, 6), TokenKind::And),
+                    BinaryOp::And,
                     Expression::new_primary(
                         Primary::Identifier("c".into()),
                         RangePos::inline_new(0, 5, 6, 5)
                     )
                     .into(),
                     Expression::new_binary(
-                        Token::new(RangePos::inline_new(0, 8, 9, 8), TokenKind::Plus),
+                        BinaryOp::Plus,
                         Expression::new_primary(
                             Primary::Identifier("d".into()),
                             RangePos::inline_new(0, 7, 8, 7)
                         )
                         .into(),
                         Expression::new_binary(
-                            Token::new(RangePos::inline_new(0, 10, 11, 10), TokenKind::Star),
+                            BinaryOp::Star,
                             Expression::new_primary(
                                 Primary::Identifier("e".into()),
                                 RangePos::inline_new(0, 9, 10, 9)
@@ -297,15 +298,15 @@ fn check_binary_precedence() {
     assert_eq!(
         expr,
         Expression::new_binary(
-            Token::new(RangePos::inline_new(0, 9, 11, 9), TokenKind::TwoEquals),
+            BinaryOp::TwoEquals,
             Expression::new_binary(
-                Token::new(RangePos::inline_new(0, 7, 8, 7), TokenKind::GreaterThan),
+                BinaryOp::GreaterThan,
                 Expression::new_binary(
-                    Token::new(RangePos::inline_new(0, 5, 6, 5), TokenKind::And),
+                    BinaryOp::And,
                     Expression::new_binary(
-                        Token::new(RangePos::inline_new(0, 3, 4, 3), TokenKind::Plus),
+                        BinaryOp::Plus,
                         Expression::new_binary(
-                            Token::new(RangePos::inline_new(0, 1, 2, 1), TokenKind::Star),
+                            BinaryOp::Star,
                             Expression::new_primary(
                                 Primary::Identifier("a".into()),
                                 RangePos::inline_new(0, 0, 1, 0)
@@ -356,12 +357,13 @@ fn check_unary() {
     assert_eq!(
         expr,
         Expression::new_unary(
-            Token::new(RangePos::inline_new(0, 0, 1, 0), TokenKind::Minus),
+            UnaryOp::Minus,
             Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 1, 2, 1)
             )
-            .into()
+            .into(),
+            Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -371,12 +373,13 @@ fn check_unary() {
     assert_eq!(
         expr,
         Expression::new_unary(
-            Token::new(RangePos::inline_new(0, 0, 1, 0), TokenKind::Not),
+            UnaryOp::Not,
             Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 1, 2, 1)
             )
-            .into()
+            .into(),
+            Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -386,24 +389,28 @@ fn check_unary() {
     assert_eq!(
         expr,
         Expression::new_unary(
-            Token::new(RangePos::inline_new(0, 0, 1, 0), TokenKind::Minus),
+            UnaryOp::Minus,
             Expression::new_unary(
-                Token::new(RangePos::inline_new(0, 1, 2, 1), TokenKind::Not),
+                UnaryOp::Not,
                 Expression::new_unary(
-                    Token::new(RangePos::inline_new(0, 2, 3, 2), TokenKind::Minus),
+                    UnaryOp::Minus,
                     Expression::new_unary(
-                        Token::new(RangePos::inline_new(0, 3, 4, 3), TokenKind::Not),
+                        UnaryOp::Not,
                         Expression::new_primary(
                             Primary::Identifier("a".into()),
                             RangePos::inline_new(0, 4, 5, 4)
                         )
-                        .into()
+                        .into(),
+                        Pos::new(0, 3, 3)
                     )
-                    .into()
+                    .into(),
+                    Pos::new(0, 2, 2)
                 )
-                .into()
+                .into(),
+                Pos::new(0, 1, 1)
             )
-            .into()
+            .into(),
+            Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -417,7 +424,7 @@ fn check_group() {
         expr,
         Expression::new_group(
             Expression::new_binary(
-                Token::new(RangePos::inline_new(0, 3, 4, 3), TokenKind::Plus),
+                BinaryOp::Plus,
                 Expression::new_primary(
                     Primary::Literal(Literal::Integer(1)),
                     RangePos::inline_new(0, 1, 2, 1)
@@ -467,7 +474,7 @@ fn check_let() {
                 TokenKind::Identifier("var".into())
             ),
             Expression::new_binary(
-                Token::new(RangePos::inline_new(0, 9, 10, 9), TokenKind::Plus),
+                BinaryOp::Plus,
                 Expression::new_primary(
                     Primary::Identifier("a".into()),
                     RangePos::inline_new(0, 8, 9, 8)
@@ -633,7 +640,7 @@ fn check_dot() {
             .into(),
             Expression::new_group(
                 Expression::new_binary(
-                    Token::new(RangePos::inline_new(0, 4, 5, 4), TokenKind::Plus),
+                    BinaryOp::Plus,
                     Expression::new_primary(
                         Primary::Identifier("b".into()),
                         RangePos::inline_new(0, 3, 4, 3)

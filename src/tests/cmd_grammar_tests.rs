@@ -3,7 +3,7 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    ast::{AstNode, Command, Expression, Literal, Primary},
+    ast::{AstNode, BinaryOp, Command, Expression, Literal, Primary},
     grammar_cmd,
     lexer::{self, Token, TokenKind},
     pos::{Pos, RangePos},
@@ -185,7 +185,7 @@ fn check_transfer() {
                 RangePos::inline_new(0, 30, 33, 30)
             )),
             Expression::new_binary(
-                Token::new(RangePos::inline_new(0, 36, 37, 36), TokenKind::Plus),
+                BinaryOp::Plus,
                 Box::new(Expression::new_primary(
                     Primary::Identifier("a".into()),
                     RangePos::inline_new(0, 34, 35, 34)
