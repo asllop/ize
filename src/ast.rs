@@ -175,13 +175,10 @@ impl Expression {
     }
 
     /// New Let expression.
-    pub fn new_let(ident: Token, expr: Box<Expression>, start_pos: Pos) -> Self {
+    pub fn new_let(ident: String, expr: Box<Expression>, start_pos: Pos) -> Self {
         let end_pos = expr.pos.end;
         Self {
-            kind: ExpressionKind::Let {
-                ident_token: ident.into(),
-                expr: expr.into(),
-            },
+            kind: ExpressionKind::Let { ident, expr },
             pos: RangePos::new(start_pos, end_pos),
         }
     }
@@ -302,14 +299,10 @@ impl Expression {
     }
 
     /// New Group expression.
-    pub fn new_call(ident: Token, args: Vec<AstNode>, end_pos: Pos) -> Self {
-        let start_pos = ident.pos.start;
+    pub fn new_call(ident: String, args: Vec<Expression>, pos: RangePos) -> Self {
         Self {
-            kind: ExpressionKind::Call {
-                ident_token: ident.into(),
-                args_vec: AstNode::Vec(args),
-            },
-            pos: RangePos::new(start_pos, end_pos),
+            kind: ExpressionKind::Call { ident, args },
+            pos,
         }
     }
 
@@ -405,11 +398,14 @@ pub enum ExpressionKind {
     /// Unary expression.
     Unary { op: UnaryOp, expr: Box<Expression> },
     /// Let expression.
-    Let { ident_token: AstNode, expr: AstNode },
+    Let {
+        ident: String,
+        expr: Box<Expression>,
+    },
     /// Call expression.
     Call {
-        ident_token: AstNode,
-        args_vec: AstNode,
+        ident: String,
+        args: Vec<Expression>,
     },
     /// Dot expression.
     Dot { expr_vec: AstNode },

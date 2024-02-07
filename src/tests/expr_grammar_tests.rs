@@ -450,10 +450,7 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            Token::new(
-                RangePos::inline_new(0, 4, 7, 4),
-                TokenKind::Identifier("num".into())
-            ),
+            "num".into(),
             Expression::new_primary(
                 Primary::Literal(Literal::Integer(100)),
                 RangePos::inline_new(0, 8, 11, 8)
@@ -469,10 +466,7 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            Token::new(
-                RangePos::inline_new(0, 4, 7, 4),
-                TokenKind::Identifier("var".into())
-            ),
+            "var".into(),
             Expression::new_binary(
                 BinaryOp::Plus,
                 Expression::new_primary(
@@ -497,15 +491,9 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            Token::new(
-                RangePos::inline_new(0, 4, 5, 4),
-                TokenKind::Identifier("a".into())
-            ),
+            "a".into(),
             Expression::new_let(
-                Token::new(
-                    RangePos::inline_new(0, 10, 11, 10),
-                    TokenKind::Identifier("b".into())
-                ),
+                "b".into(),
                 Expression::new_primary(
                     Primary::Literal(Literal::Integer(100)),
                     RangePos::inline_new(0, 12, 15, 12)
@@ -524,10 +512,7 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            Token::new(
-                RangePos::inline_new(0, 4, 7, 4),
-                TokenKind::Identifier("var".into())
-            ),
+            "var".into(),
             Expression::new_group(
                 Expression::new_chain(vec![
                     Expression::new_primary(
@@ -578,10 +563,7 @@ fn check_chain() {
         expr,
         Expression::new_chain(vec![
             Expression::new_let(
-                Token::new(
-                    RangePos::inline_new(0, 4, 7, 4),
-                    TokenKind::Identifier("var".into())
-                ),
+                "var".into(),
                 Expression::new_primary(
                     Primary::Literal(Literal::Integer(100)),
                     RangePos::inline_new(0, 8, 11, 8)
@@ -672,15 +654,7 @@ fn check_call() {
     let expr = parse_single_expr(code);
     assert_eq!(
         expr,
-        Expression::new_call(
-            Token::new(
-                RangePos::inline_new(0, 0, 3, 0),
-                TokenKind::Identifier("foo".into())
-            ),
-            vec![],
-            Pos::new(0, 5, 5)
-        )
-        .into()
+        Expression::new_call("foo".into(), vec![], Pos::new(0, 5, 5) - Pos::new(0, 0, 0)).into()
     );
 
     let code = "foo(a)";
@@ -688,16 +662,13 @@ fn check_call() {
     assert_eq!(
         expr,
         Expression::new_call(
-            Token::new(
-                RangePos::inline_new(0, 0, 3, 0),
-                TokenKind::Identifier("foo".into())
-            ),
+            "foo".into(),
             vec![Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 4, 5, 4)
             )
             .into()],
-            Pos::new(0, 6, 6)
+            Pos::new(0, 6, 6) - Pos::new(0, 0, 0),
         )
         .into()
     );
@@ -707,10 +678,7 @@ fn check_call() {
     assert_eq!(
         expr,
         Expression::new_call(
-            Token::new(
-                RangePos::inline_new(0, 0, 3, 0),
-                TokenKind::Identifier("foo".into())
-            ),
+            "foo".into(),
             vec![
                 Expression::new_primary(
                     Primary::Identifier("a".into()),
@@ -728,7 +696,7 @@ fn check_call() {
                 )
                 .into(),
             ],
-            Pos::new(0, 10, 10)
+            Pos::new(0, 10, 10) - Pos::new(0, 0, 0),
         )
         .into()
     );
@@ -738,10 +706,7 @@ fn check_call() {
     assert_eq!(
         expr,
         Expression::new_call(
-            Token::new(
-                RangePos::inline_new(0, 0, 3, 0),
-                TokenKind::Identifier("foo".into())
-            ),
+            "foo".into(),
             vec![
                 Expression::new_primary(
                     Primary::Identifier("a".into()),
@@ -749,10 +714,7 @@ fn check_call() {
                 )
                 .into(),
                 Expression::new_call(
-                    Token::new(
-                        RangePos::inline_new(0, 6, 9, 6),
-                        TokenKind::Identifier("bar".into())
-                    ),
+                    "bar".into(),
                     vec![
                         Expression::new_primary(
                             Primary::Identifier("b".into()),
@@ -765,11 +727,11 @@ fn check_call() {
                         )
                         .into()
                     ],
-                    Pos::new(0, 14, 14)
+                    Pos::new(0, 14, 14) - Pos::new(0, 6, 6),
                 )
                 .into()
             ],
-            Pos::new(0, 15, 15)
+            Pos::new(0, 15, 15) - Pos::new(0, 0, 0),
         )
         .into()
     );
@@ -782,20 +744,10 @@ fn check_dot_with_calls() {
     assert_eq!(
         expr,
         Expression::new_dot(vec![
+            Expression::new_call("foo".into(), vec![], Pos::new(0, 5, 5) - Pos::new(0, 0, 0),)
+                .into(),
             Expression::new_call(
-                Token::new(
-                    RangePos::inline_new(0, 0, 3, 0),
-                    TokenKind::Identifier("foo".into())
-                ),
-                vec![],
-                Pos::new(0, 5, 5)
-            )
-            .into(),
-            Expression::new_call(
-                Token::new(
-                    RangePos::inline_new(0, 6, 9, 6),
-                    TokenKind::Identifier("bar".into())
-                ),
+                "bar".into(),
                 vec![
                     Expression::new_primary(
                         Primary::Identifier("a".into()),
@@ -808,7 +760,7 @@ fn check_dot_with_calls() {
                     )
                     .into(),
                 ],
-                Pos::new(0, 14, 14)
+                Pos::new(0, 14, 14) - Pos::new(0, 6, 6),
             )
             .into(),
             Expression::new_primary(
@@ -1013,12 +965,9 @@ fn check_pair() {
         expr,
         Expression::new_pair(
             Expression::new_call(
-                Token::new(
-                    RangePos::inline_new(0, 0, 5, 0),
-                    TokenKind::Identifier("MyKey".into())
-                ),
+                "MyKey".into(),
                 vec![],
-                Pos::new(0, 7, 7)
+                Pos::new(0, 7, 7) - Pos::new(0, 0, 0),
             )
             .into(),
             Expression::new_primary(

@@ -29,6 +29,7 @@ use crate::{
     err::IzeErr,
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
+    pos::RangePos,
 };
 
 ////////////////////////
@@ -93,6 +94,11 @@ pub fn expr_let(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
+            let ident = if let TokenKind::Identifier(ident) = ident.kind {
+                ident
+            } else {
+                panic!("Token must be an identifier")
+            };
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
             Expression::new_let(ident, expr, start_pos).into()
         },
@@ -442,7 +448,14 @@ pub fn expr_call(input: &[Token]) -> IzeResult {
             let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end;
             node_vec.pop().unwrap().token().unwrap(); // Discard token "("
             let ident = node_vec.pop().unwrap().token().unwrap();
-            Expression::new_call(ident, Default::default(), end_pos).into()
+            let start_pos = ident.pos.start;
+            let ident = if let TokenKind::Identifier(ident) = ident.kind {
+                ident
+            } else {
+                panic!("Token must be an identifier")
+            };
+            Expression::new_call(ident, Default::default(), RangePos::new(start_pos, end_pos))
+                .into()
         },
         |input, e| {
             match e.id {
@@ -469,18 +482,23 @@ fn expr_call_with_args(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // ")" token
             let arg_pairs_vec = node_vec.pop().unwrap().vec().unwrap();
-            let first_arg = node_vec.pop().unwrap();
+            let first_arg = *node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // discard "(" token
             let ident = node_vec.pop().unwrap().token().unwrap();
-
+            let start_pos = ident.pos.start;
+            let ident = if let TokenKind::Identifier(ident) = ident.kind {
+                ident
+            } else {
+                panic!("Token must be an identifier")
+            };
             let mut args = vec![first_arg];
             for pair in arg_pairs_vec {
                 let mut pair = pair.vec().unwrap();
-                let arg = pair.pop().unwrap();
+                let arg = *pair.pop().unwrap().expr().unwrap();
                 args.push(arg);
             }
 
-            Expression::new_call(ident, args, end_pos).into()
+            Expression::new_call(ident, args, RangePos::new(start_pos, end_pos)).into()
         },
         |_, e| match e.id {
             3 => Err(IzeErr::new("Expected expression after '('".into(), e.err.pos).into()),

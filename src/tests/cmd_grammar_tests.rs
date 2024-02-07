@@ -344,12 +344,9 @@ fn check_pipe() {
                     )
                     .into(),
                     Expression::new_call(
-                        Token::new(
-                            RangePos::inline_new(0, 11, 12, 11),
-                            TokenKind::Identifier("B".into())
-                        ),
+                        "B".into(),
                         vec![],
-                        Pos::new(0, 14, 14)
+                        Pos::new(0, 14, 14) - Pos::new(0, 11, 11),
                     )
                     .into()
                 ],
@@ -392,12 +389,9 @@ fn check_run() {
                     )
                     .into(),
                     Expression::new_call(
-                        Token::new(
-                            RangePos::inline_new(0, 8, 9, 8),
-                            TokenKind::Identifier("B".into())
-                        ),
+                        "B".into(),
                         vec![],
-                        Pos::new(0, 11, 11)
+                        Pos::new(0, 11, 11) - Pos::new(0, 8, 8),
                     )
                     .into()
                 ],
