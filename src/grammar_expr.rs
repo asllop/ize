@@ -53,10 +53,11 @@ pub fn expr_chain(input: &[Token]) -> IzeResult {
             let let_expr = node_vec.pop().unwrap();
 
             if !chain_vec.is_empty() {
+                let let_expr = *let_expr.expr().unwrap();
                 let mut expr_vec = vec![let_expr];
                 for chain_pair in chain_vec {
                     let mut chain_pair = chain_pair.vec().unwrap();
-                    let expr = chain_pair.pop().unwrap();
+                    let expr = *chain_pair.pop().unwrap().expr().unwrap();
                     expr_vec.push(expr);
                 }
                 Expression::new_chain(expr_vec).into()

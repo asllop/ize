@@ -526,13 +526,11 @@ fn check_let() {
                     Expression::new_primary(
                         Primary::Literal(Literal::Integer(100)),
                         RangePos::inline_new(0, 9, 12, 9)
-                    )
-                    .into(),
+                    ),
                     Expression::new_primary(
                         Primary::Identifier("x".into()),
                         RangePos::inline_new(0, 13, 14, 13)
                     )
-                    .into()
                 ])
                 .into(),
                 Pos::new(0, 15, 15) - Pos::new(0, 8, 8)
@@ -554,18 +552,15 @@ fn check_chain() {
             Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 0, 1, 0)
-            )
-            .into(),
+            ),
             Expression::new_primary(
                 Primary::Identifier("b".into()),
                 RangePos::inline_new(0, 2, 3, 2)
-            )
-            .into(),
+            ),
             Expression::new_primary(
                 Primary::Identifier("c".into()),
                 RangePos::inline_new(0, 4, 5, 4)
             )
-            .into()
         ])
         .into()
     );
@@ -586,13 +581,11 @@ fn check_chain() {
                 )
                 .into(),
                 Pos::new(0, 0, 0)
-            )
-            .into(),
+            ),
             Expression::new_primary(
                 Primary::Identifier("var".into()),
                 RangePos::inline_new(0, 13, 16, 13)
             )
-            .into()
         ])
         .into()
     );

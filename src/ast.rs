@@ -20,9 +20,9 @@ use crate::{
 pub enum AstNode {
     /// Token node.
     Token(Token),
-    /// Expression node.
+    /// Expression node. TODO: unbox
     Expression(Box<Expression>),
-    /// Command node.
+    /// Command node. TODO: unbox
     Command(Box<Command>),
     /// Vector of nodes.
     Vec(Vec<AstNode>),
@@ -283,13 +283,11 @@ impl Expression {
     }
 
     /// New Chain expression.
-    pub fn new_chain(chain: Vec<AstNode>) -> Self {
-        let start_pos = chain.first().unwrap().expr_ref().unwrap().pos.start;
-        let end_pos = chain.last().unwrap().expr_ref().unwrap().pos.end;
+    pub fn new_chain(chain: Vec<Expression>) -> Self {
+        let start_pos = chain.first().unwrap().pos.start;
+        let end_pos = chain.last().unwrap().pos.end;
         Self {
-            kind: ExpressionKind::Chain {
-                expr_vec: AstNode::Vec(chain),
-            },
+            kind: ExpressionKind::Chain(chain),
             pos: RangePos::new(start_pos, end_pos),
         }
     }
@@ -414,7 +412,7 @@ pub enum ExpressionKind {
     /// Primary expression (literals and identifiers).
     Primary(Primary),
     /// Chain expression.
-    Chain { expr_vec: AstNode },
+    Chain(Vec<Expression>),
     /// Group expression.
     Group { expr: AstNode },
     /// If-Else expression.
