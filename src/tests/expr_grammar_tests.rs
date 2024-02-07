@@ -618,8 +618,7 @@ fn check_dot() {
             Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 0, 1, 0)
-            )
-            .into(),
+            ),
             Expression::new_group(
                 Expression::new_binary(
                     BinaryOp::Plus,
@@ -636,13 +635,11 @@ fn check_dot() {
                 )
                 .into(),
                 Pos::new(0, 7, 7) - Pos::new(0, 2, 2),
-            )
-            .into(),
+            ),
             Expression::new_primary(
                 Primary::Identifier("d".into()),
                 RangePos::inline_new(0, 8, 9, 8)
-            )
-            .into(),
+            ),
         ])
         .into()
     );
@@ -744,21 +741,18 @@ fn check_dot_with_calls() {
     assert_eq!(
         expr,
         Expression::new_dot(vec![
-            Expression::new_call("foo".into(), vec![], Pos::new(0, 5, 5) - Pos::new(0, 0, 0),)
-                .into(),
+            Expression::new_call("foo".into(), vec![], Pos::new(0, 5, 5) - Pos::new(0, 0, 0)),
             Expression::new_call(
                 "bar".into(),
                 vec![
                     Expression::new_primary(
                         Primary::Identifier("a".into()),
                         RangePos::inline_new(0, 10, 11, 10)
-                    )
-                    .into(),
+                    ),
                     Expression::new_primary(
                         Primary::Identifier("b".into()),
                         RangePos::inline_new(0, 12, 13, 12)
-                    )
-                    .into(),
+                    ),
                 ],
                 Pos::new(0, 14, 14) - Pos::new(0, 6, 6),
             )

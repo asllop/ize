@@ -278,10 +278,11 @@ pub fn expr_dot(input: &[Token]) -> IzeResult {
             let next_expr = node_vec.pop().unwrap();
 
             if !dot_vec.is_empty() {
+                let next_expr = *next_expr.expr().unwrap();
                 let mut expr_vec = vec![next_expr];
                 for dot_pair in dot_vec {
                     let mut dot_pair = dot_pair.vec().unwrap();
-                    let expr = dot_pair.pop().unwrap();
+                    let expr = *dot_pair.pop().unwrap().expr().unwrap();
                     expr_vec.push(expr);
                 }
                 Expression::new_dot(expr_vec).into()

@@ -259,18 +259,15 @@ fn check_import() {
                 Expression::new_primary(
                     Primary::Identifier("com".into()),
                     RangePos::inline_new(0, 7, 10, 7)
-                )
-                .into(),
+                ),
                 Expression::new_primary(
                     Primary::Identifier("example".into()),
                     RangePos::inline_new(0, 11, 18, 11)
-                )
-                .into(),
+                ),
                 Expression::new_primary(
                     Primary::Identifier("Something".into()),
                     RangePos::inline_new(0, 19, 28, 19)
-                )
-                .into(),
+                ),
             ])))
             .into()],
             Pos::new(0, 28, 28) - Pos::new(0, 0, 0)
@@ -290,18 +287,15 @@ fn check_import() {
                         Expression::new_primary(
                             Primary::Identifier("com".into()),
                             RangePos::inline_new(0, 8, 11, 8)
-                        )
-                        .into(),
+                        ),
                         Expression::new_primary(
                             Primary::Identifier("example".into()),
                             RangePos::inline_new(0, 12, 19, 12)
-                        )
-                        .into(),
+                        ),
                         Expression::new_primary(
                             Primary::Identifier("Something".into()),
                             RangePos::inline_new(0, 20, 29, 20)
-                        )
-                        .into(),
+                        ),
                     ])),
                     Token::new(
                         RangePos::inline_new(0, 33, 38, 33),
