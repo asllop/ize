@@ -1,10 +1,10 @@
 //! # PARSER COMPOSER TESTS
 
 use crate::{
-    pos::RangePos,
     ast::AstNode,
     lexer::{Token, TokenKind},
     parser::*,
+    pos::RangePos,
 };
 
 #[test]

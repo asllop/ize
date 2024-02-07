@@ -1,8 +1,8 @@
 //! LEXER TESTS
 
 use crate::{
+    lexer::{self, Token, TokenKind},
     pos::RangePos,
-    lexer::{self, Token, TokenKind}
 };
 
 #[test]
@@ -13,11 +13,17 @@ fn check_valid_tokens() {
     let mut tokens = tokens.unwrap();
     assert_eq!(
         tokens.pop(),
-        Some(Token::new(RangePos::inline_new(1, 24, 25, 38), TokenKind::Minus))
+        Some(Token::new(
+            RangePos::inline_new(1, 24, 25, 38),
+            TokenKind::Minus
+        ))
     );
     assert_eq!(
         tokens.pop(),
-        Some(Token::new(RangePos::inline_new(1, 23, 24, 37), TokenKind::Plus))
+        Some(Token::new(
+            RangePos::inline_new(1, 23, 24, 37),
+            TokenKind::Plus
+        ))
     );
     assert_eq!(
         tokens.pop(),
@@ -56,7 +62,10 @@ fn check_valid_tokens() {
     );
     assert_eq!(
         tokens.pop(),
-        Some(Token::new(RangePos::inline_new(0, 6, 7, 6), TokenKind::Minus))
+        Some(Token::new(
+            RangePos::inline_new(0, 6, 7, 6),
+            TokenKind::Minus
+        ))
     );
     assert_eq!(
         tokens.pop(),

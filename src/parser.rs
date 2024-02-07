@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use crate::{
     ast::AstNode,
     err::IzeErr,
-    lexer::{Token, TokenKind}
+    lexer::{Token, TokenKind},
 };
 
 #[derive(Debug, Default)]

@@ -2,10 +2,7 @@
 //!
 //! Lexical analyzer. Generate [Token](crate::lexer::Token)s from the raw source code.
 
-use crate::{
-    pos::RangePos,
-    err::IzeErr
-};
+use crate::{err::IzeErr, pos::RangePos};
 use alloc::{string::String, vec::Vec};
 use core::{fmt::Debug, str::FromStr};
 use logos::{Lexer, Logos, Skip};

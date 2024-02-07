@@ -306,7 +306,7 @@
 //                         return Err(IzeErr::new(
 //                             "Token must be an identifier".into(),
 //                             token.pos,
-//                         ))   
+//                         ))
 //                     }
 //                 } else {
 //                     return Err(IzeErr::new(
@@ -426,7 +426,6 @@
 //         - Check that compound types are correctly formed (List, Map, Tuple, etc).
 //         - Make sure that Mux types with the same subtypes in different order are actually the same type.
 // */
-
 // /* TODO
 
 // - Build symbol table (ST):
@@ -437,7 +436,6 @@
 //     - const, the literal type.
 //     - let, the type is not explicit, we have to calculate it from the expression used to define the variable. We need an Expression Type Evaluator (ETE).
 // */
-
 // //TODO: Build Symbol Table (ST) with explicit type symbols (transfers, models and consts).
 // //TODO: Expression Type Evaluator (ETE), given an expression, calculate the resulting type. It requires a ST already filled with explicit type symbols.
 // //TODO: Use the ETE to fill the ST with non-explicit type symbols (lets).

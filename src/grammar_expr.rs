@@ -25,7 +25,7 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::{AstNode, Expression, ExpressionKind},
+    ast::{AstNode, Expression, ExpressionKind, Literal, Primary},
     err::IzeErr,
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
@@ -571,7 +571,9 @@ pub fn expr_primary(input: &[Token]) -> IzeResult {
         ])],
         |mut node_vec| {
             let token = node_vec.pop().unwrap().token().unwrap();
-            Expression::new_primary(token).into()
+            let pos = token.pos;
+            let primary = token.try_into().unwrap();
+            Expression::new_primary(primary, pos).into()
         },
         |_, e| Err(IzeErr::new("Error parsing primary expr".into(), e.err.pos).into()),
     )
@@ -641,8 +643,21 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
             node
         }
         AstNode::Expression(expr) => match expr.kind {
-            ExpressionKind::Primary { token } => {
-                let token = token.token().unwrap();
+            ExpressionKind::Primary(p) => {
+                //TODO: this conversion to Token is a temporary hack until we rebuild the type expression to not use generic wrapper types like AstNode or Token.
+                let token_kind = match p {
+                    Primary::Identifier(id) => TokenKind::Identifier(id),
+                    Primary::Literal(l) => match l {
+                        Literal::String(s) => TokenKind::StringLiteral(s),
+                        Literal::Integer(i) => TokenKind::IntegerLiteral(i),
+                        Literal::Float(f) => TokenKind::FloatLiteral(f),
+                        Literal::Boolean(b) => TokenKind::BooleanLiteral(b),
+                        Literal::Null => TokenKind::NullLiteral,
+                        Literal::None => TokenKind::NoneLiteral,
+                    },
+                };
+                let token = Token::new(expr.pos, token_kind);
+
                 let end_pos = token.pos.end;
                 let node = Expression::new_type(token, vec![], end_pos).into();
                 node
@@ -655,7 +670,7 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
                     ident_token,
                     subtypes_vec,
                 },
-                pos: expr.pos
+                pos: expr.pos,
             }
             .into(),
             _ => panic!("Unexpected expression while parsing subtype: {:#?}", expr),

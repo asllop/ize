@@ -7,11 +7,12 @@
 //! - [Command](crate::ast::Command): A command, like a model, or a transfer.
 //! - [AstNode](crate::ast::AstNode): An AST is essentially a group of linked AST nodes. This type encapsulates the other three.
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
+    err::IzeErr,
+    lexer::{Token, TokenKind},
     pos::{Pos, RangePos},
-    lexer::Token
 };
 
 #[derive(Debug, PartialEq)]
@@ -88,7 +89,13 @@ impl AstNode {
             AstNode::Token(t) => t.pos.start,
             AstNode::Expression(e) => e.pos.start,
             AstNode::Command(c) => c.pos.start,
-            AstNode::Vec(v) => if v.len() > 0 { v[0].start_pos() } else { Default::default() },
+            AstNode::Vec(v) => {
+                if v.len() > 0 {
+                    v[0].start_pos()
+                } else {
+                    Default::default()
+                }
+            }
         }
     }
 
@@ -98,7 +105,13 @@ impl AstNode {
             AstNode::Token(t) => t.pos.start,
             AstNode::Expression(e) => e.pos.end,
             AstNode::Command(c) => c.pos.end,
-            AstNode::Vec(v) => if v.len() > 0 { v[v.len() - 1].end_pos() } else { Default::default() },
+            AstNode::Vec(v) => {
+                if v.len() > 0 {
+                    v[v.len() - 1].end_pos()
+                } else {
+                    Default::default()
+                }
+            }
         }
     }
 }
@@ -157,7 +170,7 @@ impl Expression {
                 if_expr: if_expr.into(),
                 else_expr: else_expr.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -169,7 +182,7 @@ impl Expression {
                 ident_token: ident.into(),
                 expr: expr.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -193,7 +206,7 @@ impl Expression {
                 },
                 arms_vec: arms.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -206,7 +219,7 @@ impl Expression {
                 left_expr: left_expr.into(),
                 right_expr: right_expr.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -220,7 +233,7 @@ impl Expression {
                 alias_token: None,
                 right_expr: right_expr.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -238,7 +251,7 @@ impl Expression {
                 alias_token: Some(alias.into()),
                 right_expr: right_expr.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -252,7 +265,7 @@ impl Expression {
                 left_expr: left_expr.into(),
                 right_expr: right_expr.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -265,7 +278,7 @@ impl Expression {
                 op_token: op.into(),
                 expr: expr.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -277,7 +290,7 @@ impl Expression {
             kind: ExpressionKind::Chain {
                 expr_vec: AstNode::Vec(chain),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -287,7 +300,7 @@ impl Expression {
             kind: ExpressionKind::Group {
                 expr: AstNode::Expression(expr),
             },
-            pos
+            pos,
         }
     }
 
@@ -299,7 +312,7 @@ impl Expression {
                 ident_token: ident.into(),
                 args_vec: AstNode::Vec(args),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -311,7 +324,7 @@ impl Expression {
             kind: ExpressionKind::Dot {
                 expr_vec: AstNode::Vec(dots),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -323,18 +336,15 @@ impl Expression {
                 ident_token: ident.into(),
                 subtypes_vec: AstNode::Vec(subtypes),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
-    /// New Primary expression.
-    pub fn new_primary(token: Token) -> Self {
-        let pos = token.pos;
+    /// New Primary with int literal.
+    pub fn new_primary(primary: Primary, pos: RangePos) -> Self {
         Self {
-            kind: ExpressionKind::Primary {
-                token: AstNode::Token(token),
-            },
-            pos
+            kind: ExpressionKind::Primary(primary),
+            pos,
         }
     }
 
@@ -344,7 +354,7 @@ impl Expression {
             kind: ExpressionKind::PipeBody {
                 pipe_vec: AstNode::Vec(body),
             },
-            pos
+            pos,
         }
     }
 
@@ -356,7 +366,7 @@ impl Expression {
                 module_expr: module_expr.into(),
                 alias_token: None,
             },
-            pos
+            pos,
         }
     }
 
@@ -369,7 +379,7 @@ impl Expression {
                 module_expr: module_expr.into(),
                 alias_token: Some(alias.into()),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 }
@@ -402,7 +412,7 @@ It makes semcheck and transpile way easier.
 /// Expression kind.
 pub enum ExpressionKind {
     /// Primary expression (literals and identifiers).
-    Primary { token: AstNode },
+    Primary(Primary),
     /// Chain expression.
     Chain { expr_vec: AstNode },
     /// Group expression.
@@ -467,6 +477,47 @@ pub enum ExpressionKind {
     },
 }
 
+/// Primary expression.
+#[derive(Debug, PartialEq)]
+pub enum Primary {
+    /// Identifier primary.
+    Identifier(String),
+    /// Literal primary.
+    Literal(Literal),
+}
+
+impl TryFrom<Token> for Primary {
+    type Error = IzeErr;
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.kind {
+            TokenKind::IntegerLiteral(i) => Ok(Primary::Literal(Literal::Integer(i))),
+            TokenKind::FloatLiteral(f) => Ok(Primary::Literal(Literal::Float(f))),
+            TokenKind::BooleanLiteral(b) => Ok(Primary::Literal(Literal::Boolean(b))),
+            TokenKind::NoneLiteral => Ok(Primary::Literal(Literal::None)),
+            TokenKind::NullLiteral => Ok(Primary::Literal(Literal::Null)),
+            TokenKind::StringLiteral(s) => Ok(Primary::Literal(Literal::String(s))),
+            TokenKind::Identifier(id) => Ok(Primary::Identifier(id)),
+            TokenKind::ThreeDots => Ok(Primary::Identifier("...".into())),
+            _ => Err(IzeErr::new(
+                "Token must be an identifier or a literal to build a primary expression".into(),
+                value.pos,
+            )),
+        }
+    }
+}
+
+/// Literal.
+#[derive(Debug, PartialEq)]
+pub enum Literal {
+    String(String),
+    Integer(i64),
+    Float(f64),
+    Boolean(bool),
+    Null,
+    None,
+}
+
 #[derive(Debug, PartialEq)]
 /// Command type.
 pub struct Command {
@@ -492,7 +543,7 @@ impl Command {
                 return_type: ret_type.into(),
                 body,
             },
-            pos
+            pos,
         }
     }
 
@@ -503,7 +554,7 @@ impl Command {
                 ident_token: ident.into(),
                 body,
             },
-            pos
+            pos,
         }
     }
 
@@ -515,7 +566,7 @@ impl Command {
                 ident_token: ident.into(),
                 value_token: value.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -527,7 +578,7 @@ impl Command {
                 ident_token: ident.into(),
                 pipe_body_expr: pipe_body.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -538,7 +589,7 @@ impl Command {
             kind: CommandKind::Run {
                 pipe: pipe_body.into(),
             },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -547,7 +598,7 @@ impl Command {
         let end_pos = ident.pos.end;
         Self {
             kind: CommandKind::Run { pipe: ident.into() },
-            pos: RangePos::new(start_pos, end_pos)
+            pos: RangePos::new(start_pos, end_pos),
         }
     }
 
@@ -557,7 +608,7 @@ impl Command {
             kind: CommandKind::Import {
                 path_vec: path_vec.into(),
             },
-            pos
+            pos,
         }
     }
 }

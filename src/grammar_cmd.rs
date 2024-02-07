@@ -446,7 +446,10 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
         ],
         |mut node_vec| {
             let right_expr = match node_vec.pop().unwrap() {
-                AstNode::Token(token) => Box::new(Expression::new_primary(token)),
+                AstNode::Token(token) => {
+                    let pos = token.pos;
+                    Box::new(Expression::new_primary(token.try_into().unwrap(), pos))
+                }
                 AstNode::Expression(right_expr) => right_expr,
                 _ => panic!("Unexpected right expression"),
             };
@@ -456,13 +459,17 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
             if opt_as_alias.len() == 0 {
                 // No alias
                 let left_ident = node_vec.pop().unwrap().token().unwrap();
-                let left_expr = Box::new(Expression::new_primary(left_ident));
+                let pos = left_ident.pos;
+                let left_expr =
+                    Box::new(Expression::new_primary(left_ident.try_into().unwrap(), pos));
                 Expression::new_pair(left_expr, right_expr).into()
             } else {
                 // Alias
                 let alias = opt_as_alias.pop().unwrap().token().unwrap();
                 let left_ident = node_vec.pop().unwrap().token().unwrap();
-                let left_expr = Box::new(Expression::new_primary(left_ident));
+                let pos = left_ident.pos;
+                let left_expr =
+                    Box::new(Expression::new_primary(left_ident.try_into().unwrap(), pos));
                 Expression::new_pair_with_alias(left_expr, alias, right_expr).into()
             }
         },
@@ -550,6 +557,7 @@ fn simple_pair_success(mut node_vec: Vec<AstNode>) -> AstNode {
     let right_expr = node_vec.pop().unwrap().expr().unwrap();
     node_vec.pop().unwrap().token().unwrap(); // colon token
     let left_ident = node_vec.pop().unwrap().token().unwrap();
-    let left_expr = Box::new(Expression::new_primary(left_ident));
+    let pos = left_ident.pos;
+    let left_expr = Box::new(Expression::new_primary(left_ident.try_into().unwrap(), pos));
     Expression::new_pair(left_expr, right_expr).into()
 }

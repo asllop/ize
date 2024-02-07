@@ -37,7 +37,7 @@ impl RangePos {
     pub fn inline_new(line: usize, start_col: usize, end_col: usize, start_seek: usize) -> Self {
         Self::new(
             Pos::new(line, start_col, start_seek),
-            Pos::new(line, end_col, start_seek + (end_col - start_col))
+            Pos::new(line, end_col, start_seek + (end_col - start_col)),
         )
     }
 }

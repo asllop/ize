@@ -1,7 +1,7 @@
 // //! # Symbols
-// //! 
+// //!
 // //! Types to generate a symbol table and an intermediate AST out from the parser AST.
-// //! 
+// //!
 
 // use crate::{ast::{AstNode, Command, Expression}, lexer::{Token, TokenPos}};
 // use alloc::{string::String, vec::Vec};
@@ -24,7 +24,7 @@
 // impl Pos {
 //     /// Build Pos from the start of a TokenPos
 //     pub fn start(value: TokenPos) -> Self {
-//         Self { 
+//         Self {
 //             line: value.line,
 //             col: value.start_col,
 //             seek: value.seek,
@@ -33,7 +33,7 @@
 
 //     /// Build Pos from the end of a TokenPos
 //     pub fn end(value: TokenPos) -> Self {
-//         Self { 
+//         Self {
 //             line: value.line,
 //             col: value.end_col,
 //             seek: (value.end_col - value.start_col) + value.seek,
