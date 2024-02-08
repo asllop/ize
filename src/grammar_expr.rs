@@ -22,10 +22,10 @@
 //! By calling an expression parser function, only that or higher precedence expressions can be parsed. For instance, calling [expr_pair](crate::grammar_expr::expr_pair)
 //! will only parse expressions Pair, Type and Primary. The top level function is [expr](crate::grammar_expr::expr) which can parse any kind of expression.
 
-use alloc::vec::Vec;
+use alloc::{borrow::ToOwned, vec::Vec};
 
 use crate::{
-    ast::{AstNode, Expression, ExpressionKind, Literal, Primary},
+    ast::{AstNode, Expression, ExpressionKind, Primary},
     err::IzeErr,
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
@@ -553,7 +553,7 @@ pub fn expr_type(input: &[Token]) -> IzeResult {
         &[
             Fun(type_name, 1),
             Tk(TokenKind::OpenClause, 2),
-            Fun(expr_type, 3), // if subtype is not List, Map, Mux or Tuple, it will be parsed as a primary expr.
+            Fun(expr_type, 3), // if subtype is not a compound type, it will be parsed as a primary expr.
             Zero(&[Key(TokenKind::Comma, 4), Fun(expr_type, 5)]),
             Tk(TokenKind::ClosingClause, 6),
         ],
@@ -630,7 +630,19 @@ fn type_name(input: &[Token]) -> IzeResult {
             Tk(TokenKind::Tuple, 4),
             Tk(TokenKind::Traf, 5),
         ])],
-        |mut node_vec| node_vec.pop().unwrap(),
+        |mut node_vec| {
+            let token = node_vec.pop().unwrap().token().unwrap();
+            let pos = token.pos;
+            let type_id = match token.kind {
+                TokenKind::List => "List".to_owned(),
+                TokenKind::Map => "Map".to_owned(),
+                TokenKind::Mux => "Mux".to_owned(),
+                TokenKind::Tuple => "Tuple".to_owned(),
+                TokenKind::Traf => "Traf".to_owned(),
+                _ => panic!("Expected a type token"),
+            };
+            Token::new(pos, TokenKind::Identifier(type_id)).into()
+        },
         |_, e| Err(e),
     )
 }
@@ -644,16 +656,24 @@ fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
     let first_subtype = node_vec.pop().unwrap(); // Either a Vec (a type ready to be collected) or a Primary ident
     node_vec.pop().unwrap().token().unwrap(); // token "["
     let ident = node_vec.pop().unwrap().token().unwrap();
+    let start_pos = ident.pos.start;
+    let ident = if let TokenKind::Identifier(ident) = ident.kind {
+        ident
+    } else {
+        panic!("Token must be an identifier")
+    };
 
-    subtypes_vec.push(collect_subtype(first_subtype));
+    let subtype = *collect_subtype(first_subtype).expr().unwrap();
+    subtypes_vec.push(subtype);
 
     for subtype in following_subtypes_vec {
         // Ignore comma, get type
-        let type_node = subtype.vec().unwrap().pop().unwrap();
-        subtypes_vec.push(collect_subtype(type_node.into()));
+        let subtype = subtype.vec().unwrap().pop().unwrap();
+        let subtype = *collect_subtype(subtype).expr().unwrap();
+        subtypes_vec.push(subtype);
     }
 
-    Expression::new_type(ident, subtypes_vec, end_pos).into()
+    Expression::new_type(ident, subtypes_vec, end_pos - start_pos).into()
 }
 
 /// Collect the subtype of a type expression results.
@@ -665,32 +685,17 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
         }
         AstNode::Expression(expr) => match expr.kind {
             ExpressionKind::Primary(p) => {
-                //TODO: this conversion to Token is a temporary hack until we rebuild the type expression to not use generic wrapper types like AstNode or Token.
-                let token_kind = match p {
-                    Primary::Identifier(id) => TokenKind::Identifier(id),
-                    Primary::Literal(l) => match l {
-                        Literal::String(s) => TokenKind::StringLiteral(s),
-                        Literal::Integer(i) => TokenKind::IntegerLiteral(i),
-                        Literal::Float(f) => TokenKind::FloatLiteral(f),
-                        Literal::Boolean(b) => TokenKind::BooleanLiteral(b),
-                        Literal::Null => TokenKind::NullLiteral,
-                        Literal::None => TokenKind::NoneLiteral,
-                    },
+                let ident = if let Primary::Identifier(id) = p {
+                    id
+                } else {
+                    panic!("Primary expressionmust be an identifier")
                 };
-                let token = Token::new(expr.pos, token_kind);
-
-                let end_pos = token.pos.end;
-                let node = Expression::new_type(token, vec![], end_pos).into();
+                let pos = expr.pos;
+                let node = Expression::new_type(ident, vec![], pos).into();
                 node
             }
-            ExpressionKind::Type {
-                ident_token,
-                subtypes_vec,
-            } => Expression {
-                kind: ExpressionKind::Type {
-                    ident_token,
-                    subtypes_vec,
-                },
+            ExpressionKind::Type { ident, subtypes } => Expression {
+                kind: ExpressionKind::Type { ident, subtypes },
                 pos: expr.pos,
             }
             .into(),

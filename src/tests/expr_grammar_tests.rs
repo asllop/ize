@@ -774,17 +774,14 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            Token::new(RangePos::inline_new(0, 0, 4, 0), TokenKind::List),
+            "List".into(),
             vec![Expression::new_type(
-                Token::new(
-                    RangePos::inline_new(0, 5, 11, 5),
-                    TokenKind::Identifier("String".into())
-                ),
+                "String".into(),
                 vec![],
-                Pos::new(0, 11, 11)
+                Pos::new(0, 11, 11) - Pos::new(0, 5, 5),
             )
             .into()],
-            Pos::new(0, 12, 12)
+            Pos::new(0, 12, 12) - Pos::new(0, 0, 0),
         )
         .into()
     );
@@ -794,28 +791,22 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            Token::new(RangePos::inline_new(0, 0, 3, 0), TokenKind::Map),
+            "Map".into(),
             vec![
                 Expression::new_type(
-                    Token::new(
-                        RangePos::inline_new(0, 4, 10, 4),
-                        TokenKind::Identifier("String".into())
-                    ),
+                    "String".into(),
                     vec![],
-                    Pos::new(0, 10, 10)
+                    Pos::new(0, 10, 10) - Pos::new(0, 4, 4),
                 )
                 .into(),
                 Expression::new_type(
-                    Token::new(
-                        RangePos::inline_new(0, 12, 19, 12),
-                        TokenKind::Identifier("Integer".into())
-                    ),
+                    "Integer".into(),
                     vec![],
-                    Pos::new(0, 19, 19)
+                    Pos::new(0, 19, 19) - Pos::new(0, 12, 12),
                 )
                 .into()
             ],
-            Pos::new(0, 20, 20)
+            Pos::new(0, 20, 20) - Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -825,44 +816,35 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            Token::new(RangePos::inline_new(0, 0, 5, 0), TokenKind::Tuple),
+            "Tuple".into(),
             vec![
                 Expression::new_type(
-                    Token::new(RangePos::inline_new(0, 6, 9, 6), TokenKind::Mux),
+                    "Mux".into(),
                     vec![
                         Expression::new_type(
-                            Token::new(
-                                RangePos::inline_new(0, 10, 15, 10),
-                                TokenKind::Identifier("Float".into())
-                            ),
+                            "Float".into(),
                             vec![],
-                            Pos::new(0, 15, 15)
+                            Pos::new(0, 15, 15) - Pos::new(0, 10, 10),
                         )
                         .into(),
                         Expression::new_type(
-                            Token::new(
-                                RangePos::inline_new(0, 17, 24, 17),
-                                TokenKind::Identifier("Integer".into())
-                            ),
+                            "Integer".into(),
                             vec![],
-                            Pos::new(0, 24, 24)
+                            Pos::new(0, 24, 24) - Pos::new(0, 17, 17),
                         )
                         .into()
                     ],
-                    Pos::new(0, 25, 25)
+                    Pos::new(0, 25, 25) - Pos::new(0, 6, 6)
                 )
                 .into(),
                 Expression::new_type(
-                    Token::new(
-                        RangePos::inline_new(0, 27, 33, 27),
-                        TokenKind::Identifier("String".into())
-                    ),
+                    "String".into(),
                     vec![],
-                    Pos::new(0, 33, 33)
+                    Pos::new(0, 33, 33) - Pos::new(0, 27, 27),
                 )
                 .into()
             ],
-            Pos::new(0, 34, 34)
+            Pos::new(0, 34, 34) - Pos::new(0, 0, 0)
         )
         .into()
     );

@@ -48,28 +48,22 @@ fn check_model() {
                 TokenKind::Identifier("X".into())
             ),
             Expression::new_type(
-                Token::new(RangePos::inline_new(0, 8, 11, 8), TokenKind::Map),
+                "Map".into(),
                 vec![
                     Expression::new_type(
-                        Token::new(
-                            RangePos::inline_new(0, 12, 15, 12),
-                            TokenKind::Identifier("Str".into())
-                        ),
+                        "Str".into(),
                         vec![],
-                        Pos::new(0, 15, 15),
+                        Pos::new(0, 15, 15) - Pos::new(0, 12, 12),
                     )
                     .into(),
                     Expression::new_type(
-                        Token::new(
-                            RangePos::inline_new(0, 16, 19, 16),
-                            TokenKind::Identifier("Int".into())
-                        ),
+                        "Int".into(),
                         vec![],
-                        Pos::new(0, 19, 19),
+                        Pos::new(0, 19, 19) - Pos::new(0, 16, 16),
                     )
                     .into(),
                 ],
-                Pos::new(0, 20, 20)
+                Pos::new(0, 20, 20) - Pos::new(0, 8, 8)
             )
             .into(),
             Pos::new(0, 20, 20) - Pos::new(0, 0, 0)
