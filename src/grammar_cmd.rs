@@ -382,13 +382,13 @@ fn pipe_body(input: &[Token]) -> IzeResult {
                 Expression::new_pipe_body(vec![], end_pos - start_pos).into()
             } else {
                 let pipe_expressions = node_vec.pop().unwrap().vec().unwrap();
-                let first_pipe_expr = node_vec.pop().unwrap().expr().unwrap();
+                let first_pipe_expr = *node_vec.pop().unwrap().expr().unwrap();
                 let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token '('
-                let mut pipe_body_vec: Vec<AstNode> = vec![first_pipe_expr.into()];
+                let mut pipe_body_vec = vec![first_pipe_expr];
                 for pair in pipe_expressions {
                     let mut pair = pair.vec().unwrap();
-                    let expr = pair.pop().unwrap().expr().unwrap();
-                    pipe_body_vec.push(expr.into());
+                    let expr = *pair.pop().unwrap().expr().unwrap();
+                    pipe_body_vec.push(expr);
                 }
                 Expression::new_pipe_body(pipe_body_vec, end_pos - start_pos).into()
             }

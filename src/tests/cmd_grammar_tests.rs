@@ -378,14 +378,12 @@ fn check_pipe() {
                     Expression::new_primary(
                         Primary::Identifier("A".into()),
                         RangePos::inline_new(0, 8, 9, 8)
-                    )
-                    .into(),
+                    ),
                     Expression::new_call(
                         Identifier::new("B".into(), Pos::new(0, 12, 12) - Pos::new(0, 11, 11)),
                         vec![],
                         Pos::new(0, 14, 14) - Pos::new(0, 11, 11),
                     )
-                    .into()
                 ],
                 Pos::new(0, 15, 15) - Pos::new(0, 7, 7)
             )),
@@ -423,14 +421,12 @@ fn check_run() {
                     Expression::new_primary(
                         Primary::Identifier("A".into()),
                         RangePos::inline_new(0, 5, 6, 5)
-                    )
-                    .into(),
+                    ),
                     Expression::new_call(
                         Identifier::new("B".into(), Pos::new(0, 9, 9) - Pos::new(0, 8, 8)),
                         vec![],
                         Pos::new(0, 11, 11) - Pos::new(0, 8, 8),
                     )
-                    .into()
                 ],
                 Pos::new(0, 12, 12) - Pos::new(0, 4, 4),
             )),

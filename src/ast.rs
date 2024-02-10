@@ -325,11 +325,9 @@ impl Expression {
     }
 
     /// New PipeBody expression.
-    pub fn new_pipe_body(body: Vec<AstNode>, pos: RangePos) -> Self {
+    pub fn new_pipe_body(body: Vec<Expression>, pos: RangePos) -> Self {
         Self {
-            kind: ExpressionKind::PipeBody {
-                pipe_vec: AstNode::Vec(body),
-            },
+            kind: ExpressionKind::PipeBody(body),
             pos,
         }
     }
@@ -424,10 +422,7 @@ pub enum ExpressionKind {
         right: Box<Expression>,
     },
     /// Pipe body expression. Only used by commands Run and Pipe.
-    PipeBody {
-        /// Vector of expressions.
-        pipe_vec: AstNode,
-    },
+    PipeBody(Vec<Expression>),
     /// Path expression. Only used by the import command.
     Path {
         /// Module path, either a Dot or a Primary (identifier) expression.
