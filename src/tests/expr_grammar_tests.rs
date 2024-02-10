@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::{AstNode, BinaryOp, Expression, Identifier, Literal, Primary, UnaryOp},
+    ast::{AstNode, BinaryOp, Expression, Identifier, Literal, Primary, SelectUnwrapOp, UnaryOp},
     grammar_expr,
     lexer::{self, Token, TokenKind},
     pos::{Pos, RangePos},
@@ -867,20 +867,20 @@ fn check_type() {
 
 #[test]
 fn check_select_unwrap() {
-    let code = r#"select (v as i) (a -> x, b -> y, _ -> z)"#;
+    let code = "select (v as i) (a -> x, b -> y, _ -> z)";
     let expr = parse_single_expr(code);
     assert_eq!(
         expr,
         Expression::new_select_unwrap(
-            Token::new(RangePos::inline_new(0, 0, 6, 0), TokenKind::Select),
+            SelectUnwrapOp::Select,
             Expression::new_primary(
                 Primary::Identifier("v".into()),
                 RangePos::inline_new(0, 8, 9, 8)
             )
             .into(),
-            Some(Token::new(
+            Some(Identifier::new(
+                "i".into(),
                 RangePos::inline_new(0, 13, 14, 13),
-                TokenKind::Identifier("i".into())
             )),
             vec![
                 Expression::new_arm(
@@ -894,8 +894,7 @@ fn check_select_unwrap() {
                         RangePos::inline_new(0, 22, 23, 22)
                     )
                     .into(),
-                )
-                .into(),
+                ),
                 Expression::new_arm(
                     Expression::new_primary(
                         Primary::Identifier("b".into()),
@@ -907,8 +906,7 @@ fn check_select_unwrap() {
                         RangePos::inline_new(0, 30, 31, 30)
                     )
                     .into(),
-                )
-                .into(),
+                ),
                 Expression::new_arm(
                     Expression::new_primary(
                         Primary::Identifier("_".into()),
@@ -920,10 +918,9 @@ fn check_select_unwrap() {
                         RangePos::inline_new(0, 38, 39, 38)
                     )
                     .into(),
-                )
-                .into(),
+                ),
             ],
-            Pos::new(0, 40, 40)
+            Pos::new(0, 40, 40) - Pos::new(0, 0, 0)
         )
         .into()
     )

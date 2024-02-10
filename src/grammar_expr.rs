@@ -315,7 +315,7 @@ pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // token ")"
             let arms = node_vec.pop().unwrap().vec().unwrap();
-            let first_arm = node_vec.pop().unwrap().expr().unwrap();
+            let first_arm = *node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // token "("
             node_vec.pop().unwrap().token().unwrap(); // token ")"
             let maybe_as_ident = node_vec.pop().unwrap();
@@ -323,7 +323,7 @@ pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
                 // Is the alias
                 let alias = as_ident.pop().unwrap().token().unwrap();
                 let expr = node_vec.pop().unwrap().expr().unwrap();
-                (Some(alias), expr)
+                (Some(alias.try_into().unwrap()), expr)
             } else {
                 // Is the expression
                 let expr = maybe_as_ident.expr().unwrap();
@@ -331,17 +331,25 @@ pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
             };
             node_vec.pop().unwrap().token().unwrap(); // token "("
             let op = node_vec.pop().unwrap().token().unwrap(); // "select" or "unwrap" token
+            let start_pos = op.pos.start;
 
             // Collect arms
-            let mut arm_expressions = vec![first_arm.into()];
+            let mut arm_expressions = vec![first_arm];
             for arm in arms {
                 let mut arm = arm.vec().unwrap();
-                let arm_expr = arm.pop().unwrap();
+                let arm_expr = *arm.pop().unwrap().expr().unwrap();
                 arm_expressions.push(arm_expr);
             }
 
             // Generate expression
-            Expression::new_select_unwrap(op, expr, alias, arm_expressions, end_pos).into()
+            Expression::new_select_unwrap(
+                op.try_into().unwrap(),
+                expr,
+                alias,
+                arm_expressions,
+                end_pos - start_pos,
+            )
+            .into()
         },
         |input, e| {
             match e.id {

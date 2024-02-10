@@ -185,25 +185,20 @@ impl Expression {
 
     /// New Select/Unwrap expression.
     pub fn new_select_unwrap(
-        op: Token,
+        op: SelectUnwrapOp,
         expr: Box<Expression>,
-        alias_token: Option<Token>,
-        arms: Vec<AstNode>,
-        end_pos: Pos,
+        alias: Option<Identifier>,
+        arms: Vec<Expression>,
+        pos: RangePos,
     ) -> Self {
-        let start_pos = op.pos.start;
         Self {
             kind: ExpressionKind::SelectUnwrap {
-                op_token: op.into(),
-                expr: expr.into(),
-                alias_token: if let Some(alias) = alias_token {
-                    Some(alias.into())
-                } else {
-                    None
-                },
-                arms_vec: arms.into(),
+                op,
+                expr,
+                alias,
+                arms,
             },
-            pos: RangePos::new(start_pos, end_pos),
+            pos,
         }
     }
 
@@ -408,16 +403,16 @@ pub enum ExpressionKind {
     /// Type expression.
     Type {
         ident: Identifier,
-        /// TODO: Only allow Type expressions. Create a type for Type expression that contains positions, etc.
+        /// Vector of Type expressions.
         subtypes: Vec<Expression>,
     },
     /// Select/Unwrap expression.
     SelectUnwrap {
-        op_token: AstNode,
-        expr: AstNode,
-        alias_token: Option<AstNode>,
-        /// TODO: Only allow Arm expressions. Create a type for Arm expression that contains positions, etc.
-        arms_vec: AstNode,
+        op: SelectUnwrapOp,
+        expr: Box<Expression>,
+        alias: Option<Identifier>,
+        /// Vector of Arm expressions.
+        arms: Vec<Expression>,
     },
     /// Arm expression for Select/Unwrap.
     Arm {
@@ -595,8 +590,8 @@ impl TryFrom<Token> for SelectUnwrapOp {
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.kind {
-            TokenKind::Unwrap => Ok(SelectUnwrapOp::Select),
-            TokenKind::Select => Ok(SelectUnwrapOp::Unwrap),
+            TokenKind::Unwrap => Ok(SelectUnwrapOp::Unwrap),
+            TokenKind::Select => Ok(SelectUnwrapOp::Select),
             _ => Err(IzeErr::new(
                 "Token must be Select or Unwrap".into(),
                 value.pos,
