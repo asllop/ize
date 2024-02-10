@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::{AstNode, BinaryOp, Expression, Literal, Primary, UnaryOp},
+    ast::{AstNode, BinaryOp, Expression, Identifier, Literal, Primary, UnaryOp},
     grammar_expr,
     lexer::{self, Token, TokenKind},
     pos::{Pos, RangePos},
@@ -450,7 +450,7 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            "num".into(),
+            Identifier::new("num".into(), Pos::new(0, 7, 7) - Pos::new(0, 4, 4)),
             Expression::new_primary(
                 Primary::Literal(Literal::Integer(100)),
                 RangePos::inline_new(0, 8, 11, 8)
@@ -466,7 +466,7 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            "var".into(),
+            Identifier::new("var".into(), Pos::new(0, 7, 7) - Pos::new(0, 4, 4)),
             Expression::new_binary(
                 BinaryOp::Plus,
                 Expression::new_primary(
@@ -491,9 +491,9 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            "a".into(),
+            Identifier::new("a".into(), Pos::new(0, 5, 5) - Pos::new(0, 4, 4)),
             Expression::new_let(
-                "b".into(),
+                Identifier::new("b".into(), Pos::new(0, 11, 11) - Pos::new(0, 10, 10)),
                 Expression::new_primary(
                     Primary::Literal(Literal::Integer(100)),
                     RangePos::inline_new(0, 12, 15, 12)
@@ -512,7 +512,7 @@ fn check_let() {
     assert_eq!(
         expr,
         Expression::new_let(
-            "var".into(),
+            Identifier::new("var".into(), Pos::new(0, 7, 7) - Pos::new(0, 4, 4)),
             Expression::new_group(
                 Expression::new_chain(vec![
                     Expression::new_primary(
@@ -563,7 +563,7 @@ fn check_chain() {
         expr,
         Expression::new_chain(vec![
             Expression::new_let(
-                "var".into(),
+                Identifier::new("var".into(), Pos::new(0, 7, 7) - Pos::new(0, 4, 4)),
                 Expression::new_primary(
                     Primary::Literal(Literal::Integer(100)),
                     RangePos::inline_new(0, 8, 11, 8)
@@ -651,7 +651,12 @@ fn check_call() {
     let expr = parse_single_expr(code);
     assert_eq!(
         expr,
-        Expression::new_call("foo".into(), vec![], Pos::new(0, 5, 5) - Pos::new(0, 0, 0)).into()
+        Expression::new_call(
+            Identifier::new("foo".into(), Pos::new(0, 3, 3) - Pos::new(0, 0, 0)),
+            vec![],
+            Pos::new(0, 5, 5) - Pos::new(0, 0, 0)
+        )
+        .into()
     );
 
     let code = "foo(a)";
@@ -659,7 +664,7 @@ fn check_call() {
     assert_eq!(
         expr,
         Expression::new_call(
-            "foo".into(),
+            Identifier::new("foo".into(), Pos::new(0, 3, 3) - Pos::new(0, 0, 0)),
             vec![Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 4, 5, 4)
@@ -675,7 +680,7 @@ fn check_call() {
     assert_eq!(
         expr,
         Expression::new_call(
-            "foo".into(),
+            Identifier::new("foo".into(), Pos::new(0, 3, 3) - Pos::new(0, 0, 0)),
             vec![
                 Expression::new_primary(
                     Primary::Identifier("a".into()),
@@ -703,7 +708,7 @@ fn check_call() {
     assert_eq!(
         expr,
         Expression::new_call(
-            "foo".into(),
+            Identifier::new("foo".into(), Pos::new(0, 3, 3) - Pos::new(0, 0, 0)),
             vec![
                 Expression::new_primary(
                     Primary::Identifier("a".into()),
@@ -711,7 +716,7 @@ fn check_call() {
                 )
                 .into(),
                 Expression::new_call(
-                    "bar".into(),
+                    Identifier::new("bar".into(), Pos::new(0, 9, 9) - Pos::new(0, 6, 6)),
                     vec![
                         Expression::new_primary(
                             Primary::Identifier("b".into()),
@@ -741,9 +746,13 @@ fn check_dot_with_calls() {
     assert_eq!(
         expr,
         Expression::new_dot(vec![
-            Expression::new_call("foo".into(), vec![], Pos::new(0, 5, 5) - Pos::new(0, 0, 0)),
             Expression::new_call(
-                "bar".into(),
+                Identifier::new("foo".into(), Pos::new(0, 3, 3) - Pos::new(0, 0, 0)),
+                vec![],
+                Pos::new(0, 5, 5) - Pos::new(0, 0, 0)
+            ),
+            Expression::new_call(
+                Identifier::new("bar".into(), Pos::new(0, 9, 9) - Pos::new(0, 6, 6)),
                 vec![
                     Expression::new_primary(
                         Primary::Identifier("a".into()),
@@ -774,9 +783,9 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            "List".into(),
+            Identifier::new("List".into(), Pos::new(0, 4, 4) - Pos::new(0, 0, 0)),
             vec![Expression::new_type(
-                "String".into(),
+                Identifier::new("String".into(), Pos::new(0, 11, 11) - Pos::new(0, 5, 5)),
                 vec![],
                 Pos::new(0, 11, 11) - Pos::new(0, 5, 5),
             )
@@ -791,16 +800,16 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            "Map".into(),
+            Identifier::new("Map".into(), Pos::new(0, 3, 3) - Pos::new(0, 0, 0)),
             vec![
                 Expression::new_type(
-                    "String".into(),
+                    Identifier::new("String".into(), Pos::new(0, 10, 10) - Pos::new(0, 4, 4)),
                     vec![],
                     Pos::new(0, 10, 10) - Pos::new(0, 4, 4),
                 )
                 .into(),
                 Expression::new_type(
-                    "Integer".into(),
+                    Identifier::new("Integer".into(), Pos::new(0, 19, 19) - Pos::new(0, 12, 12)),
                     vec![],
                     Pos::new(0, 19, 19) - Pos::new(0, 12, 12),
                 )
@@ -816,19 +825,25 @@ fn check_type() {
     assert_eq!(
         expr,
         Expression::new_type(
-            "Tuple".into(),
+            Identifier::new("Tuple".into(), Pos::new(0, 5, 5) - Pos::new(0, 0, 0)),
             vec![
                 Expression::new_type(
-                    "Mux".into(),
+                    Identifier::new("Mux".into(), Pos::new(0, 9, 9) - Pos::new(0, 6, 6)),
                     vec![
                         Expression::new_type(
-                            "Float".into(),
+                            Identifier::new(
+                                "Float".into(),
+                                Pos::new(0, 15, 15) - Pos::new(0, 10, 10)
+                            ),
                             vec![],
                             Pos::new(0, 15, 15) - Pos::new(0, 10, 10),
                         )
                         .into(),
                         Expression::new_type(
-                            "Integer".into(),
+                            Identifier::new(
+                                "Integer".into(),
+                                Pos::new(0, 24, 24) - Pos::new(0, 17, 17)
+                            ),
                             vec![],
                             Pos::new(0, 24, 24) - Pos::new(0, 17, 17),
                         )
@@ -838,7 +853,7 @@ fn check_type() {
                 )
                 .into(),
                 Expression::new_type(
-                    "String".into(),
+                    Identifier::new("String".into(), Pos::new(0, 33, 33) - Pos::new(0, 27, 27)),
                     vec![],
                     Pos::new(0, 33, 33) - Pos::new(0, 27, 27),
                 )
@@ -941,7 +956,7 @@ fn check_pair() {
         expr,
         Expression::new_pair(
             Expression::new_call(
-                "MyKey".into(),
+                Identifier::new("MyKey".into(), Pos::new(0, 5, 5) - Pos::new(0, 0, 0)),
                 vec![],
                 Pos::new(0, 7, 7) - Pos::new(0, 0, 0),
             )

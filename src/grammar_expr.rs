@@ -25,7 +25,7 @@
 use alloc::{borrow::ToOwned, vec::Vec};
 
 use crate::{
-    ast::{AstNode, Expression, ExpressionKind, Primary},
+    ast::{AstNode, Expression, ExpressionKind, Identifier, Primary},
     err::IzeErr,
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
@@ -94,13 +94,8 @@ pub fn expr_let(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
-            let ident = if let TokenKind::Identifier(ident) = ident.kind {
-                ident
-            } else {
-                panic!("Token must be an identifier")
-            };
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-            Expression::new_let(ident, expr, start_pos).into()
+            Expression::new_let(ident.try_into().unwrap(), expr, start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -450,13 +445,12 @@ pub fn expr_call(input: &[Token]) -> IzeResult {
             node_vec.pop().unwrap().token().unwrap(); // Discard token "("
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = ident.pos.start;
-            let ident = if let TokenKind::Identifier(ident) = ident.kind {
-                ident
-            } else {
-                panic!("Token must be an identifier")
-            };
-            Expression::new_call(ident, Default::default(), RangePos::new(start_pos, end_pos))
-                .into()
+            Expression::new_call(
+                ident.try_into().unwrap(),
+                Default::default(),
+                RangePos::new(start_pos, end_pos),
+            )
+            .into()
         },
         |input, e| {
             match e.id {
@@ -487,11 +481,6 @@ fn expr_call_with_args(input: &[Token]) -> IzeResult {
             node_vec.pop().unwrap().token().unwrap(); // discard "(" token
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = ident.pos.start;
-            let ident = if let TokenKind::Identifier(ident) = ident.kind {
-                ident
-            } else {
-                panic!("Token must be an identifier")
-            };
             let mut args = vec![first_arg];
             for pair in arg_pairs_vec {
                 let mut pair = pair.vec().unwrap();
@@ -499,7 +488,12 @@ fn expr_call_with_args(input: &[Token]) -> IzeResult {
                 args.push(arg);
             }
 
-            Expression::new_call(ident, args, RangePos::new(start_pos, end_pos)).into()
+            Expression::new_call(
+                ident.try_into().unwrap(),
+                args,
+                RangePos::new(start_pos, end_pos),
+            )
+            .into()
         },
         |_, e| match e.id {
             3 => Err(IzeErr::new("Expected expression after '('".into(), e.err.pos).into()),
@@ -657,11 +651,6 @@ fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
     node_vec.pop().unwrap().token().unwrap(); // token "["
     let ident = node_vec.pop().unwrap().token().unwrap();
     let start_pos = ident.pos.start;
-    let ident = if let TokenKind::Identifier(ident) = ident.kind {
-        ident
-    } else {
-        panic!("Token must be an identifier")
-    };
 
     let subtype = *collect_subtype(first_subtype).expr().unwrap();
     subtypes_vec.push(subtype);
@@ -673,7 +662,7 @@ fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
         subtypes_vec.push(subtype);
     }
 
-    Expression::new_type(ident, subtypes_vec, end_pos - start_pos).into()
+    Expression::new_type(ident.try_into().unwrap(), subtypes_vec, end_pos - start_pos).into()
 }
 
 /// Collect the subtype of a type expression results.
@@ -685,12 +674,12 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
         }
         AstNode::Expression(expr) => match expr.kind {
             ExpressionKind::Primary(p) => {
-                let ident = if let Primary::Identifier(id) = p {
-                    id
-                } else {
-                    panic!("Primary expressionmust be an identifier")
-                };
                 let pos = expr.pos;
+                let ident = if let Primary::Identifier(id) = p {
+                    Identifier::new(id, pos)
+                } else {
+                    panic!("Primary expression must be an identifier")
+                };
                 let node = Expression::new_type(ident, vec![], pos).into();
                 node
             }

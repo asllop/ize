@@ -3,7 +3,7 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    ast::{AstNode, BinaryOp, Command, Expression, Literal, Primary},
+    ast::{AstNode, BinaryOp, Command, Expression, Identifier, Literal, Primary},
     grammar_cmd,
     lexer::{self, Token, TokenKind},
     pos::{Pos, RangePos},
@@ -48,16 +48,16 @@ fn check_model() {
                 TokenKind::Identifier("X".into())
             ),
             Expression::new_type(
-                "Map".into(),
+                Identifier::new("Map".into(), Pos::new(0, 11, 11) - Pos::new(0, 8, 8)),
                 vec![
                     Expression::new_type(
-                        "Str".into(),
+                        Identifier::new("Str".into(), Pos::new(0, 15, 15) - Pos::new(0, 12, 12)),
                         vec![],
                         Pos::new(0, 15, 15) - Pos::new(0, 12, 12),
                     )
                     .into(),
                     Expression::new_type(
-                        "Int".into(),
+                        Identifier::new("Int".into(), Pos::new(0, 19, 19) - Pos::new(0, 16, 16)),
                         vec![],
                         Pos::new(0, 19, 19) - Pos::new(0, 16, 16),
                     )
@@ -111,6 +111,61 @@ fn check_model() {
             ]
             .into(),
             Pos::new(0, 41, 41) - Pos::new(0, 0, 0)
+        )
+        .into()
+    );
+
+    let code = r#"model X (one: Str, two as "num.two": Int, rest: ...)"#;
+    let cmd = parse_single_cmd(code);
+
+    assert_eq!(
+        cmd,
+        Command::new_model(
+            Token::new(
+                RangePos::inline_new(0, 6, 7, 6),
+                TokenKind::Identifier("X".into())
+            ),
+            vec![
+                Expression::new_pair(
+                    Box::new(Expression::new_primary(
+                        Primary::Identifier("one".into()),
+                        RangePos::inline_new(0, 9, 12, 9)
+                    )),
+                    Box::new(Expression::new_primary(
+                        Primary::Identifier("Str".into()),
+                        RangePos::inline_new(0, 14, 17, 14)
+                    )),
+                )
+                .into(),
+                Expression::new_pair_with_alias(
+                    Box::new(Expression::new_primary(
+                        Primary::Identifier("two".into()),
+                        RangePos::inline_new(0, 19, 22, 19)
+                    )),
+                    Token::new(
+                        RangePos::inline_new(0, 26, 35, 26),
+                        TokenKind::StringLiteral("\"num.two\"".into())
+                    ),
+                    Box::new(Expression::new_primary(
+                        Primary::Identifier("Int".into()),
+                        RangePos::inline_new(0, 37, 40, 37)
+                    )),
+                )
+                .into(),
+                Expression::new_pair(
+                    Box::new(Expression::new_primary(
+                        Primary::Identifier("rest".into()),
+                        RangePos::inline_new(0, 42, 46, 42)
+                    )),
+                    Box::new(Expression::new_primary(
+                        Primary::Identifier("...".into()),
+                        RangePos::inline_new(0, 48, 51, 48)
+                    )),
+                )
+                .into(),
+            ]
+            .into(),
+            Pos::new(0, 52, 52) - Pos::new(0, 0, 0)
         )
         .into()
     );
@@ -332,7 +387,7 @@ fn check_pipe() {
                     )
                     .into(),
                     Expression::new_call(
-                        "B".into(),
+                        Identifier::new("B".into(), Pos::new(0, 12, 12) - Pos::new(0, 11, 11)),
                         vec![],
                         Pos::new(0, 14, 14) - Pos::new(0, 11, 11),
                     )
@@ -377,7 +432,7 @@ fn check_run() {
                     )
                     .into(),
                     Expression::new_call(
-                        "B".into(),
+                        Identifier::new("B".into(), Pos::new(0, 9, 9) - Pos::new(0, 8, 8)),
                         vec![],
                         Pos::new(0, 11, 11) - Pos::new(0, 8, 8),
                     )

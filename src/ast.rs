@@ -175,7 +175,7 @@ impl Expression {
     }
 
     /// New Let expression.
-    pub fn new_let(ident: String, expr: Box<Expression>, start_pos: Pos) -> Self {
+    pub fn new_let(ident: Identifier, expr: Box<Expression>, start_pos: Pos) -> Self {
         let end_pos = expr.pos.end;
         Self {
             kind: ExpressionKind::Let { ident, expr },
@@ -299,7 +299,7 @@ impl Expression {
     }
 
     /// New Group expression.
-    pub fn new_call(ident: String, args: Vec<Expression>, pos: RangePos) -> Self {
+    pub fn new_call(ident: Identifier, args: Vec<Expression>, pos: RangePos) -> Self {
         Self {
             kind: ExpressionKind::Call { ident, args },
             pos,
@@ -317,7 +317,7 @@ impl Expression {
     }
 
     /// New Type expression.
-    pub fn new_type(ident: String, subtypes: Vec<Expression>, pos: RangePos) -> Self {
+    pub fn new_type(ident: Identifier, subtypes: Vec<Expression>, pos: RangePos) -> Self {
         Self {
             kind: ExpressionKind::Type { ident, subtypes },
             pos,
@@ -368,6 +368,8 @@ impl Expression {
     }
 }
 
+//TODO: create a typoe for identifiers that contains the position. Used for let, call, and type expressions.
+
 #[derive(Debug, PartialEq)]
 /// Expression kind.
 pub enum ExpressionKind {
@@ -393,19 +395,20 @@ pub enum ExpressionKind {
     Unary { op: UnaryOp, expr: Box<Expression> },
     /// Let expression.
     Let {
-        ident: String,
+        ident: Identifier,
         expr: Box<Expression>,
     },
     /// Call expression.
     Call {
-        ident: String,
+        ident: Identifier,
         args: Vec<Expression>,
     },
     /// Dot expression.
     Dot(Vec<Expression>),
     /// Type expression.
     Type {
-        ident: String,
+        ident: Identifier,
+        /// TODO: Only allow Type expressions. Create a type for Type expression that contains positions, etc.
         subtypes: Vec<Expression>,
     },
     /// Select/Unwrap expression.
@@ -413,6 +416,7 @@ pub enum ExpressionKind {
         op_token: AstNode,
         expr: AstNode,
         alias_token: Option<AstNode>,
+        /// TODO: Only allow Arm expressions. Create a type for Arm expression that contains positions, etc.
         arms_vec: AstNode,
     },
     /// Arm expression for Select/Unwrap.
@@ -440,8 +444,36 @@ pub enum ExpressionKind {
     },
 }
 
-/// Primary expression.
 #[derive(Debug, PartialEq)]
+/// Identifier.
+pub struct Identifier {
+    /// Identifier string.
+    pub id: String,
+    /// Identifier position.
+    pub pos: RangePos,
+}
+
+impl Identifier {
+    /// New Identifier.
+    pub fn new(id: String, pos: RangePos) -> Self {
+        Self { id, pos }
+    }
+}
+
+impl TryFrom<Token> for Identifier {
+    type Error = IzeErr;
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        if let TokenKind::Identifier(id) = value.kind {
+            Ok(Identifier { id, pos: value.pos })
+        } else {
+            Err(IzeErr::new("Token must be an identifier".into(), value.pos))
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+/// Primary expression.
 pub enum Primary {
     /// Identifier primary.
     Identifier(String),
@@ -470,8 +502,8 @@ impl TryFrom<Token> for Primary {
     }
 }
 
-/// Literal.
 #[derive(Debug, PartialEq)]
+/// Literal.
 pub enum Literal {
     String(String),
     Integer(i64),
@@ -545,6 +577,28 @@ impl TryFrom<Token> for UnaryOp {
             TokenKind::Not => Ok(UnaryOp::Not),
             _ => Err(IzeErr::new(
                 "Token must be a unary operator".into(),
+                value.pos,
+            )),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+/// Select/Unwrap operation
+pub enum SelectUnwrapOp {
+    Select,
+    Unwrap,
+}
+
+impl TryFrom<Token> for SelectUnwrapOp {
+    type Error = IzeErr;
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.kind {
+            TokenKind::Unwrap => Ok(SelectUnwrapOp::Select),
+            TokenKind::Select => Ok(SelectUnwrapOp::Unwrap),
+            _ => Err(IzeErr::new(
+                "Token must be Select or Unwrap".into(),
                 value.pos,
             )),
         }
