@@ -333,27 +333,28 @@ impl Expression {
     }
 
     /// New Path expression.
-    pub fn new_path(module_expr: Box<Expression>) -> Self {
-        let pos = module_expr.pos;
+    pub fn new_path(module_path: Vec<Identifier>, pos: RangePos) -> Self {
         Self {
             kind: ExpressionKind::Path {
-                module_expr: module_expr.into(),
-                alias_token: None,
+                module_path,
+                alias: None,
             },
             pos,
         }
     }
 
     /// New Path expression with alias.
-    pub fn new_path_with_alias(module_expr: Box<Expression>, alias: Token) -> Self {
-        let start_pos = module_expr.pos.start;
-        let end_pos = alias.pos.end;
+    pub fn new_path_with_alias(
+        module_path: Vec<Identifier>,
+        alias: Identifier,
+        pos: RangePos,
+    ) -> Self {
         Self {
             kind: ExpressionKind::Path {
-                module_expr: module_expr.into(),
-                alias_token: Some(alias.into()),
+                module_path,
+                alias: Some(alias),
             },
-            pos: RangePos::new(start_pos, end_pos),
+            pos,
         }
     }
 }
@@ -398,7 +399,7 @@ pub enum ExpressionKind {
     /// Type expression.
     Type {
         ident: Identifier,
-        /// Vector of Type expressions.
+        /// Only expressions with kind == ExpressionKind::Type.
         subtypes: Vec<Expression>,
     },
     /// Select/Unwrap expression.
@@ -406,7 +407,7 @@ pub enum ExpressionKind {
         op: SelectUnwrapOp,
         expr: Box<Expression>,
         alias: Option<Identifier>,
-        /// Vector of Arm expressions.
+        /// Only expressions with kind == ExpressionKind::Arm.
         arms: Vec<Expression>,
     },
     /// Arm expression for Select/Unwrap.
@@ -417,7 +418,7 @@ pub enum ExpressionKind {
     /// Pair expression.
     Pair {
         left: Box<Expression>,
-        /// Identifier is a string literal, not a primary identifier. Only used for models.
+        /// Identifier here is a string literal, not a primary identifier. Only used for models.
         alias: Option<Identifier>,
         right: Box<Expression>,
     },
@@ -425,10 +426,10 @@ pub enum ExpressionKind {
     PipeBody(Vec<Expression>),
     /// Path expression. Only used by the import command.
     Path {
-        /// Module path, either a Dot or a Primary (identifier) expression.
-        module_expr: AstNode,
+        /// Module path.
+        module_path: Vec<Identifier>,
         /// Module alias.
-        alias_token: Option<AstNode>,
+        alias: Option<Identifier>,
     },
 }
 

@@ -298,20 +298,14 @@ fn check_import() {
     assert_eq!(
         cmd,
         Command::new_import(
-            vec![Expression::new_path(Box::new(Expression::new_dot(vec![
-                Expression::new_primary(
-                    Primary::Identifier("com".into()),
-                    RangePos::inline_new(0, 7, 10, 7)
-                ),
-                Expression::new_primary(
-                    Primary::Identifier("example".into()),
-                    RangePos::inline_new(0, 11, 18, 11)
-                ),
-                Expression::new_primary(
-                    Primary::Identifier("Something".into()),
-                    RangePos::inline_new(0, 19, 28, 19)
-                ),
-            ])))
+            vec![Expression::new_path(
+                vec![
+                    Identifier::new("com".into(), RangePos::inline_new(0, 7, 10, 7)),
+                    Identifier::new("example".into(), RangePos::inline_new(0, 11, 18, 11)),
+                    Identifier::new("Something".into(), RangePos::inline_new(0, 19, 28, 19)),
+                ],
+                Pos::new(0, 28, 28) - Pos::new(0, 7, 7)
+            )
             .into()],
             Pos::new(0, 28, 28) - Pos::new(0, 0, 0)
         )
@@ -326,34 +320,23 @@ fn check_import() {
         Command::new_import(
             vec![
                 Expression::new_path_with_alias(
-                    Box::new(Expression::new_dot(vec![
-                        Expression::new_primary(
-                            Primary::Identifier("com".into()),
-                            RangePos::inline_new(0, 8, 11, 8)
-                        ),
-                        Expression::new_primary(
-                            Primary::Identifier("example".into()),
-                            RangePos::inline_new(0, 12, 19, 12)
-                        ),
-                        Expression::new_primary(
-                            Primary::Identifier("Something".into()),
-                            RangePos::inline_new(0, 20, 29, 20)
-                        ),
-                    ])),
-                    Token::new(
-                        RangePos::inline_new(0, 33, 38, 33),
-                        TokenKind::Identifier("thing".into())
-                    )
+                    vec![
+                        Identifier::new("com".into(), RangePos::inline_new(0, 8, 11, 8)),
+                        Identifier::new("example".into(), RangePos::inline_new(0, 12, 19, 12)),
+                        Identifier::new("Something".into(), RangePos::inline_new(0, 20, 29, 20)),
+                    ],
+                    Identifier::new("thing".into(), RangePos::inline_new(0, 33, 38, 33),),
+                    Pos::new(0, 29, 29) - Pos::new(0, 8, 8)
                 )
                 .into(),
-                Expression::new_path(Box::new(
-                    Expression::new_primary(
-                        Primary::Identifier("state".into()),
+                Expression::new_path(
+                    vec![Identifier::new(
+                        "state".into(),
                         RangePos::inline_new(0, 40, 45, 40)
-                    )
-                    .into()
-                ))
-                .into()
+                    ),],
+                    Pos::new(0, 45, 45) - Pos::new(0, 40, 40)
+                )
+                .into(),
             ],
             Pos::new(0, 46, 46) - Pos::new(0, 0, 0)
         )

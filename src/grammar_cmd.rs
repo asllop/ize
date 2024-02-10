@@ -5,11 +5,12 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    ast::{AstNode, Command, Expression, Identifier},
+    ast::{AstNode, Command, Expression, ExpressionKind, Identifier, Primary},
     err::IzeErr,
     grammar_expr::{expr, expr_call, expr_dot, expr_type},
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
+    pos::RangePos,
 };
 
 /////////////////////
@@ -341,12 +342,16 @@ fn import_path(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let mut opt_as_ident = node_vec.pop().unwrap().vec().unwrap();
             if opt_as_ident.len() == 0 {
-                let module_expr = node_vec.pop().unwrap().expr().unwrap();
-                Expression::new_path(module_expr).into()
+                let module_expr = *node_vec.pop().unwrap().expr().unwrap();
+                let pos = module_expr.pos;
+                let module_expr = convert_module_into_vec_of_identifiers(module_expr, pos);
+                Expression::new_path(module_expr, pos).into()
             } else {
-                let module_expr = node_vec.pop().unwrap().expr().unwrap();
+                let module_expr = *node_vec.pop().unwrap().expr().unwrap();
+                let pos = module_expr.pos;
+                let module_expr = convert_module_into_vec_of_identifiers(module_expr, pos);
                 let alias = opt_as_ident.pop().unwrap().token().unwrap();
-                Expression::new_path_with_alias(module_expr, alias).into()
+                Expression::new_path_with_alias(module_expr, alias.try_into().unwrap(), pos).into()
             }
         },
         |_, e| match e.id {
@@ -355,6 +360,26 @@ fn import_path(input: &[Token]) -> IzeResult {
             _ => Err(e),
         },
     )
+}
+
+fn convert_module_into_vec_of_identifiers(
+    module_expr: Expression,
+    pos: RangePos,
+) -> Vec<Identifier> {
+    match module_expr.kind {
+        ExpressionKind::Primary(Primary::Identifier(id)) => vec![Identifier::new(id, pos)],
+        ExpressionKind::Dot(v) => v
+            .into_iter()
+            .map(|e| {
+                if let ExpressionKind::Primary(Primary::Identifier(id)) = e.kind {
+                    Identifier::new(id, e.pos)
+                } else {
+                    panic!("Dot expression must contain only primary identifiers")
+                }
+            })
+            .collect(),
+        _ => panic!("Expression must be a primary identifier or a dot expr"),
+    }
 }
 
 /// Parse pipe body
