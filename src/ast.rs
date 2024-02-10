@@ -203,27 +203,24 @@ impl Expression {
     }
 
     /// New Arm expression.
-    pub fn new_arm(left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
-        let start_pos = left_expr.pos.start;
-        let end_pos = right_expr.pos.end;
+    pub fn new_arm(left: Box<Expression>, right: Box<Expression>) -> Self {
+        let start_pos = left.pos.start;
+        let end_pos = right.pos.end;
         Self {
-            kind: ExpressionKind::Arm {
-                left_expr: left_expr.into(),
-                right_expr: right_expr.into(),
-            },
+            kind: ExpressionKind::Arm { left, right },
             pos: RangePos::new(start_pos, end_pos),
         }
     }
 
     /// New Pair expression.
-    pub fn new_pair(left_expr: Box<Expression>, right_expr: Box<Expression>) -> Self {
-        let start_pos = left_expr.pos.start;
-        let end_pos = right_expr.pos.end;
+    pub fn new_pair(left: Box<Expression>, right: Box<Expression>) -> Self {
+        let start_pos = left.pos.start;
+        let end_pos = right.pos.end;
         Self {
             kind: ExpressionKind::Pair {
-                left_expr: left_expr.into(),
-                alias_token: None,
-                right_expr: right_expr.into(),
+                left,
+                alias: None,
+                right,
             },
             pos: RangePos::new(start_pos, end_pos),
         }
@@ -231,17 +228,17 @@ impl Expression {
 
     /// New Pair expression with alias.
     pub fn new_pair_with_alias(
-        left_expr: Box<Expression>,
-        alias: Token,
-        right_expr: Box<Expression>,
+        left: Box<Expression>,
+        alias: Identifier,
+        right: Box<Expression>,
     ) -> Self {
-        let start_pos = left_expr.pos.start;
-        let end_pos = right_expr.pos.end;
+        let start_pos = left.pos.start;
+        let end_pos = right.pos.end;
         Self {
             kind: ExpressionKind::Pair {
-                left_expr: left_expr.into(),
-                alias_token: Some(alias.into()),
-                right_expr: right_expr.into(),
+                left,
+                alias: Some(alias),
+                right,
             },
             pos: RangePos::new(start_pos, end_pos),
         }
@@ -416,14 +413,15 @@ pub enum ExpressionKind {
     },
     /// Arm expression for Select/Unwrap.
     Arm {
-        left_expr: AstNode,
-        right_expr: AstNode,
+        left: Box<Expression>,
+        right: Box<Expression>,
     },
     /// Pair expression.
     Pair {
-        left_expr: AstNode,
-        alias_token: Option<AstNode>,
-        right_expr: AstNode,
+        left: Box<Expression>,
+        /// Identifier is a string literal, not a primary identifier. Only used for models.
+        alias: Option<Identifier>,
+        right: Box<Expression>,
     },
     /// Pipe body expression. Only used by commands Run and Pipe.
     PipeBody {

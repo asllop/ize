@@ -98,10 +98,7 @@ fn check_model() {
                         Primary::Identifier("two".into()),
                         RangePos::inline_new(0, 19, 22, 19)
                     )),
-                    Token::new(
-                        RangePos::inline_new(0, 26, 35, 26),
-                        TokenKind::StringLiteral("\"num.two\"".into())
-                    ),
+                    Identifier::new("\"num.two\"".into(), RangePos::inline_new(0, 26, 35, 26),),
                     Box::new(Expression::new_primary(
                         Primary::Identifier("Int".into()),
                         RangePos::inline_new(0, 37, 40, 37)
@@ -142,10 +139,7 @@ fn check_model() {
                         Primary::Identifier("two".into()),
                         RangePos::inline_new(0, 19, 22, 19)
                     )),
-                    Token::new(
-                        RangePos::inline_new(0, 26, 35, 26),
-                        TokenKind::StringLiteral("\"num.two\"".into())
-                    ),
+                    Identifier::new("\"num.two\"".into(), RangePos::inline_new(0, 26, 35, 26),),
                     Box::new(Expression::new_primary(
                         Primary::Identifier("Int".into()),
                         RangePos::inline_new(0, 37, 40, 37)

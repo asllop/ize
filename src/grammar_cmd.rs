@@ -5,7 +5,7 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    ast::{AstNode, Command, Expression},
+    ast::{AstNode, Command, Expression, Identifier},
     err::IzeErr,
     grammar_expr::{expr, expr_call, expr_dot, expr_type},
     lexer::{Token, TokenKind},
@@ -466,6 +466,12 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
             } else {
                 // Alias
                 let alias = opt_as_alias.pop().unwrap().token().unwrap();
+                let alias_pos = alias.pos;
+                let alias = if let TokenKind::StringLiteral(s) = alias.kind {
+                    Identifier::new(s, alias_pos)
+                } else {
+                    panic!("Token must be a string literal")
+                };
                 let left_ident = node_vec.pop().unwrap().token().unwrap();
                 let pos = left_ident.pos;
                 let left_expr =
