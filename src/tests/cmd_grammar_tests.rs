@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use crate::{
     ast::{AstNode, BinaryOp, Command, Expression, Identifier, Literal, Primary},
     grammar_cmd,
-    lexer::{self, Token, TokenKind},
+    lexer,
     pos::{Pos, RangePos},
 };
 
@@ -343,10 +343,7 @@ fn check_pipe() {
     assert_eq!(
         cmd,
         Command::new_pipe(
-            Token::new(
-                RangePos::inline_new(0, 5, 6, 5),
-                TokenKind::Identifier("X".into())
-            ),
+            Identifier::new("X".into(), RangePos::inline_new(0, 5, 6, 5),),
             Expression::new_pipe_body(
                 vec![
                     Expression::new_primary(
@@ -376,10 +373,7 @@ fn check_run() {
     assert_eq!(
         cmd,
         Command::new_run_with_ident(
-            Token::new(
-                RangePos::inline_new(0, 4, 5, 4),
-                TokenKind::Identifier("X".into())
-            ),
+            Identifier::new("X".into(), RangePos::inline_new(0, 4, 5, 4),),
             Pos::new(0, 0, 0)
         )
         .into()

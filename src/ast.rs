@@ -684,13 +684,10 @@ impl Command {
     }
 
     /// New pipe command.
-    pub fn new_pipe(ident: Token, pipe_body: Box<Expression>, start_pos: Pos) -> Self {
+    pub fn new_pipe(ident: Identifier, pipe_body: Box<Expression>, start_pos: Pos) -> Self {
         let end_pos = pipe_body.pos.end;
         Self {
-            kind: CommandKind::Pipe {
-                ident_token: ident.into(),
-                pipe_body_expr: pipe_body.into(),
-            },
+            kind: CommandKind::Pipe { ident, pipe_body },
             pos: RangePos::new(start_pos, end_pos),
         }
     }
@@ -699,18 +696,16 @@ impl Command {
     pub fn new_run_with_body(pipe_body: Box<Expression>, start_pos: Pos) -> Self {
         let end_pos = pipe_body.pos.end;
         Self {
-            kind: CommandKind::Run {
-                pipe: pipe_body.into(),
-            },
+            kind: CommandKind::Run(RunBody::Pipe(pipe_body)),
             pos: RangePos::new(start_pos, end_pos),
         }
     }
 
     /// New run command.
-    pub fn new_run_with_ident(ident: Token, start_pos: Pos) -> Self {
+    pub fn new_run_with_ident(ident: Identifier, start_pos: Pos) -> Self {
         let end_pos = ident.pos.end;
         Self {
-            kind: CommandKind::Run { pipe: ident.into() },
+            kind: CommandKind::Run(RunBody::Identifier(ident)),
             pos: RangePos::new(start_pos, end_pos),
         }
     }
@@ -750,15 +745,12 @@ pub enum CommandKind {
     /// Pipe command.
     Pipe {
         /// Pipe name
-        ident_token: AstNode,
-        /// Pipe body expression.
-        pipe_body_expr: AstNode,
+        ident: Identifier,
+        /// Pipe body expression. Must be an expression with kind == ExpressionKind::PipeBody.
+        pipe_body: Box<Expression>,
     },
     /// Run command.
-    Run {
-        /// Pipe. Either an identifier token or a pipe body expression.
-        pipe: AstNode,
-    },
+    Run(RunBody),
     /// Const command
     Const {
         /// Const name.
@@ -784,4 +776,13 @@ pub enum ModelBody {
     Type(Box<Expression>),
     /// Vector of Pair expressions.
     Struct(Vec<Expression>),
+}
+
+#[derive(Debug, PartialEq)]
+/// Run body.
+pub enum RunBody {
+    /// Pipe identifier.
+    Identifier(Identifier),
+    /// Pipe body. Must be an expression with kind == ExpressionKind::PipeBody.
+    Pipe(Box<Expression>),
 }

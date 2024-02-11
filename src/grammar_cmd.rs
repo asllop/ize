@@ -258,7 +258,7 @@ fn cmd_pipe(input: &[Token]) -> IzeResult {
             let pipe_body = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-            Command::new_pipe(ident, pipe_body, start_pos).into()
+            Command::new_pipe(ident.try_into().unwrap(), pipe_body, start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -288,7 +288,7 @@ fn cmd_run(input: &[Token]) -> IzeResult {
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
             if let AstNode::Token(_) = pipe {
                 let pipe_ident = pipe.token().unwrap();
-                Command::new_run_with_ident(pipe_ident, start_pos).into()
+                Command::new_run_with_ident(pipe_ident.try_into().unwrap(), start_pos).into()
             } else {
                 let pipe_body = pipe.expr().unwrap();
                 Command::new_run_with_body(pipe_body, start_pos).into()
