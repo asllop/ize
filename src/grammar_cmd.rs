@@ -167,27 +167,28 @@ fn cmd_model(input: &[Token]) -> IzeResult {
         ],
         |mut node_vec| {
             let body = node_vec.pop().unwrap();
-            let (body, end_pos) = if let AstNode::Vec(mut body_struct) = body {
-                // Body is a struct
-                if body_struct.len() == 2 {
+            let ident = node_vec.pop().unwrap().token().unwrap();
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // 'model' token
+            if let AstNode::Vec(mut body_struct) = body {
+                let end_pos = body_struct.pop().unwrap().token().unwrap().pos.end; // token ')'
+                                                                                   // Body is a struct
+                let body = if body_struct.len() == 1 {
                     // Empty struct
-                    let end_pos = body_struct.pop().unwrap().token().unwrap().pos.end; // token ')'
-                    (AstNode::Vec(vec![]), end_pos)
+                    vec![]
                 } else {
                     // Struct with attributes
-                    let end_pos = body_struct.pop().unwrap().token().unwrap().pos.end; // token ')'
-                    let pairs = body_struct.pop().unwrap();
-                    (pairs, end_pos)
-                }
+                    let pairs = body_struct.pop().unwrap().vec().unwrap();
+                    pairs.into_iter().map(|n| *n.expr().unwrap()).collect()
+                };
+                Command::new_model_with_struct(ident.try_into().unwrap(), body, end_pos - start_pos)
+                    .into()
             } else {
                 // Body is an expression
                 let body = body.expr().unwrap();
                 let end_pos = body.pos.end;
-                (body.into(), end_pos)
-            };
-            let ident = node_vec.pop().unwrap().token().unwrap();
-            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-            Command::new_model(ident, body, end_pos - start_pos).into()
+                Command::new_model_with_type(ident.try_into().unwrap(), body, end_pos - start_pos)
+                    .into()
+            }
         },
         |input, e| {
             match e.id {

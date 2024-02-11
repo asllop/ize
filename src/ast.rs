@@ -653,12 +653,23 @@ impl Command {
         }
     }
 
-    /// New model command.
-    pub fn new_model(ident: Token, body: AstNode, pos: RangePos) -> Self {
+    /// New model command with type.
+    pub fn new_model_with_type(ident: Identifier, body: Box<Expression>, pos: RangePos) -> Self {
         Self {
             kind: CommandKind::Model {
-                ident_token: ident.into(),
-                body,
+                ident,
+                body: ModelBody::Type(body),
+            },
+            pos,
+        }
+    }
+
+    /// New model command with struct.
+    pub fn new_model_with_struct(ident: Identifier, body: Vec<Expression>, pos: RangePos) -> Self {
+        Self {
+            kind: CommandKind::Model {
+                ident,
+                body: ModelBody::Struct(body),
             },
             pos,
         }
@@ -732,9 +743,9 @@ pub enum CommandKind {
     /// Model command.
     Model {
         /// Model name.
-        ident_token: AstNode,
-        /// Model body. Eather an alias (type/primary expression) or a struct (vector of Pair expressions).
-        body: AstNode,
+        ident: Identifier,
+        /// Model body.
+        body: ModelBody,
     },
     /// Pipe command.
     Pipe {
@@ -762,6 +773,15 @@ pub enum CommandKind {
 pub enum TransferBody {
     /// Any expression.
     Expression(Box<Expression>),
+    /// Vector of Pair expressions.
+    Struct(Vec<Expression>),
+}
+
+#[derive(Debug, PartialEq)]
+/// Model body.
+pub enum ModelBody {
+    /// Type expression.
+    Type(Box<Expression>),
     /// Vector of Pair expressions.
     Struct(Vec<Expression>),
 }

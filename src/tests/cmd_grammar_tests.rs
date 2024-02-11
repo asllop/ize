@@ -42,11 +42,8 @@ fn check_model() {
 
     assert_eq!(
         cmd,
-        Command::new_model(
-            Token::new(
-                RangePos::inline_new(0, 6, 7, 6),
-                TokenKind::Identifier("X".into())
-            ),
+        Command::new_model_with_type(
+            Identifier::new("X".into(), RangePos::inline_new(0, 6, 7, 6)),
             Expression::new_type(
                 Identifier::new("Map".into(), Pos::new(0, 11, 11) - Pos::new(0, 8, 8)),
                 vec![
@@ -54,14 +51,12 @@ fn check_model() {
                         Identifier::new("Str".into(), Pos::new(0, 15, 15) - Pos::new(0, 12, 12)),
                         vec![],
                         Pos::new(0, 15, 15) - Pos::new(0, 12, 12),
-                    )
-                    .into(),
+                    ),
                     Expression::new_type(
                         Identifier::new("Int".into(), Pos::new(0, 19, 19) - Pos::new(0, 16, 16)),
                         vec![],
                         Pos::new(0, 19, 19) - Pos::new(0, 16, 16),
-                    )
-                    .into(),
+                    ),
                 ],
                 Pos::new(0, 20, 20) - Pos::new(0, 8, 8)
             )
@@ -76,11 +71,8 @@ fn check_model() {
 
     assert_eq!(
         cmd,
-        Command::new_model(
-            Token::new(
-                RangePos::inline_new(0, 6, 7, 6),
-                TokenKind::Identifier("X".into())
-            ),
+        Command::new_model_with_struct(
+            Identifier::new("X".into(), RangePos::inline_new(0, 6, 7, 6),),
             vec![
                 Expression::new_pair(
                     Expression::new_primary(
@@ -93,8 +85,7 @@ fn check_model() {
                         RangePos::inline_new(0, 14, 17, 14)
                     )
                     .into(),
-                )
-                .into(),
+                ),
                 Expression::new_pair_with_alias(
                     Expression::new_primary(
                         Primary::Identifier("two".into()),
@@ -108,7 +99,6 @@ fn check_model() {
                     )
                     .into(),
                 )
-                .into()
             ]
             .into(),
             Pos::new(0, 41, 41) - Pos::new(0, 0, 0)
@@ -121,11 +111,8 @@ fn check_model() {
 
     assert_eq!(
         cmd,
-        Command::new_model(
-            Token::new(
-                RangePos::inline_new(0, 6, 7, 6),
-                TokenKind::Identifier("X".into())
-            ),
+        Command::new_model_with_struct(
+            Identifier::new("X".into(), RangePos::inline_new(0, 6, 7, 6),),
             vec![
                 Expression::new_pair(
                     Expression::new_primary(
@@ -138,8 +125,7 @@ fn check_model() {
                         RangePos::inline_new(0, 14, 17, 14)
                     )
                     .into(),
-                )
-                .into(),
+                ),
                 Expression::new_pair_with_alias(
                     Expression::new_primary(
                         Primary::Identifier("two".into()),
@@ -152,8 +138,7 @@ fn check_model() {
                         RangePos::inline_new(0, 37, 40, 37)
                     )
                     .into(),
-                )
-                .into(),
+                ),
                 Expression::new_pair(
                     Expression::new_primary(
                         Primary::Identifier("rest".into()),
@@ -165,8 +150,7 @@ fn check_model() {
                         RangePos::inline_new(0, 48, 51, 48)
                     )
                     .into(),
-                )
-                .into(),
+                ),
             ]
             .into(),
             Pos::new(0, 52, 52) - Pos::new(0, 0, 0)
