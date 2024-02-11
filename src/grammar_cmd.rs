@@ -302,20 +302,20 @@ fn cmd_import(input: &[Token]) -> IzeResult {
                 let mut block_vec = node_vec.pop().unwrap().vec().unwrap();
                 let end_pos = block_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
                 let module_vec = block_vec.pop().unwrap().vec().unwrap();
-                let first_module = block_vec.pop().unwrap().expr().unwrap();
+                let first_module = *block_vec.pop().unwrap().expr().unwrap();
                 let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token 'import'
-                let mut modules = vec![first_module.into()];
+                let mut modules = vec![first_module];
                 for module_pair in module_vec {
-                    let module = module_pair.vec().unwrap().pop().unwrap().expr().unwrap();
-                    modules.push(module.into());
+                    let module = *module_pair.vec().unwrap().pop().unwrap().expr().unwrap();
+                    modules.push(module);
                 }
                 Command::new_import(modules, end_pos - start_pos).into()
             } else {
                 // Single module
-                let path = node_vec.pop().unwrap().expr().unwrap();
+                let path = *node_vec.pop().unwrap().expr().unwrap();
                 let end_pos = path.pos.end;
                 let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-                Command::new_import(vec![path.into()], end_pos - start_pos).into()
+                Command::new_import(vec![path], end_pos - start_pos).into()
             }
         },
         |_, e| match e.id {

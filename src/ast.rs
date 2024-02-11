@@ -158,7 +158,7 @@ pub struct Expression {
 impl Expression {
     /// New If-Else expression.
     pub fn new_ifelse(
-        cond_expr: Box<Expression>,
+        cond: Box<Expression>,
         if_expr: Box<Expression>,
         else_expr: Box<Expression>,
         start_pos: Pos,
@@ -166,7 +166,7 @@ impl Expression {
         let end_pos = else_expr.pos.end;
         Self {
             kind: ExpressionKind::IfElse {
-                cond_expr,
+                cond,
                 if_expr,
                 else_expr,
             },
@@ -245,20 +245,12 @@ impl Expression {
     }
 
     /// New Binary expression.
-    pub fn new_binary(
-        op: BinaryOp,
-        left_expr: Box<Expression>,
-        right_expr: Box<Expression>,
-    ) -> Self {
-        let start_pos = left_expr.pos.start;
-        let end_pos = right_expr.pos.end;
+    pub fn new_binary(op: BinaryOp, left: Box<Expression>, right: Box<Expression>) -> Self {
+        let start_pos = left.pos.start;
+        let end_pos = right.pos.end;
 
         Self {
-            kind: ExpressionKind::Binary {
-                op,
-                left_expr,
-                right_expr,
-            },
+            kind: ExpressionKind::Binary { op, left, right },
             pos: RangePos::new(start_pos, end_pos),
         }
     }
@@ -372,15 +364,15 @@ pub enum ExpressionKind {
     Group(Box<Expression>),
     /// If-Else expression.
     IfElse {
-        cond_expr: Box<Expression>,
+        cond: Box<Expression>,
         if_expr: Box<Expression>,
         else_expr: Box<Expression>,
     },
     /// Binary expression.
     Binary {
         op: BinaryOp,
-        left_expr: Box<Expression>,
-        right_expr: Box<Expression>,
+        left: Box<Expression>,
+        right: Box<Expression>,
     },
     /// Unary expression.
     Unary { op: UnaryOp, expr: Box<Expression> },
@@ -679,11 +671,9 @@ impl Command {
     }
 
     /// New import command.
-    pub fn new_import(path_vec: Vec<AstNode>, pos: RangePos) -> Self {
+    pub fn new_import(path_vec: Vec<Expression>, pos: RangePos) -> Self {
         Self {
-            kind: CommandKind::Import {
-                path_vec: path_vec.into(),
-            },
+            kind: CommandKind::Import(path_vec),
             pos,
         }
     }
@@ -692,11 +682,8 @@ impl Command {
 #[derive(Debug, PartialEq)]
 /// Expression kind.
 pub enum CommandKind {
-    /// Import command.
-    Import {
-        /// Vector of Path expressions.
-        path_vec: AstNode,
-    },
+    /// Import command. Only expressions with kind == ExpressionKind::Path.
+    Import(Vec<Expression>),
     /// Transfer command.
     Transfer {
         /// Transfer name.

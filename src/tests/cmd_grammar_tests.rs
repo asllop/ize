@@ -305,8 +305,7 @@ fn check_import() {
                     Identifier::new("Something".into(), RangePos::inline_new(0, 19, 28, 19)),
                 ],
                 Pos::new(0, 28, 28) - Pos::new(0, 7, 7)
-            )
-            .into()],
+            )],
             Pos::new(0, 28, 28) - Pos::new(0, 0, 0)
         )
         .into()
@@ -327,16 +326,14 @@ fn check_import() {
                     ],
                     Identifier::new("thing".into(), RangePos::inline_new(0, 33, 38, 33),),
                     Pos::new(0, 29, 29) - Pos::new(0, 8, 8)
-                )
-                .into(),
+                ),
                 Expression::new_path(
                     vec![Identifier::new(
                         "state".into(),
                         RangePos::inline_new(0, 40, 45, 40)
                     ),],
                     Pos::new(0, 45, 45) - Pos::new(0, 40, 40)
-                )
-                .into(),
+                ),
             ],
             Pos::new(0, 46, 46) - Pos::new(0, 0, 0)
         )
