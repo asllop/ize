@@ -494,6 +494,25 @@ pub enum Literal {
     None,
 }
 
+impl TryFrom<Token> for Literal {
+    type Error = IzeErr;
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.kind {
+            TokenKind::IntegerLiteral(i) => Ok(Literal::Integer(i)),
+            TokenKind::FloatLiteral(f) => Ok(Literal::Float(f)),
+            TokenKind::BooleanLiteral(b) => Ok(Literal::Boolean(b)),
+            TokenKind::NoneLiteral => Ok(Literal::None),
+            TokenKind::NullLiteral => Ok(Literal::Null),
+            TokenKind::StringLiteral(s) => Ok(Literal::String(s)),
+            _ => Err(IzeErr::new(
+                "Token must be a literal to build a Literal object".into(),
+                value.pos,
+            )),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 /// Binary operation
 pub enum BinaryOp {
@@ -627,14 +646,10 @@ impl Command {
     }
 
     /// New const command.
-    pub fn new_const(ident: Token, value: Token, start_pos: Pos) -> Self {
-        let end_pos = value.pos.end;
+    pub fn new_const(ident: Identifier, value: Literal, pos: RangePos) -> Self {
         Self {
-            kind: CommandKind::Const {
-                ident_token: ident.into(),
-                value_token: value.into(),
-            },
-            pos: RangePos::new(start_pos, end_pos),
+            kind: CommandKind::Const { ident, value },
+            pos,
         }
     }
 
@@ -717,8 +732,8 @@ pub enum CommandKind {
     /// Const command
     Const {
         /// Const name.
-        ident_token: AstNode,
+        ident: Identifier,
         /// Value literal.
-        value_token: AstNode,
+        value: Literal,
     },
 }

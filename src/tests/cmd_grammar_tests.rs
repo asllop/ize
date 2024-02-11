@@ -173,15 +173,9 @@ fn check_const() {
     assert_eq!(
         cmd,
         Command::new_const(
-            Token::new(
-                RangePos::inline_new(0, 6, 7, 6),
-                TokenKind::Identifier("X".into())
-            ),
-            Token::new(
-                RangePos::inline_new(0, 8, 21, 8),
-                TokenKind::StringLiteral("\"hello world\"".into())
-            ),
-            Pos::new(0, 0, 0)
+            Identifier::new("X".into(), RangePos::inline_new(0, 6, 7, 6)),
+            Literal::String("\"hello world\"".into()),
+            Pos::new(0, 21, 21) - Pos::new(0, 0, 0)
         )
         .into()
     );

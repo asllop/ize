@@ -195,9 +195,15 @@ fn cmd_const(input: &[Token]) -> IzeResult {
         ],
         |mut node_vec| {
             let value = node_vec.pop().unwrap().token().unwrap();
+            let end_pos = value.pos.end;
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-            Command::new_const(ident, value, start_pos).into()
+            Command::new_const(
+                ident.try_into().unwrap(),
+                value.try_into().unwrap(),
+                end_pos - start_pos,
+            )
+            .into()
         },
         |input, e| {
             match e.id {
