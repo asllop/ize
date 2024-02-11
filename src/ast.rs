@@ -20,10 +20,10 @@ use crate::{
 pub enum AstNode {
     /// Token node.
     Token(Token),
-    /// Expression node. TODO: unbox
-    Expression(Box<Expression>),
-    /// Command node. TODO: unbox
-    Command(Box<Command>),
+    /// Expression node.
+    Expression(Expression),
+    /// Command node.
+    Command(Command),
     /// Vector of nodes.
     Vec(Vec<AstNode>),
 }
@@ -39,7 +39,7 @@ impl AstNode {
     }
 
     /// Convert node into an expression variant.
-    pub fn expr(self) -> Option<Box<Expression>> {
+    pub fn expr(self) -> Option<Expression> {
         if let Self::Expression(expr) = self {
             Some(expr)
         } else {
@@ -66,7 +66,7 @@ impl AstNode {
     }
 
     /// Convert node into an expression variant ref.
-    pub fn expr_ref(&self) -> Option<&Box<Expression>> {
+    pub fn expr_ref(&self) -> Option<&Expression> {
         if let Self::Expression(expr) = self {
             Some(expr)
         } else {
@@ -124,19 +124,19 @@ impl From<Token> for AstNode {
 
 impl From<Expression> for AstNode {
     fn from(value: Expression) -> Self {
-        Self::Expression(Box::new(value))
-    }
-}
-
-impl From<Box<Expression>> for AstNode {
-    fn from(value: Box<Expression>) -> Self {
         Self::Expression(value)
     }
 }
 
+// impl From<Box<Expression>> for AstNode {
+//     fn from(value: Box<Expression>) -> Self {
+//         Self::Expression(value)
+//     }
+// }
+
 impl From<Command> for AstNode {
     fn from(value: Command) -> Self {
-        Self::Command(Box::new(value))
+        Self::Command(value)
     }
 }
 

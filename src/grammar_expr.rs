@@ -54,11 +54,11 @@ pub fn expr_chain(input: &[Token]) -> IzeResult {
             let let_expr = node_vec.pop().unwrap();
 
             if !chain_vec.is_empty() {
-                let let_expr = *let_expr.expr().unwrap();
+                let let_expr = let_expr.expr().unwrap();
                 let mut expr_vec = vec![let_expr];
                 for chain_pair in chain_vec {
                     let mut chain_pair = chain_pair.vec().unwrap();
-                    let expr = *chain_pair.pop().unwrap().expr().unwrap();
+                    let expr = chain_pair.pop().unwrap().expr().unwrap();
                     expr_vec.push(expr);
                 }
                 Expression::new_chain(expr_vec).into()
@@ -95,7 +95,7 @@ pub fn expr_let(input: &[Token]) -> IzeResult {
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-            Expression::new_let(ident.try_into().unwrap(), expr, start_pos).into()
+            Expression::new_let(ident.try_into().unwrap(), expr.into(), start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -221,7 +221,7 @@ pub fn expr_unary(input: &[Token]) -> IzeResult {
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let op_token = node_vec.pop().unwrap().token().unwrap();
             let start_pos = op_token.pos.start;
-            Expression::new_unary(op_token.try_into().unwrap(), expr, start_pos).into()
+            Expression::new_unary(op_token.try_into().unwrap(), expr.into(), start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -248,7 +248,7 @@ pub fn expr_pair(input: &[Token]) -> IzeResult {
             let right_expr = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // colon token
             let left_expr = node_vec.pop().unwrap().expr().unwrap();
-            Expression::new_pair(left_expr, right_expr).into()
+            Expression::new_pair(left_expr.into(), right_expr.into()).into()
         },
         |input, e| match e.id {
             // Precedence
@@ -273,11 +273,11 @@ pub fn expr_dot(input: &[Token]) -> IzeResult {
             let next_expr = node_vec.pop().unwrap();
 
             if !dot_vec.is_empty() {
-                let next_expr = *next_expr.expr().unwrap();
+                let next_expr = next_expr.expr().unwrap();
                 let mut expr_vec = vec![next_expr];
                 for dot_pair in dot_vec {
                     let mut dot_pair = dot_pair.vec().unwrap();
-                    let expr = *dot_pair.pop().unwrap().expr().unwrap();
+                    let expr = dot_pair.pop().unwrap().expr().unwrap();
                     expr_vec.push(expr);
                 }
                 Expression::new_dot(expr_vec).into()
@@ -315,7 +315,7 @@ pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // token ")"
             let arms = node_vec.pop().unwrap().vec().unwrap();
-            let first_arm = *node_vec.pop().unwrap().expr().unwrap();
+            let first_arm = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // token "("
             node_vec.pop().unwrap().token().unwrap(); // token ")"
             let maybe_as_ident = node_vec.pop().unwrap();
@@ -337,14 +337,14 @@ pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
             let mut arm_expressions = vec![first_arm];
             for arm in arms {
                 let mut arm = arm.vec().unwrap();
-                let arm_expr = *arm.pop().unwrap().expr().unwrap();
+                let arm_expr = arm.pop().unwrap().expr().unwrap();
                 arm_expressions.push(arm_expr);
             }
 
             // Generate expression
             Expression::new_select_unwrap(
                 op.try_into().unwrap(),
-                expr,
+                expr.into(),
                 alias,
                 arm_expressions,
                 end_pos - start_pos,
@@ -401,7 +401,13 @@ pub fn expr_ifelse(input: &[Token]) -> IzeResult {
             let cond_expr = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // Token "("
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // Token "if"
-            Expression::new_ifelse(cond_expr, if_expr, else_expr, start_pos).into()
+            Expression::new_ifelse(
+                cond_expr.into(),
+                if_expr.into(),
+                else_expr.into(),
+                start_pos,
+            )
+            .into()
         },
         |input, e| {
             match e.id {
@@ -485,14 +491,14 @@ fn expr_call_with_args(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // ")" token
             let arg_pairs_vec = node_vec.pop().unwrap().vec().unwrap();
-            let first_arg = *node_vec.pop().unwrap().expr().unwrap();
+            let first_arg = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // discard "(" token
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = ident.pos.start;
             let mut args = vec![first_arg];
             for pair in arg_pairs_vec {
                 let mut pair = pair.vec().unwrap();
-                let arg = *pair.pop().unwrap().expr().unwrap();
+                let arg = pair.pop().unwrap().expr().unwrap();
                 args.push(arg);
             }
 
@@ -525,7 +531,7 @@ pub fn expr_group(input: &[Token]) -> IzeResult {
             let end = node_vec.pop().unwrap().token().unwrap().pos.end; // Token ")"
             let expr = node_vec.pop().unwrap().expr().unwrap();
             let start = node_vec.pop().unwrap().token().unwrap().pos.start; // Token "("
-            Expression::new_group(expr, end - start).into()
+            Expression::new_group(expr.into(), end - start).into()
         },
         |input, e| {
             match e.id {
@@ -615,7 +621,7 @@ fn arm_expr(input: &[Token]) -> IzeResult {
             let right_expr = node_vec.pop().unwrap().expr().unwrap();
             node_vec.pop().unwrap().token().unwrap(); // Arrow token
             let left_expr = node_vec.pop().unwrap().expr().unwrap();
-            Expression::new_arm(left_expr, right_expr).into()
+            Expression::new_arm(left_expr.into(), right_expr.into()).into()
         },
         |_, e| Err(e),
     )
@@ -660,13 +666,13 @@ fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
     let ident = node_vec.pop().unwrap().token().unwrap();
     let start_pos = ident.pos.start;
 
-    let subtype = *collect_subtype(first_subtype).expr().unwrap();
+    let subtype = collect_subtype(first_subtype).expr().unwrap();
     subtypes_vec.push(subtype);
 
     for subtype in following_subtypes_vec {
         // Ignore comma, get type
         let subtype = subtype.vec().unwrap().pop().unwrap();
-        let subtype = *collect_subtype(subtype).expr().unwrap();
+        let subtype = collect_subtype(subtype).expr().unwrap();
         subtypes_vec.push(subtype);
     }
 
@@ -716,8 +722,12 @@ fn binary_expr_success(mut node_vec: Vec<AstNode>) -> AstNode {
             let mut expr_pair = expr_pair.vec().unwrap();
             let right_expr = expr_pair.pop().unwrap().expr().unwrap();
             let op = expr_pair.pop().unwrap().token().unwrap();
-            final_expr =
-                Expression::new_binary(op.try_into().unwrap(), final_expr, right_expr).into();
+            final_expr = Expression::new_binary(
+                op.try_into().unwrap(),
+                final_expr.into(),
+                right_expr.into(),
+            )
+            .into();
         }
         final_expr.into()
     } else {

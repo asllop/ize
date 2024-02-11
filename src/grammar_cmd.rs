@@ -68,11 +68,11 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             let mut opt_args = node_vec.pop().unwrap().vec().unwrap();
             let params = if opt_args.len() > 0 {
                 let params_vec = opt_args.pop().unwrap().vec().unwrap();
-                let first_param = *opt_args.pop().unwrap().expr().unwrap();
+                let first_param = opt_args.pop().unwrap().expr().unwrap();
                 let mut params = vec![first_param];
                 for param in params_vec {
                     let mut param = param.vec().unwrap();
-                    let pair = *param.pop().unwrap().expr().unwrap();
+                    let pair = param.pop().unwrap().expr().unwrap();
                     params.push(pair);
                 }
                 params
@@ -89,12 +89,12 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
                 let pair_expr_vec = body_vec.pop().unwrap().vec().unwrap();
                 let body = pair_expr_vec
                     .into_iter()
-                    .map(|n| *n.expr().unwrap())
+                    .map(|n| n.expr().unwrap())
                     .collect();
                 Command::new_transfer_with_struct(
                     ident.try_into().unwrap(),
                     params,
-                    ret_type,
+                    ret_type.into(),
                     body,
                     end_pos - start_pos,
                 )
@@ -106,8 +106,8 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
                 Command::new_transfer_with_expr(
                     ident.try_into().unwrap(),
                     params,
-                    ret_type,
-                    body,
+                    ret_type.into(),
+                    body.into(),
                     end_pos - start_pos,
                 )
                 .into()
@@ -178,7 +178,7 @@ fn cmd_model(input: &[Token]) -> IzeResult {
                 } else {
                     // Struct with attributes
                     let pairs = body_struct.pop().unwrap().vec().unwrap();
-                    pairs.into_iter().map(|n| *n.expr().unwrap()).collect()
+                    pairs.into_iter().map(|n| n.expr().unwrap()).collect()
                 };
                 Command::new_model_with_struct(ident.try_into().unwrap(), body, end_pos - start_pos)
                     .into()
@@ -186,8 +186,12 @@ fn cmd_model(input: &[Token]) -> IzeResult {
                 // Body is an expression
                 let body = body.expr().unwrap();
                 let end_pos = body.pos.end;
-                Command::new_model_with_type(ident.try_into().unwrap(), body, end_pos - start_pos)
-                    .into()
+                Command::new_model_with_type(
+                    ident.try_into().unwrap(),
+                    body.into(),
+                    end_pos - start_pos,
+                )
+                .into()
             }
         },
         |input, e| {
@@ -258,7 +262,7 @@ fn cmd_pipe(input: &[Token]) -> IzeResult {
             let pipe_body = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-            Command::new_pipe(ident.try_into().unwrap(), pipe_body, start_pos).into()
+            Command::new_pipe(ident.try_into().unwrap(), pipe_body.into(), start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -291,7 +295,7 @@ fn cmd_run(input: &[Token]) -> IzeResult {
                 Command::new_run_with_ident(pipe_ident.try_into().unwrap(), start_pos).into()
             } else {
                 let pipe_body = pipe.expr().unwrap();
-                Command::new_run_with_body(pipe_body, start_pos).into()
+                Command::new_run_with_body(pipe_body.into(), start_pos).into()
             }
         },
         |input, e| {
@@ -331,17 +335,17 @@ fn cmd_import(input: &[Token]) -> IzeResult {
                 let mut block_vec = node_vec.pop().unwrap().vec().unwrap();
                 let end_pos = block_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
                 let module_vec = block_vec.pop().unwrap().vec().unwrap();
-                let first_module = *block_vec.pop().unwrap().expr().unwrap();
+                let first_module = block_vec.pop().unwrap().expr().unwrap();
                 let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token 'import'
                 let mut modules = vec![first_module];
                 for module_pair in module_vec {
-                    let module = *module_pair.vec().unwrap().pop().unwrap().expr().unwrap();
+                    let module = module_pair.vec().unwrap().pop().unwrap().expr().unwrap();
                     modules.push(module);
                 }
                 Command::new_import(modules, end_pos - start_pos).into()
             } else {
                 // Single module
-                let path = *node_vec.pop().unwrap().expr().unwrap();
+                let path = node_vec.pop().unwrap().expr().unwrap();
                 let end_pos = path.pos.end;
                 let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
                 Command::new_import(vec![path], end_pos - start_pos).into()
@@ -371,12 +375,12 @@ fn import_path(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let mut opt_as_ident = node_vec.pop().unwrap().vec().unwrap();
             if opt_as_ident.len() == 0 {
-                let module_expr = *node_vec.pop().unwrap().expr().unwrap();
+                let module_expr = node_vec.pop().unwrap().expr().unwrap();
                 let pos = module_expr.pos;
                 let module_expr = convert_module_into_vec_of_identifiers(module_expr, pos);
                 Expression::new_path(module_expr, pos).into()
             } else {
-                let module_expr = *node_vec.pop().unwrap().expr().unwrap();
+                let module_expr = node_vec.pop().unwrap().expr().unwrap();
                 let pos = module_expr.pos;
                 let module_expr = convert_module_into_vec_of_identifiers(module_expr, pos);
                 let alias = opt_as_ident.pop().unwrap().token().unwrap();
@@ -436,12 +440,12 @@ fn pipe_body(input: &[Token]) -> IzeResult {
                 Expression::new_pipe_body(vec![], end_pos - start_pos).into()
             } else {
                 let pipe_expressions = node_vec.pop().unwrap().vec().unwrap();
-                let first_pipe_expr = *node_vec.pop().unwrap().expr().unwrap();
+                let first_pipe_expr = node_vec.pop().unwrap().expr().unwrap();
                 let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token '('
                 let mut pipe_body_vec = vec![first_pipe_expr];
                 for pair in pipe_expressions {
                     let mut pair = pair.vec().unwrap();
-                    let expr = *pair.pop().unwrap().expr().unwrap();
+                    let expr = pair.pop().unwrap().expr().unwrap();
                     pipe_body_vec.push(expr);
                 }
                 Expression::new_pipe_body(pipe_body_vec, end_pos - start_pos).into()
@@ -502,7 +506,7 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
             let right_expr = match node_vec.pop().unwrap() {
                 AstNode::Token(token) => {
                     let pos = token.pos;
-                    Box::new(Expression::new_primary(token.try_into().unwrap(), pos))
+                    Expression::new_primary(token.try_into().unwrap(), pos)
                 }
                 AstNode::Expression(right_expr) => right_expr,
                 _ => panic!("Unexpected right expression"),
@@ -516,7 +520,7 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
                 let pos = left_ident.pos;
                 let left_expr =
                     Box::new(Expression::new_primary(left_ident.try_into().unwrap(), pos));
-                Expression::new_pair(left_expr, right_expr).into()
+                Expression::new_pair(left_expr, right_expr.into()).into()
             } else {
                 // Alias
                 let alias = opt_as_alias.pop().unwrap().token().unwrap();
@@ -530,7 +534,7 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
                 let pos = left_ident.pos;
                 let left_expr =
                     Box::new(Expression::new_primary(left_ident.try_into().unwrap(), pos));
-                Expression::new_pair_with_alias(left_expr, alias, right_expr).into()
+                Expression::new_pair_with_alias(left_expr, alias, right_expr.into()).into()
             }
         },
         |_, e| match e.id {
@@ -619,5 +623,5 @@ fn simple_pair_success(mut node_vec: Vec<AstNode>) -> AstNode {
     let left_ident = node_vec.pop().unwrap().token().unwrap();
     let pos = left_ident.pos;
     let left_expr = Box::new(Expression::new_primary(left_ident.try_into().unwrap(), pos));
-    Expression::new_pair(left_expr, right_expr).into()
+    Expression::new_pair(left_expr, right_expr.into()).into()
 }

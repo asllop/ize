@@ -4,8 +4,7 @@ use alloc::vec::Vec;
 
 use crate::{
     ast::{AstNode, BinaryOp, Command, Expression, Identifier, Literal, Primary},
-    grammar_cmd,
-    lexer,
+    grammar_cmd, lexer,
     pos::{Pos, RangePos},
 };
 
