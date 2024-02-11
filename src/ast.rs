@@ -615,20 +615,39 @@ pub struct Command {
 }
 
 impl Command {
-    /// New transfer command.
-    pub fn new_transfer(
-        ident: Token,
-        params: Vec<AstNode>,
-        ret_type: Box<Expression>,
-        body: AstNode,
+    /// New transfer command with expression.
+    pub fn new_transfer_with_expr(
+        ident: Identifier,
+        params: Vec<Expression>,
+        return_type: Box<Expression>,
+        body: Box<Expression>,
         pos: RangePos,
     ) -> Self {
         Self {
             kind: CommandKind::Transfer {
-                ident_token: ident.into(),
-                param_vec: params.into(),
-                return_type: ret_type.into(),
-                body,
+                ident,
+                params,
+                return_type,
+                body: TransferBody::Expression(body),
+            },
+            pos,
+        }
+    }
+
+    /// New transfer command with struct.
+    pub fn new_transfer_with_struct(
+        ident: Identifier,
+        params: Vec<Expression>,
+        return_type: Box<Expression>,
+        body: Vec<Expression>,
+        pos: RangePos,
+    ) -> Self {
+        Self {
+            kind: CommandKind::Transfer {
+                ident,
+                params,
+                return_type,
+                body: TransferBody::Struct(body),
             },
             pos,
         }
@@ -702,13 +721,13 @@ pub enum CommandKind {
     /// Transfer command.
     Transfer {
         /// Transfer name.
-        ident_token: AstNode,
-        /// Parameters, vector of Pair expressions.
-        param_vec: AstNode,
-        /// Return type.
-        return_type: AstNode,
-        // Transfer body. Either an expression or a vector of Pair expressions.
-        body: AstNode,
+        ident: Identifier,
+        /// Parameters. Only expressions with kind == ExpressionKind::Pair
+        params: Vec<Expression>,
+        /// Return type. Must be an expression with kind == ExpressionKind::Type.
+        return_type: Box<Expression>,
+        // Transfer body.
+        body: TransferBody,
     },
     /// Model command.
     Model {
@@ -736,4 +755,13 @@ pub enum CommandKind {
         /// Value literal.
         value: Literal,
     },
+}
+
+#[derive(Debug, PartialEq)]
+/// Transfer body.
+pub enum TransferBody {
+    /// Any expression.
+    Expression(Box<Expression>),
+    /// Vector of Pair expressions.
+    Struct(Vec<Expression>),
 }

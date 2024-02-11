@@ -1,6 +1,6 @@
 //! # COMMAND GRAMMAR TESTS
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::vec::Vec;
 
 use crate::{
     ast::{AstNode, BinaryOp, Command, Expression, Identifier, Literal, Primary},
@@ -83,26 +83,30 @@ fn check_model() {
             ),
             vec![
                 Expression::new_pair(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("one".into()),
                         RangePos::inline_new(0, 9, 12, 9)
-                    )),
-                    Box::new(Expression::new_primary(
+                    )
+                    .into(),
+                    Expression::new_primary(
                         Primary::Identifier("Str".into()),
                         RangePos::inline_new(0, 14, 17, 14)
-                    )),
+                    )
+                    .into(),
                 )
                 .into(),
                 Expression::new_pair_with_alias(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("two".into()),
                         RangePos::inline_new(0, 19, 22, 19)
-                    )),
+                    )
+                    .into(),
                     Identifier::new("\"num.two\"".into(), RangePos::inline_new(0, 26, 35, 26),),
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("Int".into()),
                         RangePos::inline_new(0, 37, 40, 37)
-                    )),
+                    )
+                    .into(),
                 )
                 .into()
             ]
@@ -124,37 +128,43 @@ fn check_model() {
             ),
             vec![
                 Expression::new_pair(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("one".into()),
                         RangePos::inline_new(0, 9, 12, 9)
-                    )),
-                    Box::new(Expression::new_primary(
+                    )
+                    .into(),
+                    Expression::new_primary(
                         Primary::Identifier("Str".into()),
                         RangePos::inline_new(0, 14, 17, 14)
-                    )),
+                    )
+                    .into(),
                 )
                 .into(),
                 Expression::new_pair_with_alias(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("two".into()),
                         RangePos::inline_new(0, 19, 22, 19)
-                    )),
+                    )
+                    .into(),
                     Identifier::new("\"num.two\"".into(), RangePos::inline_new(0, 26, 35, 26),),
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("Int".into()),
                         RangePos::inline_new(0, 37, 40, 37)
-                    )),
+                    )
+                    .into(),
                 )
                 .into(),
                 Expression::new_pair(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("rest".into()),
                         RangePos::inline_new(0, 42, 46, 42)
-                    )),
-                    Box::new(Expression::new_primary(
+                    )
+                    .into(),
+                    Expression::new_primary(
                         Primary::Identifier("...".into()),
                         RangePos::inline_new(0, 48, 51, 48)
-                    )),
+                    )
+                    .into(),
                 )
                 .into(),
             ]
@@ -188,49 +198,52 @@ fn check_transfer() {
 
     assert_eq!(
         cmd,
-        Command::new_transfer(
-            Token::new(
-                RangePos::inline_new(0, 9, 13, 9),
-                TokenKind::Identifier("Suma".into())
-            ),
+        Command::new_transfer_with_expr(
+            Identifier::new("Suma".into(), RangePos::inline_new(0, 9, 13, 9)),
             vec![
                 Expression::new_pair(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("a".into()),
                         RangePos::inline_new(0, 14, 15, 14)
-                    )),
-                    Box::new(Expression::new_primary(
+                    )
+                    .into(),
+                    Expression::new_primary(
                         Primary::Identifier("Int".into()),
                         RangePos::inline_new(0, 16, 19, 16),
-                    )),
-                )
-                .into(),
+                    )
+                    .into(),
+                ),
                 Expression::new_pair(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("b".into()),
                         RangePos::inline_new(0, 21, 22, 21),
-                    )),
-                    Box::new(Expression::new_primary(
+                    )
+                    .into(),
+                    Expression::new_primary(
                         Primary::Identifier("Int".into()),
                         RangePos::inline_new(0, 23, 26, 23)
-                    )),
+                    )
+                    .into(),
                 )
-                .into()
             ],
-            Box::new(Expression::new_primary(
-                Primary::Identifier("Int".into()),
+            Expression::new_type(
+                Identifier::new("Int".into(), RangePos::inline_new(0, 30, 33, 30)),
+                vec![],
                 RangePos::inline_new(0, 30, 33, 30)
-            )),
+            )
+            .into(),
             Expression::new_binary(
                 BinaryOp::Plus,
-                Box::new(Expression::new_primary(
+                Expression::new_primary(
                     Primary::Identifier("a".into()),
                     RangePos::inline_new(0, 34, 35, 34)
-                )),
-                Box::new(Expression::new_primary(
+                )
+                .into(),
+                Expression::new_primary(
                     Primary::Identifier("b".into()),
                     RangePos::inline_new(0, 38, 39, 38)
-                )),
+                )
+                .into(),
             )
             .into(),
             Pos::new(0, 39, 39) - Pos::new(0, 0, 0)
@@ -243,37 +256,40 @@ fn check_transfer() {
 
     assert_eq!(
         cmd,
-        Command::new_transfer(
-            Token::new(
-                RangePos::inline_new(0, 9, 10, 9),
-                TokenKind::Identifier("X".into())
-            ),
+        Command::new_transfer_with_struct(
+            Identifier::new("X".into(), RangePos::inline_new(0, 9, 10, 9)),
             vec![],
-            Box::new(Expression::new_primary(
-                Primary::Identifier("O".into()),
+            Expression::new_type(
+                Identifier::new("O".into(), RangePos::inline_new(0, 14, 15, 14)),
+                vec![],
                 RangePos::inline_new(0, 14, 15, 14)
-            )),
+            )
+            .into(),
             vec![
                 Expression::new_pair(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("a".into()),
                         RangePos::inline_new(0, 17, 18, 17)
-                    )),
-                    Box::new(Expression::new_primary(
+                    )
+                    .into(),
+                    Expression::new_primary(
                         Primary::Literal(Literal::Integer(0)),
                         RangePos::inline_new(0, 20, 21, 20),
-                    )),
+                    )
+                    .into(),
                 )
                 .into(),
                 Expression::new_pair(
-                    Box::new(Expression::new_primary(
+                    Expression::new_primary(
                         Primary::Identifier("b".into()),
                         RangePos::inline_new(0, 23, 24, 23)
-                    )),
-                    Box::new(Expression::new_primary(
+                    )
+                    .into(),
+                    Expression::new_primary(
                         Primary::Literal(Literal::Integer(1)),
                         RangePos::inline_new(0, 26, 27, 26),
-                    )),
+                    )
+                    .into(),
                 )
                 .into()
             ]
@@ -347,7 +363,7 @@ fn check_pipe() {
                 RangePos::inline_new(0, 5, 6, 5),
                 TokenKind::Identifier("X".into())
             ),
-            Box::new(Expression::new_pipe_body(
+            Expression::new_pipe_body(
                 vec![
                     Expression::new_primary(
                         Primary::Identifier("A".into()),
@@ -360,7 +376,8 @@ fn check_pipe() {
                     )
                 ],
                 Pos::new(0, 15, 15) - Pos::new(0, 7, 7)
-            )),
+            )
+            .into(),
             Pos::new(0, 0, 0)
         )
         .into()
@@ -390,7 +407,7 @@ fn check_run() {
     assert_eq!(
         cmd,
         Command::new_run_with_body(
-            Box::new(Expression::new_pipe_body(
+            Expression::new_pipe_body(
                 vec![
                     Expression::new_primary(
                         Primary::Identifier("A".into()),
@@ -403,7 +420,8 @@ fn check_run() {
                     )
                 ],
                 Pos::new(0, 12, 12) - Pos::new(0, 4, 4),
-            )),
+            )
+            .into(),
             Pos::new(0, 0, 0)
         )
         .into()

@@ -55,30 +55,25 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
         ],
         |mut node_vec| {
             let body = node_vec.pop().unwrap();
-            let (body, end_pos) = if let AstNode::Vec(mut body_vec) = body {
-                // It's a struct body
-                let end_pos = body_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
-                let pair_vec = body_vec.pop().unwrap();
-                (pair_vec, end_pos)
-            } else {
-                // It's an expression body
-                let body = body.expr().unwrap();
-                let end_pos = body.pos.end;
-                (body.into(), end_pos)
-            };
             let ret_type = node_vec.pop().unwrap().expr().unwrap();
+            let ret_type = if let ExpressionKind::Primary(Primary::Identifier(id)) = ret_type.kind {
+                let pos = ret_type.pos;
+                Expression::new_type(Identifier::new(id, pos), vec![], pos).into()
+            } else {
+                ret_type
+            };
             node_vec.pop().unwrap().token().unwrap(); // Arrow token
 
             // Block of optional parameters
             let mut opt_args = node_vec.pop().unwrap().vec().unwrap();
             let params = if opt_args.len() > 0 {
                 let params_vec = opt_args.pop().unwrap().vec().unwrap();
-                let first_param = opt_args.pop().unwrap().expr().unwrap();
-                let mut params: Vec<AstNode> = vec![first_param.into()];
+                let first_param = *opt_args.pop().unwrap().expr().unwrap();
+                let mut params = vec![first_param];
                 for param in params_vec {
                     let mut param = param.vec().unwrap();
-                    let pair = param.pop().unwrap().expr().unwrap();
-                    params.push(pair.into());
+                    let pair = *param.pop().unwrap().expr().unwrap();
+                    params.push(pair);
                 }
                 params
             } else {
@@ -86,10 +81,37 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             };
 
             let ident = node_vec.pop().unwrap().token().unwrap();
-
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token "transfer"
 
-            Command::new_transfer(ident, params, ret_type, body, end_pos - start_pos).into()
+            if let AstNode::Vec(mut body_vec) = body {
+                // It's a struct body
+                let end_pos = body_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
+                let pair_expr_vec = body_vec.pop().unwrap().vec().unwrap();
+                let body = pair_expr_vec
+                    .into_iter()
+                    .map(|n| *n.expr().unwrap())
+                    .collect();
+                Command::new_transfer_with_struct(
+                    ident.try_into().unwrap(),
+                    params,
+                    ret_type,
+                    body,
+                    end_pos - start_pos,
+                )
+                .into()
+            } else {
+                // It's an expression body
+                let body = body.expr().unwrap();
+                let end_pos = body.pos.end;
+                Command::new_transfer_with_expr(
+                    ident.try_into().unwrap(),
+                    params,
+                    ret_type,
+                    body,
+                    end_pos - start_pos,
+                )
+                .into()
+            }
         },
         |input, e| {
             match e.id {
