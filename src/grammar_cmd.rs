@@ -94,7 +94,7 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
                 Command::new_transfer_with_struct(
                     ident.try_into().unwrap(),
                     params,
-                    ret_type.into(),
+                    ret_type,
                     body,
                     end_pos - start_pos,
                 )
@@ -106,8 +106,8 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
                 Command::new_transfer_with_expr(
                     ident.try_into().unwrap(),
                     params,
-                    ret_type.into(),
-                    body.into(),
+                    ret_type,
+                    body,
                     end_pos - start_pos,
                 )
                 .into()
@@ -186,12 +186,8 @@ fn cmd_model(input: &[Token]) -> IzeResult {
                 // Body is an expression
                 let body = body.expr().unwrap();
                 let end_pos = body.pos.end;
-                Command::new_model_with_type(
-                    ident.try_into().unwrap(),
-                    body.into(),
-                    end_pos - start_pos,
-                )
-                .into()
+                Command::new_model_with_type(ident.try_into().unwrap(), body, end_pos - start_pos)
+                    .into()
             }
         },
         |input, e| {
@@ -262,7 +258,7 @@ fn cmd_pipe(input: &[Token]) -> IzeResult {
             let pipe_body = node_vec.pop().unwrap().expr().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-            Command::new_pipe(ident.try_into().unwrap(), pipe_body.into(), start_pos).into()
+            Command::new_pipe(ident.try_into().unwrap(), pipe_body, start_pos).into()
         },
         |input, e| {
             match e.id {
@@ -295,7 +291,7 @@ fn cmd_run(input: &[Token]) -> IzeResult {
                 Command::new_run_with_ident(pipe_ident.try_into().unwrap(), start_pos).into()
             } else {
                 let pipe_body = pipe.expr().unwrap();
-                Command::new_run_with_body(pipe_body.into(), start_pos).into()
+                Command::new_run_with_body(pipe_body, start_pos).into()
             }
         },
         |input, e| {

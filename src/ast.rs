@@ -619,8 +619,8 @@ impl Command {
     pub fn new_transfer_with_expr(
         ident: Identifier,
         params: Vec<Expression>,
-        return_type: Box<Expression>,
-        body: Box<Expression>,
+        return_type: Expression,
+        body: Expression,
         pos: RangePos,
     ) -> Self {
         Self {
@@ -638,7 +638,7 @@ impl Command {
     pub fn new_transfer_with_struct(
         ident: Identifier,
         params: Vec<Expression>,
-        return_type: Box<Expression>,
+        return_type: Expression,
         body: Vec<Expression>,
         pos: RangePos,
     ) -> Self {
@@ -654,7 +654,7 @@ impl Command {
     }
 
     /// New model command with type.
-    pub fn new_model_with_type(ident: Identifier, body: Box<Expression>, pos: RangePos) -> Self {
+    pub fn new_model_with_type(ident: Identifier, body: Expression, pos: RangePos) -> Self {
         Self {
             kind: CommandKind::Model {
                 ident,
@@ -684,7 +684,7 @@ impl Command {
     }
 
     /// New pipe command.
-    pub fn new_pipe(ident: Identifier, pipe_body: Box<Expression>, start_pos: Pos) -> Self {
+    pub fn new_pipe(ident: Identifier, pipe_body: Expression, start_pos: Pos) -> Self {
         let end_pos = pipe_body.pos.end;
         Self {
             kind: CommandKind::Pipe { ident, pipe_body },
@@ -693,7 +693,7 @@ impl Command {
     }
 
     /// New run command.
-    pub fn new_run_with_body(pipe_body: Box<Expression>, start_pos: Pos) -> Self {
+    pub fn new_run_with_body(pipe_body: Expression, start_pos: Pos) -> Self {
         let end_pos = pipe_body.pos.end;
         Self {
             kind: CommandKind::Run(RunBody::Pipe(pipe_body)),
@@ -731,7 +731,7 @@ pub enum CommandKind {
         /// Parameters. Only expressions with kind == ExpressionKind::Pair
         params: Vec<Expression>,
         /// Return type. Must be an expression with kind == ExpressionKind::Type.
-        return_type: Box<Expression>,
+        return_type: Expression,
         // Transfer body.
         body: TransferBody,
     },
@@ -747,7 +747,7 @@ pub enum CommandKind {
         /// Pipe name
         ident: Identifier,
         /// Pipe body expression. Must be an expression with kind == ExpressionKind::PipeBody.
-        pipe_body: Box<Expression>,
+        pipe_body: Expression,
     },
     /// Run command.
     Run(RunBody),
@@ -764,7 +764,7 @@ pub enum CommandKind {
 /// Transfer body.
 pub enum TransferBody {
     /// Any expression.
-    Expression(Box<Expression>),
+    Expression(Expression),
     /// Vector of Pair expressions.
     Struct(Vec<Expression>),
 }
@@ -773,7 +773,7 @@ pub enum TransferBody {
 /// Model body.
 pub enum ModelBody {
     /// Type expression.
-    Type(Box<Expression>),
+    Type(Expression),
     /// Vector of Pair expressions.
     Struct(Vec<Expression>),
 }
@@ -784,5 +784,5 @@ pub enum RunBody {
     /// Pipe identifier.
     Identifier(Identifier),
     /// Pipe body. Must be an expression with kind == ExpressionKind::PipeBody.
-    Pipe(Box<Expression>),
+    Pipe(Expression),
 }
