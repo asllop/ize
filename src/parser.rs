@@ -238,9 +238,7 @@ pub fn one_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<
         results.push(node);
         input = rest;
     }
-    if results.len() > 0 {
-        Ok((input, results.into(), did_parse_key))
-    } else {
+    if results.is_empty() {
         // The parsers must succeed at least once, return an error
         let pos = if let Some(t) = input.first() {
             t.pos
@@ -256,6 +254,8 @@ pub fn one_plus<'a>(parsers: &'a [Parser], mut input: &'a [Token]) -> IzeResult<
             did_parse_key,
         );
         Err(e)
+    } else {
+        Ok((input, results.into(), did_parse_key))
     }
 }
 

@@ -29,7 +29,7 @@ fn check_opt() {
     assert!(res.is_ok());
     let (rest, nodes, after_key) = res.unwrap();
     assert_eq!(rest, &[]);
-    assert_eq!(after_key, true);
+    assert!(after_key);
     let nodes = nodes.vec();
     assert!(nodes.is_some());
     let mut nodes = nodes.unwrap();
@@ -56,7 +56,7 @@ fn check_opt() {
     assert!(res.is_ok());
     let (rest, nodes, after_key) = res.unwrap();
     assert_eq!(rest, &[]);
-    assert_eq!(after_key, false);
+    assert!(!after_key);
     let nodes = nodes.vec();
     assert!(nodes.is_some());
     let mut nodes = nodes.unwrap();
@@ -77,7 +77,7 @@ fn check_opt() {
     assert!(res.is_err());
     let err = res.err().unwrap();
     assert_eq!(err.id, 3);
-    assert_eq!(err.after_key, true);
+    assert!(err.after_key);
 
     // Input code: x -> 10
     let input = &[
@@ -90,7 +90,7 @@ fn check_opt() {
     assert!(res.is_err());
     let err = res.err().unwrap();
     assert_eq!(err.id, 3);
-    assert_eq!(err.after_key, true);
+    assert!(err.after_key);
 
     ////////////////////////////////////////////////////
     // Now use the same grammar without the Key token //
@@ -111,7 +111,7 @@ fn check_opt() {
     assert!(res.is_ok());
     let (rest, nodes, after_key) = res.unwrap();
     assert_eq!(rest, &[Token::new(RangePos::default(), TokenKind::Arrow)]);
-    assert_eq!(after_key, false);
+    assert!(!after_key);
     let nodes = nodes.vec();
     assert!(nodes.is_some());
     let mut nodes = nodes.unwrap();
@@ -139,7 +139,7 @@ fn check_opt() {
             Token::new(RangePos::default(), TokenKind::IntegerLiteral(10))
         ]
     );
-    assert_eq!(after_key, false);
+    assert!(!after_key);
     let nodes = nodes.vec();
     assert!(nodes.is_some());
     let mut nodes = nodes.unwrap();

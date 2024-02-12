@@ -667,8 +667,7 @@ fn check_call() {
             vec![Expression::new_primary(
                 Primary::Identifier("a".into()),
                 RangePos::inline_new(0, 4, 5, 4)
-            )
-            .into()],
+            )],
             Pos::new(0, 6, 6) - Pos::new(0, 0, 0),
         )
         .into()
@@ -684,18 +683,15 @@ fn check_call() {
                 Expression::new_primary(
                     Primary::Identifier("a".into()),
                     RangePos::inline_new(0, 4, 5, 4)
-                )
-                .into(),
+                ),
                 Expression::new_primary(
                     Primary::Identifier("b".into()),
                     RangePos::inline_new(0, 6, 7, 6)
-                )
-                .into(),
+                ),
                 Expression::new_primary(
                     Primary::Identifier("c".into()),
                     RangePos::inline_new(0, 8, 9, 8)
-                )
-                .into(),
+                ),
             ],
             Pos::new(0, 10, 10) - Pos::new(0, 0, 0),
         )
@@ -712,25 +708,21 @@ fn check_call() {
                 Expression::new_primary(
                     Primary::Identifier("a".into()),
                     RangePos::inline_new(0, 4, 5, 4)
-                )
-                .into(),
+                ),
                 Expression::new_call(
                     Identifier::new("bar".into(), Pos::new(0, 9, 9) - Pos::new(0, 6, 6)),
                     vec![
                         Expression::new_primary(
                             Primary::Identifier("b".into()),
                             RangePos::inline_new(0, 10, 11, 10)
-                        )
-                        .into(),
+                        ),
                         Expression::new_primary(
                             Primary::Identifier("c".into()),
                             RangePos::inline_new(0, 12, 13, 12)
                         )
-                        .into()
                     ],
                     Pos::new(0, 14, 14) - Pos::new(0, 6, 6),
                 )
-                .into()
             ],
             Pos::new(0, 15, 15) - Pos::new(0, 0, 0),
         )
@@ -763,13 +755,11 @@ fn check_dot_with_calls() {
                     ),
                 ],
                 Pos::new(0, 14, 14) - Pos::new(0, 6, 6),
-            )
-            .into(),
+            ),
             Expression::new_primary(
                 Primary::Identifier("z".into()),
                 RangePos::inline_new(0, 15, 16, 15)
-            )
-            .into(),
+            ),
         ])
         .into()
     );
@@ -787,8 +777,7 @@ fn check_type() {
                 Identifier::new("String".into(), Pos::new(0, 11, 11) - Pos::new(0, 5, 5)),
                 vec![],
                 Pos::new(0, 11, 11) - Pos::new(0, 5, 5),
-            )
-            .into()],
+            )],
             Pos::new(0, 12, 12) - Pos::new(0, 0, 0),
         )
         .into()
@@ -805,14 +794,12 @@ fn check_type() {
                     Identifier::new("String".into(), Pos::new(0, 10, 10) - Pos::new(0, 4, 4)),
                     vec![],
                     Pos::new(0, 10, 10) - Pos::new(0, 4, 4),
-                )
-                .into(),
+                ),
                 Expression::new_type(
                     Identifier::new("Integer".into(), Pos::new(0, 19, 19) - Pos::new(0, 12, 12)),
                     vec![],
                     Pos::new(0, 19, 19) - Pos::new(0, 12, 12),
                 )
-                .into()
             ],
             Pos::new(0, 20, 20) - Pos::new(0, 0, 0)
         )
@@ -836,8 +823,7 @@ fn check_type() {
                             ),
                             vec![],
                             Pos::new(0, 15, 15) - Pos::new(0, 10, 10),
-                        )
-                        .into(),
+                        ),
                         Expression::new_type(
                             Identifier::new(
                                 "Integer".into(),
@@ -846,17 +832,14 @@ fn check_type() {
                             vec![],
                             Pos::new(0, 24, 24) - Pos::new(0, 17, 17),
                         )
-                        .into()
                     ],
                     Pos::new(0, 25, 25) - Pos::new(0, 6, 6)
-                )
-                .into(),
+                ),
                 Expression::new_type(
                     Identifier::new("String".into(), Pos::new(0, 33, 33) - Pos::new(0, 27, 27)),
                     vec![],
                     Pos::new(0, 33, 33) - Pos::new(0, 27, 27),
                 )
-                .into()
             ],
             Pos::new(0, 34, 34) - Pos::new(0, 0, 0)
         )

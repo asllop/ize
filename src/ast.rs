@@ -82,38 +82,6 @@ impl AstNode {
             None
         }
     }
-
-    /// Starting position of node.
-    pub fn start_pos(&self) -> Pos {
-        match self {
-            AstNode::Token(t) => t.pos.start,
-            AstNode::Expression(e) => e.pos.start,
-            AstNode::Command(c) => c.pos.start,
-            AstNode::Vec(v) => {
-                if v.len() > 0 {
-                    v[0].start_pos()
-                } else {
-                    Default::default()
-                }
-            }
-        }
-    }
-
-    /// Ending position of node.
-    pub fn end_pos(&self) -> Pos {
-        match self {
-            AstNode::Token(t) => t.pos.start,
-            AstNode::Expression(e) => e.pos.end,
-            AstNode::Command(c) => c.pos.end,
-            AstNode::Vec(v) => {
-                if v.len() > 0 {
-                    v[v.len() - 1].end_pos()
-                } else {
-                    Default::default()
-                }
-            }
-        }
-    }
 }
 
 impl From<Token> for AstNode {
@@ -127,12 +95,6 @@ impl From<Expression> for AstNode {
         Self::Expression(value)
     }
 }
-
-// impl From<Box<Expression>> for AstNode {
-//     fn from(value: Box<Expression>) -> Self {
-//         Self::Expression(value)
-//     }
-// }
 
 impl From<Command> for AstNode {
     fn from(value: Command) -> Self {

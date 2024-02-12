@@ -58,7 +58,7 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             let ret_type = node_vec.pop().unwrap().expr().unwrap();
             let ret_type = if let ExpressionKind::Primary(Primary::Identifier(id)) = ret_type.kind {
                 let pos = ret_type.pos;
-                Expression::new_type(Identifier::new(id, pos), vec![], pos).into()
+                Expression::new_type(Identifier::new(id, pos), vec![], pos)
             } else {
                 ret_type
             };
@@ -66,7 +66,9 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
 
             // Block of optional parameters
             let mut opt_args = node_vec.pop().unwrap().vec().unwrap();
-            let params = if opt_args.len() > 0 {
+            let params = if opt_args.is_empty() {
+                vec![]
+            } else {
                 let params_vec = opt_args.pop().unwrap().vec().unwrap();
                 let first_param = opt_args.pop().unwrap().expr().unwrap();
                 let mut params = vec![first_param];
@@ -76,8 +78,6 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
                     params.push(pair);
                 }
                 params
-            } else {
-                vec![]
             };
 
             let ident = node_vec.pop().unwrap().token().unwrap();
@@ -370,7 +370,7 @@ fn import_path(input: &[Token]) -> IzeResult {
         ],
         |mut node_vec| {
             let mut opt_as_ident = node_vec.pop().unwrap().vec().unwrap();
-            if opt_as_ident.len() == 0 {
+            if opt_as_ident.is_empty() {
                 let module_expr = node_vec.pop().unwrap().expr().unwrap();
                 let pos = module_expr.pos;
                 let module_expr = convert_module_into_vec_of_identifiers(module_expr, pos);
@@ -510,7 +510,7 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
             node_vec.pop().unwrap().token().unwrap(); // colon token
 
             let mut opt_as_alias = node_vec.pop().unwrap().vec().unwrap();
-            if opt_as_alias.len() == 0 {
+            if opt_as_alias.is_empty() {
                 // No alias
                 let left_ident = node_vec.pop().unwrap().token().unwrap();
                 let pos = left_ident.pos;

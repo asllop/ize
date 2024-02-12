@@ -683,8 +683,7 @@ fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
 fn collect_subtype(subtype: AstNode) -> AstNode {
     match subtype {
         AstNode::Vec(subtype_vec) => {
-            let node = collect_type(subtype_vec);
-            node
+            collect_type(subtype_vec)
         }
         AstNode::Expression(expr) => match expr.kind {
             ExpressionKind::Primary(p) => {
@@ -694,8 +693,7 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
                 } else {
                     panic!("Primary expression must be an identifier")
                 };
-                let node = Expression::new_type(ident, vec![], pos).into();
-                node
+                Expression::new_type(ident, vec![], pos).into()
             }
             ExpressionKind::Type { ident, subtypes } => Expression {
                 kind: ExpressionKind::Type { ident, subtypes },
@@ -726,8 +724,7 @@ fn binary_expr_success(mut node_vec: Vec<AstNode>) -> AstNode {
                 op.try_into().unwrap(),
                 final_expr.into(),
                 right_expr.into(),
-            )
-            .into();
+            );
         }
         final_expr.into()
     } else {

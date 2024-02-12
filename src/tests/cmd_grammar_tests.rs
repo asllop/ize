@@ -58,8 +58,7 @@ fn check_model() {
                     ),
                 ],
                 Pos::new(0, 20, 20) - Pos::new(0, 8, 8)
-            )
-            .into(),
+            ),
             Pos::new(0, 20, 20) - Pos::new(0, 0, 0)
         )
         .into()
@@ -98,8 +97,7 @@ fn check_model() {
                     )
                     .into(),
                 )
-            ]
-            .into(),
+            ],
             Pos::new(0, 41, 41) - Pos::new(0, 0, 0)
         )
         .into()
@@ -150,8 +148,7 @@ fn check_model() {
                     )
                     .into(),
                 ),
-            ]
-            .into(),
+            ],
             Pos::new(0, 52, 52) - Pos::new(0, 0, 0)
         )
         .into()
@@ -213,8 +210,7 @@ fn check_transfer() {
                 Identifier::new("Int".into(), RangePos::inline_new(0, 30, 33, 30)),
                 vec![],
                 RangePos::inline_new(0, 30, 33, 30)
-            )
-            .into(),
+            ),
             Expression::new_binary(
                 BinaryOp::Plus,
                 Expression::new_primary(
@@ -227,8 +223,7 @@ fn check_transfer() {
                     RangePos::inline_new(0, 38, 39, 38)
                 )
                 .into(),
-            )
-            .into(),
+            ),
             Pos::new(0, 39, 39) - Pos::new(0, 0, 0)
         )
         .into()
@@ -246,8 +241,7 @@ fn check_transfer() {
                 Identifier::new("O".into(), RangePos::inline_new(0, 14, 15, 14)),
                 vec![],
                 RangePos::inline_new(0, 14, 15, 14)
-            )
-            .into(),
+            ),
             vec![
                 Expression::new_pair(
                     Expression::new_primary(
@@ -260,8 +254,7 @@ fn check_transfer() {
                         RangePos::inline_new(0, 20, 21, 20),
                     )
                     .into(),
-                )
-                .into(),
+                ),
                 Expression::new_pair(
                     Expression::new_primary(
                         Primary::Identifier("b".into()),
@@ -274,9 +267,7 @@ fn check_transfer() {
                     )
                     .into(),
                 )
-                .into()
-            ]
-            .into(),
+            ],
             Pos::new(0, 28, 28) - Pos::new(0, 0, 0)
         )
         .into()
@@ -356,8 +347,7 @@ fn check_pipe() {
                     )
                 ],
                 Pos::new(0, 15, 15) - Pos::new(0, 7, 7)
-            )
-            .into(),
+            ),
             Pos::new(0, 0, 0)
         )
         .into()
@@ -397,8 +387,7 @@ fn check_run() {
                     )
                 ],
                 Pos::new(0, 12, 12) - Pos::new(0, 4, 4),
-            )
-            .into(),
+            ),
             Pos::new(0, 0, 0)
         )
         .into()
