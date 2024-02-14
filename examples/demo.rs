@@ -5,12 +5,10 @@ use std::{
 };
 
 use ize::{
-    ast::{Command, CommandKind, ExpressionKind},
+    ast::{Command, CommandKind, ExpressionKind, Identifier, Primary},
     grammar_cmd, lexer,
     pos::RangePos,
 };
-
-fn main() {}
 
 /* TODO: IMPORT MODULES
 1. Convert import path into an actual file path.
@@ -19,9 +17,6 @@ fn main() {}
 
 We need a struct that contains all ther ASTs, symbol tables and links from symbol tables to ASTs.
 */
-
-// ------ DOES NOT COMPILE ------
-/*
 
 fn main() {
     let file_path = "izeware/experiment_semcheck.iz";
@@ -36,25 +31,23 @@ fn main() {
     //TODO: transpile
 }
 
+// Parse file, then generate imports and parse imported files too.
 fn parse_and_import(file_path: &str) {
     let ast = parse_file(file_path);
 
     let mut commands = vec![];
     let mut imports = vec![];
     for cmd in ast {
-        if let CommandKind::Import(_) = &cmd.kind {
+        if let CommandKind::Import { .. } = &cmd.kind {
             imports.push(cmd);
         } else {
             commands.push(cmd);
         }
     }
 
-    //TODO: last component of path might be a symbol name, not a file name
-
     let import_paths: Vec<_> = imports
         .into_iter()
         .map(|cmd| into_file_paths(cmd))
-        .flatten()
         .collect();
 
     println!("\n========== IMPORTS ({file_path}) ==========\n\n");
@@ -96,44 +89,37 @@ fn parse_file(file_path: &str) -> Vec<Command> {
 #[derive(Debug)]
 pub struct Import {
     pub pos: RangePos,
+    pub imports: Vec<(Identifier, Option<Identifier>)>,
     pub path: String,
-    pub alias: Option<(String, RangePos)>,
 }
 
 impl Import {
-    pub fn new(path: String, alias: Option<(String, RangePos)>, pos: RangePos) -> Self {
-        Self { pos, path, alias }
+    pub fn new(imports: Vec<(Identifier, Option<Identifier>)>, path: String, pos: RangePos) -> Self {
+        Self { pos, imports, path }
     }
 }
 
-fn into_file_paths(cmd: Command) -> Vec<Import> {
-    if let CommandKind::Import(expr_vec) = cmd.kind {
-        let path_vec: Vec<Import> = expr_vec
-            .into_iter()
-            .map(|expr| {
-                if let ExpressionKind::Path { module_path, alias } = expr.kind {
-                    let path = module_path.into_iter().fold("".to_owned(), |acc, x| {
-                        if acc.is_empty() {
-                            x.id
-                        } else {
-                            acc + "/" + &x.id
-                        }
-                    });
-                    let alias = if let Some(ident) = alias {
-                        Some((ident.id, ident.pos))
-                    } else {
-                        None
-                    };
-                    Import::new(path, alias, cmd.pos)
+fn into_file_paths(cmd: Command) -> Import {
+    if let CommandKind::Import { imports, path } = cmd.kind {
+        if let ExpressionKind::Dot(dot_path_vec) = path.kind {
+            let path = dot_path_vec.into_iter().map(|expr| {
+                if let ExpressionKind::Primary(Primary::Identifier(id)) = expr.kind {
+                    id
                 } else {
-                    panic!("Not a path expression")
+                    panic!("Not a primary identifier")
                 }
-            })
-            .collect();
-        path_vec
+            }).fold("".to_owned(), |acc, x| {
+                if acc.is_empty() {
+                    x
+                } else {
+                    acc + "/" + &x
+                }
+            });
+            Import::new(imports, path, cmd.pos)
+        } else {
+            panic!("Not a dot expression")
+        }
     } else {
         panic!("Not an import command")
     }
 }
-
-*/
