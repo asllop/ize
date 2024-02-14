@@ -1,17 +1,9 @@
+import EventData from izeware.models.event_data
+
 model Event (
     msg as "message": Str,
     timestamp: Int,
     data: EventData
 )
-
-model EventData (
-    attr: Map[Str,Any],
-    type: EventType
-)
-
-model EventType Mux[Login, Api, Connection]
-model Login ()
-model Api ()
-model Connection ()
 
 model MyInt Int

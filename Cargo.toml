@@ -13,4 +13,7 @@ rustc-hash = "1.1.0"
 name = "expr"
 
 [[example]]
+name = "cmd"
+
+[[example]]
 name = "demo"

@@ -86,6 +86,8 @@ pub enum TokenKind {
     ThreeDots,
     #[token("as")]
     As,
+    #[token("from")]
+    From,
     #[token("->")]
     Arrow,
     #[token("let")]

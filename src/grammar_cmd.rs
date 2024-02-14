@@ -10,21 +10,11 @@ use crate::{
     grammar_expr::{expr, expr_call, expr_dot, expr_type},
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
-    pos::RangePos,
 };
 
 /////////////////////
 // Command parsers //
 /////////////////////
-
-/* TODO: IMPORT MODULES
-We have to parse the code from imports:
-1. Convert import path into an actual file path.
-2. Read the file through a callback provided by the implementer.
-3. Parse the code.
-5. Link the base AST (the one that contains the import) with the new AST, so the semcheck can find it.
-4. Append the new AST to the array trat will be passed to the semcheck and transpiler.
-*/
 
 /// Parse a command.
 pub fn cmd(input: &[Token]) -> IzeResult {
@@ -309,48 +299,62 @@ fn cmd_run(input: &[Token]) -> IzeResult {
     )
 }
 
+// Grammar: "import" ("*" | ID) ("as" ID)? ("," ID ("as" ID)?)* "from" expr_dot
 /// Parse an Import command.
 fn cmd_import(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
             Tk(TokenKind::Import, 1),
-            Sel(&[
-                Con(&[
-                    Key(TokenKind::OpenParenth, 2),
-                    Fun(import_path, 3),
-                    Zero(&[Key(TokenKind::Comma, 4), Fun(import_path, 5)]),
-                    Tk(TokenKind::ClosingParenth, 6),
-                ]),
-                Fun(import_path, 7),
+            Sel(&[Tk(TokenKind::Star, 2), Fun(token_ident, 3)]),
+            Opt(&[Key(TokenKind::As, 4), Fun(token_ident, 5)]),
+            Zero(&[
+                Tk(TokenKind::Comma, 6),
+                Fun(token_ident, 7),
+                Opt(&[Key(TokenKind::As, 8), Fun(token_ident, 9)]),
             ]),
+            Tk(TokenKind::From, 10),
+            Fun(expr_dot, 11),
         ],
         |mut node_vec| {
-            if let AstNode::Vec(_) = node_vec.last().unwrap() {
-                // List of modules
-                let mut block_vec = node_vec.pop().unwrap().vec().unwrap();
-                let end_pos = block_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
-                let module_vec = block_vec.pop().unwrap().vec().unwrap();
-                let first_module = block_vec.pop().unwrap().expr().unwrap();
-                let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token 'import'
-                let mut modules = vec![first_module];
-                for module_pair in module_vec {
-                    let module = module_pair.vec().unwrap().pop().unwrap().expr().unwrap();
-                    modules.push(module);
-                }
-                Command::new_import(modules, end_pos - start_pos).into()
+            let path = node_vec.pop().unwrap().expr().unwrap();
+            node_vec.pop().unwrap().token().unwrap(); // token "from"
+            let following_imports = node_vec.pop().unwrap().vec().unwrap();
+            let mut first_import_alias = node_vec.pop().unwrap().vec().unwrap();
+            let first_import = node_vec.pop().unwrap().token().unwrap();
+            let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
+            let end_pos = path.pos.end;
+
+            let first_import = match first_import.kind {
+                TokenKind::Star => Identifier::new("*".into(), first_import.pos),
+                TokenKind::Identifier(id) => Identifier::new(id, first_import.pos),
+                _ => panic!("First imported symbol must be either an identifier or a '*'"),
+            };
+            let first_import_alias = if first_import_alias.is_empty() {
+                None
             } else {
-                // Single module
-                let path = node_vec.pop().unwrap().expr().unwrap();
-                let end_pos = path.pos.end;
-                let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-                Command::new_import(vec![path], end_pos - start_pos).into()
+                let alias = first_import_alias.pop().unwrap().token().unwrap();
+                Some(Identifier::try_from(alias).unwrap())
+            };
+            let mut imports = vec![(first_import, first_import_alias)];
+            for import_vec in following_imports {
+                let mut import_vec = import_vec.vec().unwrap();
+                let mut import_alias_vec = import_vec.pop().unwrap().vec().unwrap();
+                let import_id = import_vec.pop().unwrap().token().unwrap();
+                let import_id = Identifier::try_from(import_id).unwrap();
+                let import_alias = if import_alias_vec.is_empty() {
+                    None
+                } else {
+                    let alias = import_alias_vec.pop().unwrap().token().unwrap();
+                    Some(Identifier::try_from(alias).unwrap())
+                };
+                imports.push((import_id, import_alias));
             }
+            Command::new_import(imports, path, end_pos - start_pos).into()
         },
         |_, e| match e.id {
             1 => Err(IzeErr::new("Unknown command".into(), e.err.pos).into()),
-            3 | 5 | 7 => Err(IzeErr::new("Expected module path".into(), e.err.pos).into()),
-            6 => Err(IzeErr::new("Expected ')'".into(), e.err.pos).into()),
+            //TODO: error handling
             _ => Err(e),
         },
     )
@@ -359,57 +363,6 @@ fn cmd_import(input: &[Token]) -> IzeResult {
 ///////////////////////
 // Support functions //
 ///////////////////////
-
-/// Parse import path.
-fn import_path(input: &[Token]) -> IzeResult {
-    def_grammar(
-        input,
-        &[
-            Fun(expr_dot, 1),
-            Opt(&[Key(TokenKind::As, 2), Fun(token_ident, 3)]),
-        ],
-        |mut node_vec| {
-            let mut opt_as_ident = node_vec.pop().unwrap().vec().unwrap();
-            if opt_as_ident.is_empty() {
-                let module_expr = node_vec.pop().unwrap().expr().unwrap();
-                let pos = module_expr.pos;
-                let module_expr = convert_module_into_vec_of_identifiers(module_expr, pos);
-                Expression::new_path(module_expr, pos).into()
-            } else {
-                let module_expr = node_vec.pop().unwrap().expr().unwrap();
-                let pos = module_expr.pos;
-                let module_expr = convert_module_into_vec_of_identifiers(module_expr, pos);
-                let alias = opt_as_ident.pop().unwrap().token().unwrap();
-                Expression::new_path_with_alias(module_expr, alias.try_into().unwrap(), pos).into()
-            }
-        },
-        |_, e| match e.id {
-            1 => Err(IzeErr::new("Expected dot expression".into(), e.err.pos).into()),
-            2 => Err(IzeErr::new("Expected identifier after 'as'".into(), e.err.pos).into()),
-            _ => Err(e),
-        },
-    )
-}
-
-fn convert_module_into_vec_of_identifiers(
-    module_expr: Expression,
-    pos: RangePos,
-) -> Vec<Identifier> {
-    match module_expr.kind {
-        ExpressionKind::Primary(Primary::Identifier(id)) => vec![Identifier::new(id, pos)],
-        ExpressionKind::Dot(v) => v
-            .into_iter()
-            .map(|e| {
-                if let ExpressionKind::Primary(Primary::Identifier(id)) = e.kind {
-                    Identifier::new(id, e.pos)
-                } else {
-                    panic!("Dot expression must contain only primary identifiers")
-                }
-            })
-            .collect(),
-        _ => panic!("Expression must be a primary identifier or a dot expr"),
-    }
-}
 
 /// Parse pipe body
 fn pipe_body(input: &[Token]) -> IzeResult {

@@ -47,6 +47,15 @@ impl AstNode {
         }
     }
 
+    /// Convert node into a command variant.
+    pub fn cmd(self) -> Option<Command> {
+        if let Self::Command(cmd) = self {
+            Some(cmd)
+        } else {
+            None
+        }
+    }
+
     /// Convert node into a vector variant.
     pub fn vec(self) -> Option<Vec<AstNode>> {
         if let Self::Vec(vec) = self {
@@ -69,6 +78,15 @@ impl AstNode {
     pub fn expr_ref(&self) -> Option<&Expression> {
         if let Self::Expression(expr) = self {
             Some(expr)
+        } else {
+            None
+        }
+    }
+
+    /// Convert node into a command variant ref.
+    pub fn cmd_ref(&self) -> Option<&Command> {
+        if let Self::Command(cmd) = self {
+            Some(cmd)
         } else {
             None
         }
@@ -285,35 +303,7 @@ impl Expression {
             pos,
         }
     }
-
-    /// New Path expression.
-    pub fn new_path(module_path: Vec<Identifier>, pos: RangePos) -> Self {
-        Self {
-            kind: ExpressionKind::Path {
-                module_path,
-                alias: None,
-            },
-            pos,
-        }
-    }
-
-    /// New Path expression with alias.
-    pub fn new_path_with_alias(
-        module_path: Vec<Identifier>,
-        alias: Identifier,
-        pos: RangePos,
-    ) -> Self {
-        Self {
-            kind: ExpressionKind::Path {
-                module_path,
-                alias: Some(alias),
-            },
-            pos,
-        }
-    }
 }
-
-//TODO: create a typoe for identifiers that contains the position. Used for let, call, and type expressions.
 
 #[derive(Debug, PartialEq)]
 /// Expression kind.
@@ -378,17 +368,10 @@ pub enum ExpressionKind {
     },
     /// Pipe body expression. Only used by commands Run and Pipe.
     PipeBody(Vec<Expression>),
-    /// Path expression. Only used by the import command.
-    Path {
-        /// Module path.
-        module_path: Vec<Identifier>,
-        /// Module alias.
-        alias: Option<Identifier>,
-    },
 }
 
 #[derive(Debug, PartialEq)]
-/// Identifier.
+/// Identifier. Usually a primary-identifier but can also be used to represent a string literal.
 pub struct Identifier {
     /// Identifier string.
     pub id: String,
@@ -673,9 +656,13 @@ impl Command {
     }
 
     /// New import command.
-    pub fn new_import(path_vec: Vec<Expression>, pos: RangePos) -> Self {
+    pub fn new_import(
+        imports: Vec<(Identifier, Option<Identifier>)>,
+        path: Expression,
+        pos: RangePos,
+    ) -> Self {
         Self {
-            kind: CommandKind::Import(path_vec),
+            kind: CommandKind::Import { imports, path },
             pos,
         }
     }
@@ -684,8 +671,13 @@ impl Command {
 #[derive(Debug, PartialEq)]
 /// Expression kind.
 pub enum CommandKind {
-    /// Import command. Only expressions with kind == ExpressionKind::Path.
-    Import(Vec<Expression>),
+    /// Import command.
+    Import {
+        /// Vector of imported symbols with an optional rename for each.
+        imports: Vec<(Identifier, Option<Identifier>)>,
+        /// Import path. Must be an expression with kind == ExpressionKind::Dot.
+        path: Expression,
+    },
     /// Transfer command.
     Transfer {
         /// Transfer name.

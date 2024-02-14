@@ -682,9 +682,7 @@ fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
 /// Collect the subtype of a type expression results.
 fn collect_subtype(subtype: AstNode) -> AstNode {
     match subtype {
-        AstNode::Vec(subtype_vec) => {
-            collect_type(subtype_vec)
-        }
+        AstNode::Vec(subtype_vec) => collect_type(subtype_vec),
         AstNode::Expression(expr) => match expr.kind {
             ExpressionKind::Primary(p) => {
                 let pos = expr.pos;

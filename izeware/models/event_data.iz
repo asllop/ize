@@ -1,0 +1,6 @@
+import * from izeware.models.event_type
+
+model EventData (
+    attr: Map[Str,Any],
+    type: EventType
+)

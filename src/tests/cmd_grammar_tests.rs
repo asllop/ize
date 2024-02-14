@@ -276,50 +276,64 @@ fn check_transfer() {
 
 #[test]
 fn check_import() {
-    let code = "import com.example.Something";
+    let code = "import * from com.example";
     let cmd = parse_single_cmd(code);
 
     assert_eq!(
         cmd,
         Command::new_import(
-            vec![Expression::new_path(
-                vec![
-                    Identifier::new("com".into(), RangePos::inline_new(0, 7, 10, 7)),
-                    Identifier::new("example".into(), RangePos::inline_new(0, 11, 18, 11)),
-                    Identifier::new("Something".into(), RangePos::inline_new(0, 19, 28, 19)),
-                ],
-                Pos::new(0, 28, 28) - Pos::new(0, 7, 7)
+            vec![(
+                Identifier::new("*".into(), RangePos::inline_new(0, 7, 8, 7)),
+                None
             )],
-            Pos::new(0, 28, 28) - Pos::new(0, 0, 0)
+            Expression::new_dot(vec![
+                Expression::new_primary(
+                    Primary::Identifier("com".into()),
+                    RangePos::inline_new(0, 14, 17, 14),
+                ),
+                Expression::new_primary(
+                    Primary::Identifier("example".into()),
+                    RangePos::inline_new(0, 18, 25, 18),
+                )
+            ]),
+            Pos::new(0, 25, 25) - Pos::new(0, 0, 0)
         )
         .into()
     );
 
-    let code = "import (com.example.Something as thing, state)";
+    let code = "import A as X, B as Y from com.example";
     let cmd = parse_single_cmd(code);
 
     assert_eq!(
         cmd,
         Command::new_import(
             vec![
-                Expression::new_path_with_alias(
-                    vec![
-                        Identifier::new("com".into(), RangePos::inline_new(0, 8, 11, 8)),
-                        Identifier::new("example".into(), RangePos::inline_new(0, 12, 19, 12)),
-                        Identifier::new("Something".into(), RangePos::inline_new(0, 20, 29, 20)),
-                    ],
-                    Identifier::new("thing".into(), RangePos::inline_new(0, 33, 38, 33),),
-                    Pos::new(0, 29, 29) - Pos::new(0, 8, 8)
+                (
+                    Identifier::new("A".into(), RangePos::inline_new(0, 7, 8, 7)),
+                    Some(Identifier::new(
+                        "X".into(),
+                        RangePos::inline_new(0, 12, 13, 12)
+                    ))
                 ),
-                Expression::new_path(
-                    vec![Identifier::new(
-                        "state".into(),
-                        RangePos::inline_new(0, 40, 45, 40)
-                    ),],
-                    Pos::new(0, 45, 45) - Pos::new(0, 40, 40)
+                (
+                    Identifier::new("B".into(), RangePos::inline_new(0, 15, 16, 15)),
+                    Some(Identifier::new(
+                        "Y".into(),
+                        RangePos::inline_new(0, 20, 21, 20)
+                    ))
                 ),
             ],
-            Pos::new(0, 46, 46) - Pos::new(0, 0, 0)
+            Expression::new_dot(vec![
+                Expression::new_primary(
+                    Primary::Identifier("com".into()),
+                    RangePos::inline_new(0, 27, 30, 27),
+                ),
+                Expression::new_primary(
+                    Primary::Identifier("example".into()),
+                    RangePos::inline_new(0, 31, 38, 31),
+                )
+            ]),
+            Pos::new(0, 38, 38) - Pos::new(0, 0, 0)
         )
         .into()
     );

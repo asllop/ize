@@ -1,0 +1,4 @@
+model EventType Mux[Login, Api, Connection]
+model Login ()
+model Api ()
+model Connection ()

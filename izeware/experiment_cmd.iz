@@ -64,16 +64,12 @@ run ("Hello, World!\n", Stdout)
 transfer こんにちは _:None -> Str "こんにちは世界！"
 run (こんにちは, Stdout)
 
-import com.newrelic.Model as NRModel
+import NREvent from com.newrelic.models
 
-import (
-    one.two.three,
-    hello.bye.go as foo,
-    yes
-)
+import One, Two as M2, Three from one.two.three
 
 // Hello World in IZE
-import ize.io.Stdout
+import * from ize.io
 run ("Hello, World!\n", Stdout)
 
 model MyEvent (
