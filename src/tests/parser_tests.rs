@@ -1,7 +1,6 @@
 //! # PARSER COMPOSER TESTS
 
 use crate::{
-    ast::AstNode,
     lexer::{Token, TokenKind},
     parser::*,
     pos::RangePos,
@@ -35,7 +34,7 @@ fn check_opt() {
     let mut nodes = nodes.unwrap();
     assert_eq!(
         nodes.pop(),
-        Some(AstNode::Vec(vec![
+        Some(ParseNode::Vec(vec![
             Token::new(RangePos::default(), TokenKind::Arrow).into(),
             Token::new(RangePos::default(), TokenKind::Identifier("y".into())).into(),
         ]))

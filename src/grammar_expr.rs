@@ -25,7 +25,7 @@
 use alloc::{borrow::ToOwned, vec::Vec};
 
 use crate::{
-    ast::{AstNode, Expression, ExpressionKind, Identifier, Primary},
+    ast::{Expression, ExpressionKind, Identifier, Primary},
     err::IzeErr,
     lexer::{Token, TokenKind},
     parser::{Parser::*, *},
@@ -319,7 +319,7 @@ pub fn expr_select_unwrap(input: &[Token]) -> IzeResult {
             node_vec.pop().unwrap().token().unwrap(); // token "("
             node_vec.pop().unwrap().token().unwrap(); // token ")"
             let maybe_as_ident = node_vec.pop().unwrap();
-            let (alias, expr) = if let AstNode::Vec(mut as_ident) = maybe_as_ident {
+            let (alias, expr) = if let ParseNode::Vec(mut as_ident) = maybe_as_ident {
                 // Is the alias
                 let alias = as_ident.pop().unwrap().token().unwrap();
                 let expr = node_vec.pop().unwrap().expr().unwrap();
@@ -656,7 +656,7 @@ fn type_name(input: &[Token]) -> IzeResult {
 }
 
 /// Collect type expression results.
-fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
+fn collect_type(mut node_vec: Vec<ParseNode>) -> ParseNode {
     let mut subtypes_vec = vec![];
 
     let end_pos = node_vec.pop().unwrap().token().unwrap().pos.end; // token "]"
@@ -680,10 +680,10 @@ fn collect_type(mut node_vec: Vec<AstNode>) -> AstNode {
 }
 
 /// Collect the subtype of a type expression results.
-fn collect_subtype(subtype: AstNode) -> AstNode {
+fn collect_subtype(subtype: ParseNode) -> ParseNode {
     match subtype {
-        AstNode::Vec(subtype_vec) => collect_type(subtype_vec),
-        AstNode::Expression(expr) => match expr.kind {
+        ParseNode::Vec(subtype_vec) => collect_type(subtype_vec),
+        ParseNode::Expression(expr) => match expr.kind {
             ExpressionKind::Primary(p) => {
                 let pos = expr.pos;
                 let ident = if let Primary::Identifier(id) = p {
@@ -708,7 +708,7 @@ fn collect_subtype(subtype: AstNode) -> AstNode {
 }
 
 /// Collect binary expression
-fn binary_expr_success(mut node_vec: Vec<AstNode>) -> AstNode {
+fn binary_expr_success(mut node_vec: Vec<ParseNode>) -> ParseNode {
     let expr_vec = node_vec.pop().unwrap().vec().unwrap();
     let next_expr = node_vec.pop().unwrap();
 

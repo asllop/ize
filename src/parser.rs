@@ -5,10 +5,121 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::AstNode,
+    ast::{Command, Expression},
     err::IzeErr,
     lexer::{Token, TokenKind},
 };
+
+#[derive(Debug, PartialEq)]
+/// Parser node. It can contain tokens, expressions, commands or vectors of other nodes.
+pub enum ParseNode {
+    /// Token node.
+    Token(Token),
+    /// Expression node.
+    Expression(Expression),
+    /// Command node.
+    Command(Command),
+    /// Vector of nodes.
+    Vec(Vec<ParseNode>),
+}
+
+impl ParseNode {
+    /// Convert node into a token variant.
+    pub fn token(self) -> Option<Token> {
+        if let Self::Token(token) = self {
+            Some(token)
+        } else {
+            None
+        }
+    }
+
+    /// Convert node into an expression variant.
+    pub fn expr(self) -> Option<Expression> {
+        if let Self::Expression(expr) = self {
+            Some(expr)
+        } else {
+            None
+        }
+    }
+
+    /// Convert node into a command variant.
+    pub fn cmd(self) -> Option<Command> {
+        if let Self::Command(cmd) = self {
+            Some(cmd)
+        } else {
+            None
+        }
+    }
+
+    /// Convert node into a vector variant.
+    pub fn vec(self) -> Option<Vec<ParseNode>> {
+        if let Self::Vec(vec) = self {
+            Some(vec)
+        } else {
+            None
+        }
+    }
+
+    /// Convert node into a token variant ref.
+    pub fn token_ref(&self) -> Option<&Token> {
+        if let Self::Token(token) = self {
+            Some(token)
+        } else {
+            None
+        }
+    }
+
+    /// Convert node into an expression variant ref.
+    pub fn expr_ref(&self) -> Option<&Expression> {
+        if let Self::Expression(expr) = self {
+            Some(expr)
+        } else {
+            None
+        }
+    }
+
+    /// Convert node into a command variant ref.
+    pub fn cmd_ref(&self) -> Option<&Command> {
+        if let Self::Command(cmd) = self {
+            Some(cmd)
+        } else {
+            None
+        }
+    }
+
+    /// Convert node into a vector variant ref.
+    pub fn vec_ref(&self) -> Option<&Vec<ParseNode>> {
+        if let Self::Vec(vec) = self {
+            Some(vec)
+        } else {
+            None
+        }
+    }
+}
+
+impl From<Token> for ParseNode {
+    fn from(value: Token) -> Self {
+        Self::Token(value)
+    }
+}
+
+impl From<Expression> for ParseNode {
+    fn from(value: Expression) -> Self {
+        Self::Expression(value)
+    }
+}
+
+impl From<Command> for ParseNode {
+    fn from(value: Command) -> Self {
+        Self::Command(value)
+    }
+}
+
+impl From<Vec<ParseNode>> for ParseNode {
+    fn from(value: Vec<ParseNode>) -> Self {
+        Self::Vec(value)
+    }
+}
 
 #[derive(Debug, Default)]
 /// Parser error.
@@ -55,13 +166,13 @@ impl From<ParseErr> for IzeErr {
 type AfterKey = bool;
 
 /// Result type alias for parsers.
-pub type IzeResult<'a> = Result<(&'a [Token], AstNode, AfterKey), ParseErr>;
+pub type IzeResult<'a> = Result<(&'a [Token], ParseNode, AfterKey), ParseErr>;
 
 /// Define a grammar.
 pub fn def_grammar<'a>(
     input: &'a [Token],
     parsers: &'a [Parser<'a>],
-    success: fn(Vec<AstNode>) -> AstNode,
+    success: fn(Vec<ParseNode>) -> ParseNode,
     error: fn(&'a [Token], ParseErr) -> IzeResult<'a>,
 ) -> IzeResult<'a> {
     match concat(parsers, input) {
@@ -159,7 +270,7 @@ pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> 
                 Err(e)
             } else {
                 // TODO: if we could report the "e.id" in an Ok, we could improve parser error generation
-                Ok((input, AstNode::Vec(vec![]), false))
+                Ok((input, ParseNode::Vec(vec![]), false))
             }
         }
     }

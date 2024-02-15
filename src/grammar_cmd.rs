@@ -5,7 +5,7 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    ast::{AstNode, Command, Expression, ExpressionKind, Identifier, ImportSymbol, Primary},
+    ast::{Command, Expression, ExpressionKind, Identifier, ImportSymbol, Primary},
     err::IzeErr,
     grammar_expr::{expr, expr_call, expr_dot, expr_type},
     lexer::{Token, TokenKind},
@@ -73,7 +73,7 @@ fn cmd_transfer(input: &[Token]) -> IzeResult {
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // token "transfer"
 
-            if let AstNode::Vec(mut body_vec) = body {
+            if let ParseNode::Vec(mut body_vec) = body {
                 // It's a struct body
                 let end_pos = body_vec.pop().unwrap().token().unwrap().pos.end; // token ')'
                 let pair_expr_vec = body_vec.pop().unwrap().vec().unwrap();
@@ -159,7 +159,7 @@ fn cmd_model(input: &[Token]) -> IzeResult {
             let body = node_vec.pop().unwrap();
             let ident = node_vec.pop().unwrap().token().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start; // 'model' token
-            if let AstNode::Vec(mut body_struct) = body {
+            if let ParseNode::Vec(mut body_struct) = body {
                 let end_pos = body_struct.pop().unwrap().token().unwrap().pos.end; // token ')'
                                                                                    // Body is a struct
                 let body = if body_struct.len() == 1 {
@@ -276,7 +276,7 @@ fn cmd_run(input: &[Token]) -> IzeResult {
         |mut node_vec| {
             let pipe = node_vec.pop().unwrap();
             let start_pos = node_vec.pop().unwrap().token().unwrap().pos.start;
-            if let AstNode::Token(_) = pipe {
+            if let ParseNode::Token(_) = pipe {
                 let pipe_ident = pipe.token().unwrap();
                 Command::new_run_with_ident(pipe_ident.try_into().unwrap(), start_pos).into()
             } else {
@@ -453,11 +453,11 @@ fn model_body_pair_expr(input: &[Token]) -> IzeResult {
         ],
         |mut node_vec| {
             let right_expr = match node_vec.pop().unwrap() {
-                AstNode::Token(token) => {
+                ParseNode::Token(token) => {
                     let pos = token.pos;
                     Expression::new_primary(token.try_into().unwrap(), pos)
                 }
-                AstNode::Expression(right_expr) => right_expr,
+                ParseNode::Expression(right_expr) => right_expr,
                 _ => panic!("Unexpected right expression"),
             };
             node_vec.pop().unwrap().token().unwrap(); // colon token
@@ -566,7 +566,7 @@ fn transfer_body_pair_expr(input: &[Token]) -> IzeResult {
 }
 
 /// Collect Pair expression for grammar: IDENTIFIER ":" EXPRESSION
-fn simple_pair_success(mut node_vec: Vec<AstNode>) -> AstNode {
+fn simple_pair_success(mut node_vec: Vec<ParseNode>) -> ParseNode {
     let right_expr = node_vec.pop().unwrap().expr().unwrap();
     node_vec.pop().unwrap().token().unwrap(); // colon token
     let left_ident = node_vec.pop().unwrap().token().unwrap();

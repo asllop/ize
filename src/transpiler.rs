@@ -7,7 +7,7 @@
 //! - From the IZE AST, generate an intermediate AST that is closer to structured, imperative languages, like Rust (or Java, Go, JS, Python, etc).
 //! - From the intermediate AST, generate the target language's AST (Rust), and finally deserialize it into code.
 
-use crate::{ast::AstNode, err::IzeErr};
+use crate::{err::IzeErr, parser::ParseNode};
 use alloc::{string::String, vec::Vec};
 
 //TODO: El transpilador ha de prendre també la SF per saber exactament què és cada símbol que apareix dins una expressió.
@@ -16,7 +16,7 @@ use alloc::{string::String, vec::Vec};
 //      és "Type" o és "Traf".
 
 /// Transpile an AST.
-pub fn transpile(_ast: Vec<AstNode>) -> Result<String, IzeErr> {
+pub fn transpile(_ast: Vec<ParseNode>) -> Result<String, IzeErr> {
     todo!()
 }
 

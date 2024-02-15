@@ -3,12 +3,13 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::{AstNode, BinaryOp, Command, Expression, Identifier, ImportSymbol, Literal, Primary},
+    ast::{BinaryOp, Command, Expression, Identifier, ImportSymbol, Literal, Primary},
     grammar_cmd, lexer,
+    parser::ParseNode,
     pos::{Pos, RangePos},
 };
 
-fn parse(code: &str) -> Vec<AstNode> {
+fn parse(code: &str) -> Vec<ParseNode> {
     let tokens = lexer::tokenize(code);
     assert!(tokens.is_ok());
     let tokens = tokens.unwrap();
@@ -24,7 +25,7 @@ fn parse(code: &str) -> Vec<AstNode> {
     res
 }
 
-fn parse_single_cmd(code: &str) -> AstNode {
+fn parse_single_cmd(code: &str) -> ParseNode {
     let mut cmd = parse(code);
     assert!(cmd.len() == 1);
     let cmd = cmd.pop();
