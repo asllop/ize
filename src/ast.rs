@@ -1,11 +1,6 @@
 //! # Abstract Syntax Tree
 //!
-//! Types and method to construct and store an AST. Composed of four elements:
-//!
-//! - [Token](crate::lexer::Token): A token in the source code, like a "(" or a variable name.
-//! - [Expression](crate::ast::Expression): An expression, like an if-else block, or a math operation.
-//! - [Command](crate::ast::Command): A command, like a model, or a transfer.
-//! - [AstNode](crate::ast::AstNode): An AST is essentially a group of linked AST nodes. This type encapsulates the other three.
+//! Types and method to construct and store an AST.
 
 use alloc::{boxed::Box, string::String, vec::Vec};
 
@@ -14,6 +9,8 @@ use crate::{
     lexer::{Token, TokenKind},
     pos::{Pos, RangePos},
 };
+
+//TODO: rename AstNode to ParseNode and move to "parser" module.
 
 #[derive(Debug, PartialEq)]
 /// AST node type. It can contain tokens, expressions, commands or vectors of other nodes.
@@ -656,11 +653,7 @@ impl Command {
     }
 
     /// New import command.
-    pub fn new_import(
-        symbols: Vec<(Identifier, Option<Identifier>)>,
-        path: Expression,
-        pos: RangePos,
-    ) -> Self {
+    pub fn new_import(symbols: Vec<ImportSymbol>, path: Expression, pos: RangePos) -> Self {
         Self {
             kind: CommandKind::Import { symbols, path },
             pos,
@@ -674,7 +667,7 @@ pub enum CommandKind {
     /// Import command.
     Import {
         /// Vector of imported symbols with an optional rename for each.
-        symbols: Vec<(Identifier, Option<Identifier>)>,
+        symbols: Vec<ImportSymbol>,
         /// Import path. Must be an expression with kind == ExpressionKind::Dot.
         path: Expression,
     },
@@ -712,6 +705,22 @@ pub enum CommandKind {
         /// Value literal.
         value: Literal,
     },
+}
+
+#[derive(Debug, PartialEq)]
+/// Imported symbol.
+pub struct ImportSymbol {
+    /// Imported symbol.
+    pub symbol: Identifier,
+    /// Symbol rename.
+    pub rename: Option<Identifier>,
+}
+
+impl ImportSymbol {
+    /// New imported symbol.
+    pub fn new(symbol: Identifier, rename: Option<Identifier>) -> Self {
+        Self { symbol, rename }
+    }
 }
 
 #[derive(Debug, PartialEq)]

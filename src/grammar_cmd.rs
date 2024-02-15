@@ -5,7 +5,7 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    ast::{AstNode, Command, Expression, ExpressionKind, Identifier, Primary},
+    ast::{AstNode, Command, Expression, ExpressionKind, Identifier, ImportSymbol, Primary},
     err::IzeErr,
     grammar_expr::{expr, expr_call, expr_dot, expr_type},
     lexer::{Token, TokenKind},
@@ -336,7 +336,7 @@ fn cmd_import(input: &[Token]) -> IzeResult {
                 let alias = first_import_alias.pop().unwrap().token().unwrap();
                 Some(Identifier::try_from(alias).unwrap())
             };
-            let mut imports = vec![(first_import, first_import_alias)];
+            let mut imports = vec![ImportSymbol::new(first_import, first_import_alias)];
             for import_vec in following_imports {
                 let mut import_vec = import_vec.vec().unwrap();
                 let mut import_alias_vec = import_vec.pop().unwrap().vec().unwrap();
@@ -348,7 +348,7 @@ fn cmd_import(input: &[Token]) -> IzeResult {
                     let alias = import_alias_vec.pop().unwrap().token().unwrap();
                     Some(Identifier::try_from(alias).unwrap())
                 };
-                imports.push((import_id, import_alias));
+                imports.push(ImportSymbol::new(import_id, import_alias));
             }
             Command::new_import(imports, path, end_pos - start_pos).into()
         },

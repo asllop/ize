@@ -1,11 +1,12 @@
 use std::{
+    env,
     fs::File,
     io::{prelude::*, BufReader},
     str,
 };
 
 use ize::{
-    ast::{Command, CommandKind, ExpressionKind, Identifier, Primary},
+    ast::{Command, CommandKind, ExpressionKind, ImportSymbol, Primary},
     grammar_cmd, lexer,
     pos::RangePos,
 };
@@ -18,10 +19,20 @@ use ize::{
 We need a struct that contains all ther ASTs, symbol tables and links from symbol tables to ASTs.
 */
 
+#[derive(Debug)]
+pub struct Ast {
+    /// Source code file path.
+    pub file_path: String,
+    /// Parsed commands, without imports.
+    pub commands: Vec<Command>,
+    /// Imported modules and required symbols.
+    pub imports: Vec<(Ast, Vec<ImportSymbol>)>,
+    //TODO: Symbol table.
+}
+
 fn main() {
     let file_path = "izeware/experiment_semcheck.iz";
-
-    parse_and_import(file_path);
+    parse_and_import(absolute_path(file_path).as_str());
 
     // println!("\n========== SEMCHECKER ==========\n\n");
 
@@ -29,6 +40,12 @@ fn main() {
     // println!("Symbol table = {:#?}", symtab);
 
     //TODO: transpile
+}
+
+fn absolute_path(path_str: &str) -> String {
+    let mut path_buf = env::current_dir().expect("Error gettingcurrent dir");
+    path_buf.push(path_str);
+    path_buf.to_string_lossy().into()
 }
 
 // Parse file, then generate imports and parse imported files too.
@@ -45,15 +62,15 @@ fn parse_and_import(file_path: &str) {
     });
 
     // Convert import commands into import paths.
-    let import_paths: Vec<ImportPaths> = imports.into_iter().map(|cmd| cmd.into()).collect();
+    let import_path_vec: Vec<ImportPaths> = imports.into_iter().map(|cmd| cmd.into()).collect();
 
     println!("\n========== IMPORTS ({file_path}) ==========\n\n");
 
-    println!("{:#?}", import_paths);
+    println!("{:#?}", import_path_vec);
 
-    for path in import_paths {
-        let file_path = path.path + ".iz";
-        parse_and_import(file_path.as_str());
+    for import_path in &import_path_vec {
+        let file_path = import_path.path.clone() + ".iz";
+        parse_and_import(absolute_path(file_path.as_str()).as_str());
     }
 }
 
@@ -86,16 +103,12 @@ fn parse_file(file_path: &str) -> Vec<Command> {
 #[derive(Debug)]
 pub struct ImportPaths {
     pub pos: RangePos,
-    pub symbols: Vec<(Identifier, Option<Identifier>)>,
+    pub symbols: Vec<ImportSymbol>,
     pub path: String,
 }
 
 impl ImportPaths {
-    pub fn new(
-        symbols: Vec<(Identifier, Option<Identifier>)>,
-        path: String,
-        pos: RangePos,
-    ) -> Self {
+    pub fn new(symbols: Vec<ImportSymbol>, path: String, pos: RangePos) -> Self {
         Self { pos, symbols, path }
     }
 }
@@ -113,13 +126,8 @@ impl From<Command> for ImportPaths {
                             panic!("Not a primary identifier")
                         }
                     })
-                    .fold("".to_owned(), |acc, x| {
-                        if acc.is_empty() {
-                            x
-                        } else {
-                            acc + "/" + &x
-                        }
-                    });
+                    .reduce(|acc, x| acc + "/" + &x)
+                    .unwrap();
                 Self::new(symbols, path, cmd.pos)
             } else {
                 panic!("Not a dot expression")

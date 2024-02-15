@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ast::{AstNode, BinaryOp, Command, Expression, Identifier, Literal, Primary},
+    ast::{AstNode, BinaryOp, Command, Expression, Identifier, ImportSymbol, Literal, Primary},
     grammar_cmd, lexer,
     pos::{Pos, RangePos},
 };
@@ -282,7 +282,7 @@ fn check_import() {
     assert_eq!(
         cmd,
         Command::new_import(
-            vec![(
+            vec![ImportSymbol::new(
                 Identifier::new("*".into(), RangePos::inline_new(0, 7, 8, 7)),
                 None
             )],
@@ -308,14 +308,14 @@ fn check_import() {
         cmd,
         Command::new_import(
             vec![
-                (
+                ImportSymbol::new(
                     Identifier::new("A".into(), RangePos::inline_new(0, 7, 8, 7)),
                     Some(Identifier::new(
                         "X".into(),
                         RangePos::inline_new(0, 12, 13, 12)
                     ))
                 ),
-                (
+                ImportSymbol::new(
                     Identifier::new("B".into(), RangePos::inline_new(0, 15, 16, 15)),
                     Some(Identifier::new(
                         "Y".into(),
