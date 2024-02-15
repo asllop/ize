@@ -657,12 +657,12 @@ impl Command {
 
     /// New import command.
     pub fn new_import(
-        imports: Vec<(Identifier, Option<Identifier>)>,
+        symbols: Vec<(Identifier, Option<Identifier>)>,
         path: Expression,
         pos: RangePos,
     ) -> Self {
         Self {
-            kind: CommandKind::Import { imports, path },
+            kind: CommandKind::Import { symbols, path },
             pos,
         }
     }
@@ -674,7 +674,7 @@ pub enum CommandKind {
     /// Import command.
     Import {
         /// Vector of imported symbols with an optional rename for each.
-        imports: Vec<(Identifier, Option<Identifier>)>,
+        symbols: Vec<(Identifier, Option<Identifier>)>,
         /// Import path. Must be an expression with kind == ExpressionKind::Dot.
         path: Expression,
     },

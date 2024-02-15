@@ -35,20 +35,17 @@ fn main() {
 fn parse_and_import(file_path: &str) {
     let ast = parse_file(file_path);
 
-    let mut commands = vec![];
-    let mut imports = vec![];
-    for cmd in ast {
+    // Segregate imports from other commands
+    let (imports, _commands): (Vec<_>, Vec<_>) = ast.into_iter().partition(|cmd| {
         if let CommandKind::Import { .. } = &cmd.kind {
-            imports.push(cmd);
+            true
         } else {
-            commands.push(cmd);
+            false
         }
-    }
+    });
 
-    let import_paths: Vec<_> = imports
-        .into_iter()
-        .map(|cmd| into_file_paths(cmd))
-        .collect();
+    // Convert import commands into import paths.
+    let import_paths: Vec<ImportPaths> = imports.into_iter().map(|cmd| cmd.into()).collect();
 
     println!("\n========== IMPORTS ({file_path}) ==========\n\n");
 
@@ -87,39 +84,48 @@ fn parse_file(file_path: &str) -> Vec<Command> {
 }
 
 #[derive(Debug)]
-pub struct Import {
+pub struct ImportPaths {
     pub pos: RangePos,
-    pub imports: Vec<(Identifier, Option<Identifier>)>,
+    pub symbols: Vec<(Identifier, Option<Identifier>)>,
     pub path: String,
 }
 
-impl Import {
-    pub fn new(imports: Vec<(Identifier, Option<Identifier>)>, path: String, pos: RangePos) -> Self {
-        Self { pos, imports, path }
+impl ImportPaths {
+    pub fn new(
+        symbols: Vec<(Identifier, Option<Identifier>)>,
+        path: String,
+        pos: RangePos,
+    ) -> Self {
+        Self { pos, symbols, path }
     }
 }
 
-fn into_file_paths(cmd: Command) -> Import {
-    if let CommandKind::Import { imports, path } = cmd.kind {
-        if let ExpressionKind::Dot(dot_path_vec) = path.kind {
-            let path = dot_path_vec.into_iter().map(|expr| {
-                if let ExpressionKind::Primary(Primary::Identifier(id)) = expr.kind {
-                    id
-                } else {
-                    panic!("Not a primary identifier")
-                }
-            }).fold("".to_owned(), |acc, x| {
-                if acc.is_empty() {
-                    x
-                } else {
-                    acc + "/" + &x
-                }
-            });
-            Import::new(imports, path, cmd.pos)
+impl From<Command> for ImportPaths {
+    fn from(cmd: Command) -> Self {
+        if let CommandKind::Import { symbols, path } = cmd.kind {
+            if let ExpressionKind::Dot(dot_path_vec) = path.kind {
+                let path = dot_path_vec
+                    .into_iter()
+                    .map(|expr| {
+                        if let ExpressionKind::Primary(Primary::Identifier(id)) = expr.kind {
+                            id
+                        } else {
+                            panic!("Not a primary identifier")
+                        }
+                    })
+                    .fold("".to_owned(), |acc, x| {
+                        if acc.is_empty() {
+                            x
+                        } else {
+                            acc + "/" + &x
+                        }
+                    });
+                Self::new(symbols, path, cmd.pos)
+            } else {
+                panic!("Not a dot expression")
+            }
         } else {
-            panic!("Not a dot expression")
+            panic!("Not an import command")
         }
-    } else {
-        panic!("Not an import command")
     }
 }
