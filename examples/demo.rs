@@ -6,33 +6,17 @@ use std::{
 };
 
 use ize::{
-    ast::{Command, CommandKind, ExpressionKind, ImportSymbol, Primary},
+    ast::{Ast, Command, CommandKind, ExpressionKind, ImportAst, ImportSymbol, Primary},
     grammar_cmd, lexer,
     pos::RangePos,
 };
 
-/* TODO: IMPORT MODULES
-1. Convert import path into an actual file path.
-2. Read file, parse the code and generate a Import Symbol Table (IST) containing the symbols requested in the import, or all if "*".
-3. Link the IST to the base AST (the code that called the import command).
-
-We need a struct that contains all ther ASTs, symbol tables and links from symbol tables to ASTs.
-*/
-
-#[derive(Debug)]
-pub struct Ast {
-    /// Source code file path.
-    pub file_path: String,
-    /// Parsed commands, without imports.
-    pub commands: Vec<Command>,
-    /// Imported modules and required symbols.
-    pub imports: Vec<(Ast, Vec<ImportSymbol>)>,
-    //TODO: Symbol table.
-}
-
 fn main() {
     let file_path = "izeware/experiment_semcheck.iz";
-    parse_and_import(absolute_path(file_path).as_str());
+    let ast = parse_and_import(absolute_path(file_path).as_str());
+
+    println!("\n============ AST ============\n\n");
+    println!("{:#?}", ast);
 
     // println!("\n========== SEMCHECKER ==========\n\n");
 
@@ -43,17 +27,17 @@ fn main() {
 }
 
 fn absolute_path(path_str: &str) -> String {
-    let mut path_buf = env::current_dir().expect("Error gettingcurrent dir");
+    let mut path_buf = env::current_dir().expect("Error getting current dir");
     path_buf.push(path_str);
     path_buf.to_string_lossy().into()
 }
 
 // Parse file, then generate imports and parse imported files too.
-fn parse_and_import(file_path: &str) {
-    let ast = parse_file(file_path);
+fn parse_and_import(file_path: &str) -> Ast {
+    let commands = parse_file(file_path);
 
     // Segregate imports from other commands
-    let (imports, commands): (Vec<_>, Vec<_>) = ast.into_iter().partition(|cmd| {
+    let (imports, commands): (Vec<_>, Vec<_>) = commands.into_iter().partition(|cmd| {
         if let CommandKind::Import { .. } = &cmd.kind {
             true
         } else {
@@ -69,16 +53,22 @@ fn parse_and_import(file_path: &str) {
     for cmd in &commands {
         println!("----------------> {:#?}\n", cmd);
     }
-    
+
     println!("\n========== IMPORTS ({file_path}) ==========\n\n");
 
     println!("{:#?}", import_path_vec);
 
+    let mut imports = vec![];
     // Parse imported files
-    for import_path in &import_path_vec {
-        let file_path = import_path.path.clone() + ".iz";
-        parse_and_import(file_path.as_str());
+    for import_path in import_path_vec {
+        let file_path = import_path.path + ".iz";
+        let symbols = import_path.symbols;
+        let ast = parse_and_import(file_path.as_str());
+
+        imports.push(ImportAst::new(ast, symbols));
     }
+
+    Ast::new(file_path.into(), commands, imports)
 }
 
 fn parse_file(file_path: &str) -> Vec<Command> {
@@ -91,16 +81,16 @@ fn parse_file(file_path: &str) -> Vec<Command> {
     let tokens = lexer::tokenize(code).expect("Bad token");
     let mut input = tokens.as_slice();
 
-    let mut ast = vec![];
+    let mut commands = vec![];
 
     while !input.is_empty() {
         let (rest, parsed, _) = grammar_cmd::cmd(input).expect("Error parsing command");
         let parsed = parsed.cmd().expect("Node must be a command");
         input = rest;
-        ast.push(parsed);
+        commands.push(parsed);
     }
 
-    ast
+    commands
 }
 
 #[derive(Debug)]

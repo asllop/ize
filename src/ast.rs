@@ -10,6 +10,45 @@ use crate::{
     pos::{Pos, RangePos},
 };
 
+#[derive(Debug)]
+/// Abstract Syntax Tree. Code representation after parsing and import execution.
+pub struct Ast {
+    /// Source code file path.
+    pub file_path: String,
+    /// Parsed commands, without imports.
+    pub commands: Vec<Command>,
+    /// Imported modules and required symbols.
+    pub imports: Vec<ImportAst>,
+    //TODO: Symbol table.
+}
+
+impl Ast {
+    /// New Ast.
+    pub fn new(file_path: String, commands: Vec<Command>, imports: Vec<ImportAst>) -> Self {
+        Self {
+            file_path,
+            commands,
+            imports,
+        }
+    }
+}
+
+#[derive(Debug)]
+/// Ast of an import, associated to the list of imported symbols.
+pub struct ImportAst {
+    /// Import AST.
+    pub ast: Ast,
+    /// Imported symbols.
+    pub symbols: Vec<ImportSymbol>,
+}
+
+impl ImportAst {
+    /// New ImportAst.
+    pub fn new(ast: Ast, symbols: Vec<ImportSymbol>) -> Self {
+        Self { ast, symbols }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 /// Expression type.
 pub struct Expression {
