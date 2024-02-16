@@ -53,7 +53,7 @@ fn parse_and_import(file_path: &str) {
     let ast = parse_file(file_path);
 
     // Segregate imports from other commands
-    let (imports, _commands): (Vec<_>, Vec<_>) = ast.into_iter().partition(|cmd| {
+    let (imports, commands): (Vec<_>, Vec<_>) = ast.into_iter().partition(|cmd| {
         if let CommandKind::Import { .. } = &cmd.kind {
             true
         } else {
@@ -64,13 +64,20 @@ fn parse_and_import(file_path: &str) {
     // Convert import commands into import paths.
     let import_path_vec: Vec<ImportPaths> = imports.into_iter().map(|cmd| cmd.into()).collect();
 
+    println!("\n========== COMMANDS ({file_path}) ==========\n\n");
+
+    for cmd in &commands {
+        println!("----------------> {:#?}\n", cmd);
+    }
+    
     println!("\n========== IMPORTS ({file_path}) ==========\n\n");
 
     println!("{:#?}", import_path_vec);
 
+    // Parse imported files
     for import_path in &import_path_vec {
         let file_path = import_path.path.clone() + ".iz";
-        parse_and_import(absolute_path(file_path.as_str()).as_str());
+        parse_and_import(file_path.as_str());
     }
 }
 
@@ -82,17 +89,13 @@ fn parse_file(file_path: &str) -> Vec<Command> {
 
     let code = str::from_utf8(&buf).expect("Error converting buffer to UTF-8");
     let tokens = lexer::tokenize(code).expect("Bad token");
-
     let mut input = tokens.as_slice();
-
-    println!("\n========== PARSER ({file_path}) ==========\n\n");
 
     let mut ast = vec![];
 
     while !input.is_empty() {
         let (rest, parsed, _) = grammar_cmd::cmd(input).expect("Error parsing command");
         let parsed = parsed.cmd().expect("Node must be a command");
-        println!("-------------------------\n{:#?}", parsed);
         input = rest;
         ast.push(parsed);
     }
@@ -128,7 +131,7 @@ impl From<Command> for ImportPaths {
                     })
                     .reduce(|acc, x| acc + "/" + &x)
                     .unwrap();
-                Self::new(symbols, path, cmd.pos)
+                Self::new(symbols, absolute_path(path.as_str()), cmd.pos)
             } else {
                 panic!("Not a dot expression")
             }
