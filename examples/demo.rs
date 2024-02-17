@@ -10,6 +10,7 @@ use ize::{
     grammar_cmd, lexer,
     pos::RangePos,
 };
+use rustc_hash::FxHashMap;
 
 fn main() {
     let file_path = "izeware/experiment_semcheck.iz";
@@ -59,16 +60,23 @@ fn parse_and_import(file_path: &str) -> Ast {
     println!("{:#?}", import_path_vec);
 
     let mut imports = vec![];
+    let mut imported_symbols = FxHashMap::default();
     // Parse imported files
-    for import_path in import_path_vec {
+    for (i, import_path) in import_path_vec.into_iter().enumerate() {
         let file_path = import_path.path + ".iz";
         let symbols = import_path.symbols;
         let ast = parse_and_import(file_path.as_str());
-
+        for (j, sym) in symbols.iter().enumerate() {
+            if let Some(rename) = &sym.rename {
+                imported_symbols.insert(rename.id.clone(), (i, j));
+            } else {
+                imported_symbols.insert(sym.symbol.id.clone(), (i, j));
+            }
+        }
         imports.push(ImportAst::new(ast, symbols));
     }
 
-    Ast::new(file_path.into(), commands, imports)
+    Ast::new(file_path.into(), commands, imports, imported_symbols)
 }
 
 fn parse_file(file_path: &str) -> Vec<Command> {

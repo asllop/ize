@@ -3,6 +3,7 @@
 //! Types and method to construct and store an AST.
 
 use alloc::{boxed::Box, string::String, vec::Vec};
+use rustc_hash::FxHashMap;
 
 use crate::{
     err::IzeErr,
@@ -19,16 +20,24 @@ pub struct Ast {
     pub commands: Vec<Command>,
     /// Imported modules and required symbols.
     pub imports: Vec<ImportAst>,
-    //TODO: Symbol table.
+    /// Imported symbols table.
+    /// Link each imported symbol to a position in the "imports" vector, and a position in the "symbols" vector inside it.
+    pub imported_symbols: FxHashMap<String, (usize, usize)>,
 }
 
 impl Ast {
     /// New Ast.
-    pub fn new(file_path: String, commands: Vec<Command>, imports: Vec<ImportAst>) -> Self {
+    pub fn new(
+        file_path: String,
+        commands: Vec<Command>,
+        imports: Vec<ImportAst>,
+        imported_symbols: FxHashMap<String, (usize, usize)>,
+    ) -> Self {
         Self {
             file_path,
             commands,
             imports,
+            imported_symbols,
         }
     }
 }
