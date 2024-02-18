@@ -30,7 +30,7 @@ use crate::{
 #[derive(Debug)]
 /// Symbol Table, associate each identifier in the code with metadata.
 pub struct SymbolTable {
-    pub symbols: FxHashMap<String, SymbolMetadata>
+    pub symbols: FxHashMap<String, SymbolMetadata>,
 }
 
 #[derive(Debug)]
@@ -45,13 +45,13 @@ pub enum SymbolKind {
     Model,
     Transfer,
     Const,
-    Pipe
+    Pipe,
 }
 
 /// Check AST validity. TODO: return symbol table
 pub fn check_ast(ast: &Ast) -> Result<(), IzeErr> {
     // TODO: Build the symbol table
-    
+
     check_imports(ast)?;
 
     // TODO: Model Check:
@@ -67,16 +67,26 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
     for cmd in commands {
         if let CommandKind::Import { path, symbols } = &cmd.kind {
             // Check path
-            if let ExpressionKind::Dot(expr_vec) = &path.kind {
-                for expr in expr_vec {
-                    if let ExpressionKind::Primary(Primary::Identifier(_)) = &expr.kind {
-                        // Correct
-                    } else {
-                        return Err(IzeErr::new("All components of an import path must be identifiers".into(), expr.pos))
+            match &path.kind {
+                ExpressionKind::Dot(expr_vec) => {
+                    for expr in expr_vec {
+                        if let ExpressionKind::Primary(Primary::Identifier(_)) = &expr.kind {
+                            // Correct
+                        } else {
+                            return Err(IzeErr::new(
+                                "All components of an import path must be identifiers".into(),
+                                expr.pos,
+                            ));
+                        }
                     }
                 }
-            } else {
-                return Err(IzeErr::new("The path of an import must be a dot expression".into(), path.pos))
+                ExpressionKind::Primary(Primary::Identifier(_)) => {}
+                _ => {
+                    return Err(IzeErr::new(
+                        "The path of an import must be a dot expression or identifier".into(),
+                        path.pos,
+                    ))
+                }
             }
             // Check symbols
             if symbols.len() == 1 {
@@ -84,21 +94,30 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
                 let sym = &symbols[0];
                 if sym.symbol.id == "*" {
                     if let Some(_) = sym.rename {
-                        return Err(IzeErr::new("Imported '*' can't include a rename".into(), cmd.pos))
+                        return Err(IzeErr::new(
+                            "Imported '*' can't include a rename".into(),
+                            cmd.pos,
+                        ));
                     }
                 }
             } else if symbols.len() > 1 {
                 // Make sure not "*" here
                 for sym in symbols {
                     if sym.symbol.id == "*" {
-                        return Err(IzeErr::new("Imported '*' must be alone".into(), cmd.pos))
+                        return Err(IzeErr::new("Imported '*' must be alone".into(), cmd.pos));
                     }
                 }
             } else {
-                return Err(IzeErr::new("Imported symbols must contain at least one element".into(), cmd.pos))
+                return Err(IzeErr::new(
+                    "Imported symbols must contain at least one element".into(),
+                    cmd.pos,
+                ));
             }
         } else {
-            return Err(IzeErr::new("Commands passed to 'check_import_commands' must be imports".into(), cmd.pos))
+            return Err(IzeErr::new(
+                "Commands passed to 'check_import_commands' must be imports".into(),
+                cmd.pos,
+            ));
         }
     }
     Ok(())

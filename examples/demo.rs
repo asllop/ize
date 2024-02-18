@@ -8,7 +8,8 @@ use std::{
 use ize::{
     ast::{Ast, Command, CommandKind, ExpressionKind, ImportAst, ImportSymbol, Primary},
     grammar_cmd, lexer,
-    pos::RangePos, semcheck,
+    pos::RangePos,
+    semcheck,
 };
 use rustc_hash::FxHashMap;
 
@@ -20,7 +21,7 @@ fn main() {
     println!("{:#?}", ast);
 
     let symtab = semcheck::check_ast(&ast).expect("Error semchecking the AST");
-    
+
     println!("\n========== SEMCHECKER ==========\n\n");
     println!("Symbol table = {:#?}", symtab);
 
@@ -123,21 +124,25 @@ impl ImportPaths {
 impl From<Command> for ImportPaths {
     fn from(cmd: Command) -> Self {
         if let CommandKind::Import { symbols, path } = cmd.kind {
-            if let ExpressionKind::Dot(dot_path_vec) = path.kind {
-                let path = dot_path_vec
-                    .into_iter()
-                    .map(|expr| {
-                        if let ExpressionKind::Primary(Primary::Identifier(id)) = expr.kind {
-                            id
-                        } else {
-                            panic!("Not a primary identifier")
-                        }
-                    })
-                    .reduce(|acc, x| acc + "/" + &x)
-                    .unwrap();
-                Self::new(symbols, absolute_path(path.as_str()), cmd.pos)
-            } else {
-                panic!("Not a dot expression")
+            match path.kind {
+                ExpressionKind::Primary(Primary::Identifier(id)) => {
+                    Self::new(symbols, absolute_path(id.as_str()), cmd.pos)
+                }
+                ExpressionKind::Dot(dot_path_vec) => {
+                    let path = dot_path_vec
+                        .into_iter()
+                        .map(|expr| {
+                            if let ExpressionKind::Primary(Primary::Identifier(id)) = expr.kind {
+                                id
+                            } else {
+                                panic!("Not a primary identifier")
+                            }
+                        })
+                        .reduce(|acc, x| acc + "/" + &x)
+                        .unwrap();
+                    Self::new(symbols, absolute_path(path.as_str()), cmd.pos)
+                }
+                _ => panic!("Not a dot expression"),
             }
         } else {
             panic!("Not an import command")
