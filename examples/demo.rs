@@ -13,6 +13,8 @@ use ize::{
 };
 use rustc_hash::FxHashMap;
 
+//TODO: detect import cycles.
+
 fn main() {
     let file_path = "izeware/experiment_semcheck.iz";
     let ast = parse_and_import(absolute_path(file_path).as_str());
@@ -20,12 +22,18 @@ fn main() {
     println!("\n============ AST ============\n\n");
     println!("{:#?}", ast);
 
+    recursive_check_ast(&ast);
+}
+
+fn recursive_check_ast(ast: &Ast) {
     let symtab = semcheck::check_ast(&ast).expect("Error semchecking the AST");
 
     println!("\n========== SEMCHECKER ==========\n\n");
     println!("Symbol table = {:#?}", symtab);
 
-    //TODO: transpile
+    for import_ast in &ast.imports {
+        recursive_check_ast(import_ast);
+    }
 }
 
 //TODO: move all this code into the crate, we could call it "loader" module. Only leave the file read here and absolute path.

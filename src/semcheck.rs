@@ -27,7 +27,7 @@ use crate::{
     err::IzeErr,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 /// Symbol Table, associate each identifier in the code with metadata.
 pub struct SymbolTable {
     pub symbols: FxHashMap<String, SymbolMetadata>,
@@ -36,7 +36,11 @@ pub struct SymbolTable {
 #[derive(Debug)]
 /// Symbol metadata.
 pub struct SymbolMetadata {
+    /// Real symbol. If not renamed, this and the one on the ST will be the same.
+    pub real_sym: String,
+    /// Command kind that defined this symbol.
     pub kind: SymbolKind,
+    //TODO: more metadata specific to the command, or refe to command
 }
 
 #[derive(Debug)]
@@ -48,16 +52,16 @@ pub enum SymbolKind {
     Pipe,
 }
 
-/// Check AST validity. TODO: return symbol table
-pub fn check_ast(ast: &Ast) -> Result<(), IzeErr> {
-    // TODO: Build the symbol table
+/// Check AST validity.
+pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
+    let mut sym_tab = SymbolTable::default();
 
-    check_imports(ast)?;
+    check_imports(ast, &mut sym_tab)?;
 
     // TODO: Model Check:
     //      - Scan each model and put the name in the ST.
     //      - Scan again and check that each property has a type that actually exist and is a model.
-    Ok(())
+    Ok(sym_tab)
 }
 
 /// Check import commands. It's a pre-semcheck, for import commands only, to make sure that:
@@ -123,19 +127,62 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
     Ok(())
 }
 
-// TODO: Import Check:
-//      - Check that each imported symbol actually exist in the imported AST.
-//      - Add them to the ST and decorate with the kind of symbol it is.
-fn check_imports(ast: &Ast) -> Result<(), IzeErr> {
-    // for (sym, (index, _)) in &ast.imported_symbols {
-    //     let index = *index;
-    //     let import = &ast.imports[index];
-    // }
+/// Check imports from an AST.
+/// - Check that each imported symbol actually exist in the imported AST.
+/// - Insert impored symbols into the Symbol Table.
+fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
+    for (sym, import_ref) in &ast.imported_symbols {
+        let import_ast = &ast.imports[import_ref.ast_index];
+        if let Some(kind) = find_symbol_in_ast(sym, import_ast) {
+            let real_sym = sym.clone();
+            let sym = if let Some(rename) = &import_ref.rename {
+                rename.clone()
+            } else {
+                sym.clone()
+            };
+            sym_tab.symbols.insert(sym, SymbolMetadata { real_sym, kind });
+        } else {
+            return Err(IzeErr::new(
+                format!(
+                    "Symbol {sym} not found in imported module {}",
+                    import_ast.file_path
+                ),
+                //TODO: obtain import pos
+                Default::default(),
+            ));
+        }
+    }
     Ok(())
 }
 
-fn find_symbol_in_ast(sym: String, ast: &Ast) -> bool {
-    todo!()
+fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolKind> {
+    for cmd in &ast.commands {
+        match &cmd.kind {
+            CommandKind::Transfer { ident, .. } => {
+                if ident.id == sym {
+                    return Some(SymbolKind::Transfer);
+                }
+            }
+            CommandKind::Model { ident, .. } => {
+                if ident.id == sym {
+                    return Some(SymbolKind::Model);
+                }
+            }
+            CommandKind::Pipe { ident, .. } => {
+                if ident.id == sym {
+                    return Some(SymbolKind::Pipe);
+                }
+            }
+            CommandKind::Const { ident, .. } => {
+                if ident.id == sym {
+                    return Some(SymbolKind::Const);
+                }
+            }
+            CommandKind::Run(_) => {}
+            CommandKind::Import { .. } => panic!("Ast.commands can't contain an import"),
+        }
+    }
+    None
 }
 
 /*
