@@ -80,7 +80,9 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
                         }
                     }
                 }
-                ExpressionKind::Primary(Primary::Identifier(_)) => {}
+                ExpressionKind::Primary(Primary::Identifier(_)) => {
+                    // Correct
+                }
                 _ => {
                     return Err(IzeErr::new(
                         "The path of an import must be a dot expression or identifier".into(),
@@ -90,18 +92,16 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
             }
             // Check symbols
             if symbols.len() == 1 {
-                // Make sure that is it's a "*", no rename is present
+                // Make sure it's a "*", and no rename present
                 let sym = &symbols[0];
-                if sym.symbol.id == "*" {
-                    if let Some(_) = sym.rename {
-                        return Err(IzeErr::new(
-                            "Imported '*' can't include a rename".into(),
-                            cmd.pos,
-                        ));
-                    }
+                if sym.symbol.id == "*" && sym.rename.is_some() {
+                    return Err(IzeErr::new(
+                        "Imported '*' can't include a rename".into(),
+                        cmd.pos,
+                    ));
                 }
             } else if symbols.len() > 1 {
-                // Make sure not "*" here
+                // Make sure there's no "*" symbol here
                 for sym in symbols {
                     if sym.symbol.id == "*" {
                         return Err(IzeErr::new("Imported '*' must be alone".into(), cmd.pos));
@@ -126,8 +126,16 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
 // TODO: Import Check:
 //      - Check that each imported symbol actually exist in the imported AST.
 //      - Add them to the ST and decorate with the kind of symbol it is.
-fn check_imports(_ast: &Ast) -> Result<(), IzeErr> {
+fn check_imports(ast: &Ast) -> Result<(), IzeErr> {
+    // for (sym, (index, _)) in &ast.imported_symbols {
+    //     let index = *index;
+    //     let import = &ast.imports[index];
+    // }
     Ok(())
+}
+
+fn find_symbol_in_ast(sym: String, ast: &Ast) -> bool {
+    todo!()
 }
 
 /*

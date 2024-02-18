@@ -19,10 +19,10 @@ pub struct Ast {
     /// Parsed commands, without imports.
     pub commands: Vec<Command>,
     /// Imported modules and required symbols.
-    pub imports: Vec<ImportAst>,
+    pub imports: Vec<Ast>,
     /// Table of imported symbols.
-    /// Link each imported symbol to a position in the "imports" vector, and a position in the "symbols" vector inside it.
-    pub imported_symbols: FxHashMap<String, (usize, usize)>,
+    /// Link each imported symbol to a position in the "imports" vector, and a symbol rename.
+    pub imported_symbols: FxHashMap<String, ImportRef>,
 }
 
 impl Ast {
@@ -30,8 +30,8 @@ impl Ast {
     pub fn new(
         file_path: String,
         commands: Vec<Command>,
-        imports: Vec<ImportAst>,
-        imported_symbols: FxHashMap<String, (usize, usize)>,
+        imports: Vec<Ast>,
+        imported_symbols: FxHashMap<String, ImportRef>,
     ) -> Self {
         Self {
             file_path,
@@ -44,17 +44,17 @@ impl Ast {
 
 #[derive(Debug)]
 /// Ast of an import, associated to the list of imported symbols.
-pub struct ImportAst {
-    /// Import AST.
-    pub ast: Ast,
-    /// Imported symbols.
-    pub symbols: Vec<ImportSymbol>,
+pub struct ImportRef {
+    /// Position in the AST (Ast.imports) vector.
+    pub ast_index: usize,
+    // Symbol rename.
+    pub rename: Option<String>,
 }
 
-impl ImportAst {
-    /// New ImportAst.
-    pub fn new(ast: Ast, symbols: Vec<ImportSymbol>) -> Self {
-        Self { ast, symbols }
+impl ImportRef {
+    /// New ImportRef.
+    pub fn new(ast_index: usize, rename: Option<String>) -> Self {
+        Self { ast_index, rename }
     }
 }
 

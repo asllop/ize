@@ -6,7 +6,7 @@ use std::{
 };
 
 use ize::{
-    ast::{Ast, Command, CommandKind, ExpressionKind, ImportAst, ImportSymbol, Primary},
+    ast::{Ast, Command, CommandKind, ExpressionKind, ImportRef, ImportSymbol, Primary},
     grammar_cmd, lexer,
     pos::RangePos,
     semcheck,
@@ -68,19 +68,21 @@ fn parse_and_import(file_path: &str) -> Ast {
     let mut imports = vec![];
     let mut imported_symbols = FxHashMap::default();
     // Parse imported files
-    for (i, import_path) in import_path_vec.into_iter().enumerate() {
+    for (index, import_path) in import_path_vec.into_iter().enumerate() {
         let file_path = import_path.path + ".iz";
         let symbols = import_path.symbols;
         let ast = parse_and_import(file_path.as_str());
         //TODO: if imported symbol is "*", we have to import all symbols from the AST.
-        for (j, sym) in symbols.iter().enumerate() {
-            if let Some(rename) = &sym.rename {
-                imported_symbols.insert(rename.id.clone(), (i, j));
+        for sym in symbols {
+            let symbol = sym.symbol.id;
+            let rename = if let Some(rename) = sym.rename {
+                Some(rename.id)
             } else {
-                imported_symbols.insert(sym.symbol.id.clone(), (i, j));
-            }
+                None
+            };
+            imported_symbols.insert(symbol, ImportRef::new(index, rename));
         }
-        imports.push(ImportAst::new(ast, symbols));
+        imports.push(ast);
     }
 
     Ast::new(file_path.into(), commands, imports, imported_symbols)

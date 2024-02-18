@@ -1,9 +1,9 @@
-import EventData from izeware.models.event_data
+import EventData as Data from izeware.models.event_data
 
 model Event (
     msg as "message": Str,
     ts: Timestamp,
-    data: EventData
+    data: Data
 )
 
 model Timestamp Int
