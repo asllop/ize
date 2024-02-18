@@ -64,9 +64,9 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
     Ok(sym_tab)
 }
 
-/// Check import commands. It's a pre-semcheck, for import commands only, to make sure that:
-/// - Path is a Dot expr and contains only Primary identifiers.
-/// - Imports with "*" only contain that symbol and no rename.
+/// Check import commands. It's a pre-semcheck, for import commands only.
+/// - Check that "path" is a Dot expr and contains only Primary identifiers.
+/// - Check that imports with "*" only contain that symbol and no rename.
 pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
     for cmd in commands {
         if let CommandKind::Import { path, symbols } = &cmd.kind {
@@ -128,19 +128,36 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
 }
 
 /// Check imports from an AST.
+/// TODO: check that no symbol or rename is a reserved identifier (Map, Mux, Int, Str, etc).
 /// - Check that each imported symbol actually exist in the imported AST.
 /// - Insert impored symbols into the Symbol Table.
 fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for (sym, import_ref) in &ast.imported_symbols {
+        if is_reserved_sym(sym) {
+            return Err(IzeErr::new(
+                format!("Symbol {sym} is a reserved identifier"),
+                //TODO: obtain import pos
+                Default::default(),
+            ));
+        }
         let import_ast = &ast.imports[import_ref.ast_index];
         if let Some(kind) = find_symbol_in_ast(sym, import_ast) {
             let real_sym = sym.clone();
             let sym = if let Some(rename) = &import_ref.rename {
+                if is_reserved_sym(rename) {
+                    return Err(IzeErr::new(
+                        format!("Symbol {rename} is a reserved identifier"),
+                        //TODO: obtain import pos
+                        Default::default(),
+                    ));
+                }
                 rename.clone()
             } else {
                 sym.clone()
             };
-            sym_tab.symbols.insert(sym, SymbolMetadata { real_sym, kind });
+            sym_tab
+                .symbols
+                .insert(sym, SymbolMetadata { real_sym, kind });
         } else {
             return Err(IzeErr::new(
                 format!(
@@ -185,6 +202,14 @@ fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolKind> {
     None
 }
 
+/// Check if symbol is a reserved identifier.
+fn is_reserved_sym(sym: &str) -> bool {
+    match sym {
+        "Map" | "Mux" | "Traf" | "Tuple" | "List" | "Str" | "Int" | "Float" | "Bool" | "None"
+        | "Null" => true,
+        _ => false,
+    }
+}
 /*
 Required checks:
 

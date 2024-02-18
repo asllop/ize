@@ -261,7 +261,7 @@ pub fn select<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     Err(e)
 }
 
-/// Optionally execute a parser. If it doesn't match, it will return an empty [AstNode::Vec].
+/// Optionally execute a parser. If it doesn't match, it will return an empty [ParseNode::Vec].
 pub fn optional<'a>(parsers: &'a [Parser], input: &'a [Token]) -> IzeResult<'a> {
     match concat(parsers, input) {
         Ok(r) => Ok(r),
