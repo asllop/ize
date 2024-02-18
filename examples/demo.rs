@@ -8,7 +8,7 @@ use std::{
 use ize::{
     ast::{Ast, Command, CommandKind, ExpressionKind, ImportAst, ImportSymbol, Primary},
     grammar_cmd, lexer,
-    pos::RangePos,
+    pos::RangePos, semcheck,
 };
 use rustc_hash::FxHashMap;
 
@@ -19,13 +19,16 @@ fn main() {
     println!("\n============ AST ============\n\n");
     println!("{:#?}", ast);
 
-    // println!("\n========== SEMCHECKER ==========\n\n");
-
-    // let symtab = semcheck::check_ast(&ast).expect("Error semchecking the AST");
-    // println!("Symbol table = {:#?}", symtab);
+    let symtab = semcheck::check_ast(&ast).expect("Error semchecking the AST");
+    
+    println!("\n========== SEMCHECKER ==========\n\n");
+    println!("Symbol table = {:#?}", symtab);
 
     //TODO: transpile
 }
+
+//TODO: move all this code into the crate, we could call it "loader" module. Only leave the file read here and absolute path.
+//      Use a Path type instead of a String, is more portable.
 
 fn absolute_path(path_str: &str) -> String {
     let mut path_buf = env::current_dir().expect("Error getting current dir");
@@ -45,6 +48,8 @@ fn parse_and_import(file_path: &str) -> Ast {
             false
         }
     });
+
+    semcheck::check_import_commands(&imports).expect("Semantic checker for import commands failed");
 
     // Convert import commands into import paths.
     let import_path_vec: Vec<ImportPaths> = imports.into_iter().map(|cmd| cmd.into()).collect();
@@ -66,6 +71,7 @@ fn parse_and_import(file_path: &str) -> Ast {
         let file_path = import_path.path + ".iz";
         let symbols = import_path.symbols;
         let ast = parse_and_import(file_path.as_str());
+        //TODO: if imported symbol is "*", we have to import all symbols from the AST.
         for (j, sym) in symbols.iter().enumerate() {
             if let Some(rename) = &sym.rename {
                 imported_symbols.insert(rename.id.clone(), (i, j));

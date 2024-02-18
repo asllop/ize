@@ -20,7 +20,7 @@ pub struct Ast {
     pub commands: Vec<Command>,
     /// Imported modules and required symbols.
     pub imports: Vec<ImportAst>,
-    /// Imported symbols table.
+    /// Table of imported symbols.
     /// Link each imported symbol to a position in the "imports" vector, and a position in the "symbols" vector inside it.
     pub imported_symbols: FxHashMap<String, (usize, usize)>,
 }

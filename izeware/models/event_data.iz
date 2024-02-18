@@ -1,4 +1,5 @@
-import * from izeware.models.event_type
+//import * from izeware.models.event_type
+import EventType from izeware.models.event_type
 
 model EventData (
     attr: Map[Str,Any],

@@ -10,9 +10,11 @@
 //! - Deduplicate
 //! - Expand
 //! - Filter
+//! - Group
 //! - Report
 //! - Route
 //! - Sample
+//! - Split
 //! - Wrap
 //!
 //! It transpiles into Rust and can generate binaries for the following environments:
@@ -32,6 +34,7 @@
 //! - Go
 //! - TypeScript
 //! - Lua
+//! - Python
 
 #![no_std]
 
@@ -58,9 +61,6 @@ pub mod grammar_expr;
 
 /// Grammar rules to parse IZE commands.
 pub mod grammar_cmd;
-
-/// Symbol table and intermediate AST types.
-pub mod symbols;
 
 /// Semantic checker.
 pub mod semcheck;

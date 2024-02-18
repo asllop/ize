@@ -2,8 +2,8 @@ import EventData from izeware.models.event_data
 
 model Event (
     msg as "message": Str,
-    timestamp: Int,
+    ts: Timestamp,
     data: EventData
 )
 
-model MyInt Int
+model Timestamp Int
