@@ -10,6 +10,9 @@ TODO: error backtrace.
     This method will crate a new IzeErr adn put the IzeErr passed in the backtrack, itself following by its backtrack.
     This way the error received is always the most top level, but we still have the details in the backtrack. down to the bottom level.
 
+TODO: source file
+    The .iz file that generated the error.
+
 TODO: origin.
     Add an attribute to IzeErr signaling the entity that generated the error. For example: PlusExpression, Lexer, ModelSemcheck, etc.
     It should be an enum, so the possible entities are limited. We could add a variant Other(String) for generic entities.

@@ -128,16 +128,14 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
 }
 
 /// Check imports from an AST.
-/// TODO: check that no symbol or rename is a reserved identifier (Map, Mux, Int, Str, etc).
-/// - Check that each imported symbol actually exist in the imported AST.
+/// - Check that each imported symbol actually exists in the imported AST.
 /// - Insert impored symbols into the Symbol Table.
 fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for (sym, import_ref) in &ast.imported_symbols {
         if is_reserved_sym(sym) {
             return Err(IzeErr::new(
                 format!("Symbol {sym} is a reserved identifier"),
-                //TODO: obtain import pos
-                Default::default(),
+                import_ref.pos,
             ));
         }
         let import_ast = &ast.imports[import_ref.ast_index];
@@ -146,9 +144,8 @@ fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
             let sym = if let Some(rename) = &import_ref.rename {
                 if is_reserved_sym(rename) {
                     return Err(IzeErr::new(
-                        format!("Symbol {rename} is a reserved identifier"),
-                        //TODO: obtain import pos
-                        Default::default(),
+                        format!("Rename symbol {rename} is a reserved identifier"),
+                        import_ref.pos,
                     ));
                 }
                 rename.clone()
@@ -164,8 +161,7 @@ fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
                     "Symbol {sym} not found in imported module {}",
                     import_ast.file_path
                 ),
-                //TODO: obtain import pos
-                Default::default(),
+                import_ref.pos,
             ));
         }
     }
@@ -205,8 +201,7 @@ fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolKind> {
 /// Check if symbol is a reserved identifier.
 fn is_reserved_sym(sym: &str) -> bool {
     match sym {
-        "Map" | "Mux" | "Traf" | "Tuple" | "List" | "Str" | "Int" | "Float" | "Bool" | "None"
-        | "Null" => true,
+        "Str" | "Int" | "Float" | "Bool" | "None" | "Null" => true,
         _ => false,
     }
 }
@@ -267,7 +262,7 @@ Expressions:
     Chain expressions define a scope for variables. Chains can contain other chains, thhat inherit the parent scope plus adding its own.
 */
 
-/* TODO
+/*
 
 - Build symbol table (ST):
     Scan de AST and add each model, transfer, pipe, and const identifier to a hashmap. Also scan transfer bodies looking for variables.
@@ -277,6 +272,5 @@ Expressions:
     - const, the literal type.
     - let, the type is not explicit, we have to calculate it from the expression used to define the variable. We need an Expression Type Evaluator (ETE).
 */
-//TODO: Build Symbol Table (ST) with explicit type symbols (transfers, models and consts).
-//TODO: Expression Type Evaluator (ETE), given an expression, calculate the resulting type. It requires a ST already filled with explicit type symbols.
-//TODO: Use the ETE to fill the ST with non-explicit type symbols (lets).
+//- Expression Type Evaluator (ETE), given an expression, calculate the resulting type. It requires a ST already filled with explicit type symbols.
+//- Use the ETE to fill the ST with non-explicit type symbols (lets).

@@ -43,18 +43,24 @@ impl Ast {
 }
 
 #[derive(Debug)]
-/// Ast of an import, associated to the list of imported symbols.
+/// Import ref, used as value in the table of imported symbols. Links to the AST, rename symbol, and command position in the code.
 pub struct ImportRef {
     /// Position in the AST (Ast.imports) vector.
     pub ast_index: usize,
-    // Symbol rename.
+    /// Symbol rename.
     pub rename: Option<String>,
+    /// Import command position.
+    pub pos: RangePos,
 }
 
 impl ImportRef {
     /// New ImportRef.
-    pub fn new(ast_index: usize, rename: Option<String>) -> Self {
-        Self { ast_index, rename }
+    pub fn new(ast_index: usize, rename: Option<String>, pos: RangePos) -> Self {
+        Self {
+            ast_index,
+            rename,
+            pos,
+        }
     }
 }
 
