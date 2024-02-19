@@ -21,7 +21,7 @@ pub struct Ast {
     /// Imported modules and required symbols.
     pub imports: Vec<Ast>,
     /// Table of imported symbols.
-    /// Link each imported symbol to a position in the "imports" vector, and a symbol rename.
+    /// Link each imported symbol to a position in the "imports" vector, and other metadata.
     pub imported_symbols: FxHashMap<String, ImportRef>,
 }
 
@@ -43,7 +43,7 @@ impl Ast {
 }
 
 #[derive(Debug)]
-/// Import ref, used as value in the table of imported symbols. Links to the AST, rename symbol, and command position in the code.
+/// Import ref, used as value in the table of imported symbols.
 pub struct ImportRef {
     /// Position in the AST (Ast.imports) vector.
     pub ast_index: usize,
