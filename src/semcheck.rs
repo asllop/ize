@@ -95,27 +95,31 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
                 }
             }
             // Check symbols
-            if symbols.len() == 1 {
-                // Make sure it's a "*", and no rename present
-                let sym = &symbols[0];
-                if sym.symbol.id == "*" && sym.rename.is_some() {
+            match symbols.len() {
+                0 => {
                     return Err(IzeErr::new(
-                        "Imported '*' can't include a rename".into(),
+                        "Imported symbols must contain at least one element".into(),
                         cmd.pos,
-                    ));
+                    ))
                 }
-            } else if symbols.len() > 1 {
-                // Make sure there's no "*" symbol here
-                for sym in symbols {
-                    if sym.symbol.id == "*" {
-                        return Err(IzeErr::new("Imported '*' must be alone".into(), cmd.pos));
+                1 => {
+                    // Make sure it's a "*", and no rename present
+                    let sym = &symbols[0];
+                    if sym.symbol.id == "*" && sym.rename.is_some() {
+                        return Err(IzeErr::new(
+                            "Imported '*' can't include a rename".into(),
+                            cmd.pos,
+                        ));
                     }
                 }
-            } else {
-                return Err(IzeErr::new(
-                    "Imported symbols must contain at least one element".into(),
-                    cmd.pos,
-                ));
+                _ => {
+                    // Make sure there's no "*" symbol here
+                    for sym in symbols {
+                        if sym.symbol.id == "*" {
+                            return Err(IzeErr::new("Imported '*' must be alone".into(), cmd.pos));
+                        }
+                    }
+                }
             }
         } else {
             return Err(IzeErr::new(
@@ -200,11 +204,9 @@ fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolKind> {
 
 /// Check if symbol is a reserved identifier.
 fn is_reserved_sym(sym: &str) -> bool {
-    match sym {
-        "Str" | "Int" | "Float" | "Bool" | "None" | "Null" => true,
-        _ => false,
-    }
+    matches!(sym, "Str" | "Int" | "Float" | "Bool" | "None" | "Null")
 }
+
 /*
 Required checks:
 
