@@ -23,8 +23,9 @@ use alloc::string::String;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    ast::{Ast, Command, CommandKind, ExpressionKind, Primary},
+    ast::{Ast, Command, CommandKind, Expression, ExpressionKind, Identifier, ModelBody, Primary},
     err::IzeErr,
+    pos::RangePos,
 };
 
 #[derive(Debug, Default)]
@@ -43,6 +44,13 @@ pub struct SymbolMetadata {
     //TODO: more metadata specific to the command, or refe to command
 }
 
+impl SymbolMetadata {
+    /// New SymbolMetadata.
+    pub fn new(real_sym: String, kind: SymbolKind) -> Self {
+        Self { real_sym, kind }
+    }
+}
+
 #[derive(Debug)]
 /// Symbol kind.
 pub enum SymbolKind {
@@ -57,10 +65,8 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
     let mut sym_tab = SymbolTable::default();
 
     check_imports(ast, &mut sym_tab)?;
+    check_models(ast, &mut sym_tab)?;
 
-    // TODO: Model Check:
-    //      - Scan each model and put the name in the ST.
-    //      - Scan again and check that each property has a type that actually exist and is a model.
     Ok(sym_tab)
 }
 
@@ -111,6 +117,13 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
                             cmd.pos,
                         ));
                     }
+                    // TODO: implement importing all symbols
+                    if sym.symbol.id == "*" {
+                        return Err(IzeErr::new(
+                            "Importing '*' is not implemented yet".into(),
+                            cmd.pos,
+                        ));
+                    }
                 }
                 _ => {
                     // Make sure there's no "*" symbol here
@@ -136,17 +149,18 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
 /// - Insert impored symbols into the Symbol Table.
 fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for (sym, import_ref) in &ast.imported_symbols {
-        if is_reserved_sym(sym) {
+        if is_primitive_type(sym) {
             return Err(IzeErr::new(
                 format!("Symbol {sym} is a reserved identifier"),
                 import_ref.pos,
             ));
         }
         let import_ast = &ast.imports[import_ref.ast_index];
-        if let Some(kind) = find_symbol_in_ast(sym, import_ast) {
+        // Check that imported symbol actually exists in the imported AST.
+        if let Some(sym_kind) = find_symbol_in_ast(sym, import_ast) {
             let real_sym = sym.clone();
             let sym = if let Some(rename) = &import_ref.rename {
-                if is_reserved_sym(rename) {
+                if is_primitive_type(rename) {
                     return Err(IzeErr::new(
                         format!("Rename symbol {rename} is a reserved identifier"),
                         import_ref.pos,
@@ -156,9 +170,10 @@ fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
             } else {
                 sym.clone()
             };
+            // Insert impored symbol into the Symbol Table.
             sym_tab
                 .symbols
-                .insert(sym, SymbolMetadata { real_sym, kind });
+                .insert(sym, SymbolMetadata::new(real_sym, sym_kind));
         } else {
             return Err(IzeErr::new(
                 format!(
@@ -166,6 +181,101 @@ fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
                     import_ast.file_path
                 ),
                 import_ref.pos,
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Model Check.
+/// - Scan each model and put the name in the ST.
+/// - Scan again and check that each property has a type that actually exist and is a model.
+fn check_models(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
+    // Scan each model and insert an entry in the ST.
+    for cmd in &ast.commands {
+        if let CommandKind::Model { ident, .. } = &cmd.kind {
+            let sym = ident.id.clone();
+            sym_tab
+                .symbols
+                .insert(sym.clone(), SymbolMetadata::new(sym, SymbolKind::Model));
+        }
+    }
+    // Scan again and check that each property has a type that actually exist in the ST, and is a model.
+    for cmd in &ast.commands {
+        if let CommandKind::Model { body, .. } = &cmd.kind {
+            match body {
+                ModelBody::Type(type_expr) => match &type_expr.kind {
+                    ExpressionKind::Primary(Primary::Identifier(id)) => {
+                        if !is_primitive_type(id) && !sym_tab.symbols.contains_key(id) {
+                            return Err(IzeErr::new(
+                                format!("Undefined type: {}", id),
+                                type_expr.pos,
+                            ));
+                        }
+                    }
+                    ExpressionKind::Type { ident, subtypes } => {
+                        check_type_exists(ident, subtypes, sym_tab, type_expr.pos)?;
+                    }
+                    _ => {
+                        return Err(IzeErr::new(
+                                "ModelBody::Type must contain a Type expression or a Primary identifier".into(),
+                                type_expr.pos,
+                            ));
+                    }
+                },
+                ModelBody::Struct(pairs) => {
+                    for pair in pairs {
+                        if let ExpressionKind::Pair { right, .. } = &pair.kind {
+                            match &right.kind {
+                                ExpressionKind::Primary(Primary::Identifier(id)) => {
+                                    if !is_primitive_type(id) && !sym_tab.symbols.contains_key(id) {
+                                        return Err(IzeErr::new(
+                                            format!("Undefined type: {}", id),
+                                            right.pos,
+                                        ));
+                                    }
+                                }
+                                ExpressionKind::Type { ident, subtypes } => {
+                                    check_type_exists(ident, subtypes, sym_tab, right.pos)?;
+                                }
+                                _ => {
+                                    return Err(IzeErr::new(
+                                        "Pair right must contain a Type expression or a Primary identifier".into(),
+                                        right.pos,
+                                    ));
+                                }
+                            }
+                        } else {
+                            return Err(IzeErr::new(
+                                "ModelBody::Struct must contain Pair expressions".into(),
+                                pair.pos,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Check that a type is either a primitive type or is defined in the ST.
+fn check_type_exists(
+    ident: &Identifier,
+    subtypes: &[Expression],
+    sym_tab: &mut SymbolTable,
+    pos: RangePos,
+) -> Result<(), IzeErr> {
+    if !is_primitive_type(&ident.id) && !sym_tab.symbols.contains_key(&ident.id) {
+        return Err(IzeErr::new(format!("Undefined type: {}", &ident.id), pos));
+    }
+    for type_expr in subtypes {
+        if let ExpressionKind::Type { ident, subtypes } = &type_expr.kind {
+            check_type_exists(ident, subtypes, sym_tab, pos)?;
+        } else {
+            return Err(IzeErr::new(
+                "Subtypes must be Type expressions".into(),
+                type_expr.pos,
             ));
         }
     }
@@ -202,9 +312,23 @@ fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolKind> {
     None
 }
 
-/// Check if symbol is a reserved identifier.
-fn is_reserved_sym(sym: &str) -> bool {
-    matches!(sym, "Str" | "Int" | "Float" | "Bool" | "None" | "Null")
+/// Check if symbol is a primitive type.
+fn is_primitive_type(sym: &str) -> bool {
+    matches!(
+        sym,
+        "Str"
+            | "Int"
+            | "Float"
+            | "Bool"
+            | "None"
+            | "Null"
+            | "Map"
+            | "List"
+            | "Mux"
+            | "Traf"
+            | "Tuple"
+            | "Any"
+    )
 }
 
 /*
