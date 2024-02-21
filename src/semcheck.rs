@@ -19,11 +19,11 @@
 //!
 //! Semchecking is the last step before code generation.
 
-use alloc::string::String;
+use alloc::{borrow::ToOwned, string::String};
 use rustc_hash::FxHashMap;
 
 use crate::{
-    ast::{Ast, Command, CommandKind, Expression, ExpressionKind, Identifier, ModelBody, Primary},
+    ast::{Ast, Command, CommandKind, Expression, ExpressionKind, ModelBody, Primary},
     err::IzeErr,
     pos::RangePos,
 };
@@ -41,7 +41,7 @@ pub struct SymbolMetadata {
     pub real_sym: String,
     /// Command kind that defined this symbol.
     pub kind: SymbolKind,
-    //TODO: more metadata specific to the command, or refe to command
+    //TODO: more metadata specific to the command, or ref to command
 }
 
 impl SymbolMetadata {
@@ -205,16 +205,11 @@ fn check_models(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
         if let CommandKind::Model { body, .. } = &cmd.kind {
             match body {
                 ModelBody::Type(type_expr) => match &type_expr.kind {
-                    ExpressionKind::Primary(Primary::Identifier(id)) => {
-                        if !is_primitive_type(id) && !sym_tab.symbols.contains_key(id) {
-                            return Err(IzeErr::new(
-                                format!("Undefined type: {}", id),
-                                type_expr.pos,
-                            ));
-                        }
+                    ExpressionKind::Primary(Primary::Identifier(ident)) => {
+                        check_type_exists(ident, None, sym_tab, type_expr.pos)?;
                     }
                     ExpressionKind::Type { ident, subtypes } => {
-                        check_type_exists(ident, subtypes, sym_tab, type_expr.pos)?;
+                        check_type_exists(&ident.id, Some(subtypes), sym_tab, type_expr.pos)?;
                     }
                     _ => {
                         return Err(IzeErr::new(
@@ -227,16 +222,16 @@ fn check_models(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
                     for pair in pairs {
                         if let ExpressionKind::Pair { right, .. } = &pair.kind {
                             match &right.kind {
-                                ExpressionKind::Primary(Primary::Identifier(id)) => {
-                                    if !is_primitive_type(id) && !sym_tab.symbols.contains_key(id) {
-                                        return Err(IzeErr::new(
-                                            format!("Undefined type: {}", id),
-                                            right.pos,
-                                        ));
-                                    }
+                                ExpressionKind::Primary(Primary::Identifier(ident)) => {
+                                    check_type_exists(ident, None, sym_tab, right.pos)?;
                                 }
                                 ExpressionKind::Type { ident, subtypes } => {
-                                    check_type_exists(ident, subtypes, sym_tab, right.pos)?;
+                                    check_type_exists(
+                                        &ident.id,
+                                        Some(subtypes),
+                                        sym_tab,
+                                        right.pos,
+                                    )?;
                                 }
                                 _ => {
                                     return Err(IzeErr::new(
@@ -261,25 +256,108 @@ fn check_models(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
 
 /// Check that a type is either a primitive type or is defined in the ST.
 fn check_type_exists(
-    ident: &Identifier,
-    subtypes: &[Expression],
+    ident: &str,
+    subtypes: Option<&[Expression]>,
     sym_tab: &mut SymbolTable,
     pos: RangePos,
 ) -> Result<(), IzeErr> {
-    if !is_primitive_type(&ident.id) && !sym_tab.symbols.contains_key(&ident.id) {
-        return Err(IzeErr::new(format!("Undefined type: {}", &ident.id), pos));
+    // Type is either a primitive or is in the ST
+    if !is_primitive_type(ident) && !sym_tab.symbols.contains_key(ident) {
+        return Err(IzeErr::new(format!("Undefined type: {}", ident), pos));
     }
-    for type_expr in subtypes {
-        if let ExpressionKind::Type { ident, subtypes } = &type_expr.kind {
-            check_type_exists(ident, subtypes, sym_tab, pos)?;
-        } else {
-            return Err(IzeErr::new(
-                "Subtypes must be Type expressions".into(),
-                type_expr.pos,
-            ));
+    if let Some(subtypes) = subtypes {
+        for type_expr in subtypes {
+            if let ExpressionKind::Type { ident, subtypes } = &type_expr.kind {
+                check_type_exists(&ident.id, Some(subtypes), sym_tab, type_expr.pos)?;
+            } else {
+                return Err(IzeErr::new(
+                    "Subtypes must be Type expressions".into(),
+                    type_expr.pos,
+                ));
+            }
+        }
+        // Check compound types.
+        match ident {
+            // Map must contain two subtypes, and the first must be Str or Int.
+            // NOTE: we would like to use any type as a key, but we can't use floats or anything that contains a float:
+            // https://stackoverflow.com/questions/39638363/how-can-i-use-a-hashmap-with-f64-as-key-in-rust
+            // In the future, we could improve it and use types without floats, but meanwhile we only allow Str and Int.
+            "Map" => {
+                if subtypes.len() != 2 {
+                    return Err(IzeErr::new("Map must have two subtypes, key and value".into(), pos));
+                }
+                let key_type = &subtypes[0];
+                if let ExpressionKind::Type { ident, .. } = &key_type.kind {
+                    if ident.id != "Str" && ident.id != "Int" {
+                        return Err(IzeErr::new(
+                            "Map key must be either Str or Int".into(),
+                            key_type.pos,
+                        ));
+                    }
+                } else {
+                    return Err(IzeErr::new(
+                        "Subtypes must be Type expressions".into(),
+                        key_type.pos,
+                    ));
+                }
+            }
+            // List only one subtype.
+            "List" => {
+                if subtypes.len() != 1 {
+                    return Err(IzeErr::new("List must have one subtype".into(), pos));
+                }
+            }
+            // Mux subtypes can't be duplicated.
+            "Mux" => {
+                let mut subtype_ids = FxHashMap::default();
+                for type_expr in subtypes {
+                    if let ExpressionKind::Type { ident, subtypes } = &type_expr.kind {
+                        // Convert each type into a string representation we can use as a map key.
+                        let subtype_repr = stringify_type(&ident.id, subtypes)?;
+                        if subtype_ids.contains_key(&subtype_repr) {
+                            return Err(IzeErr::new(
+                                "Mux contains a duplicated subtype".into(),
+                                type_expr.pos,
+                            ));
+                        }
+                        subtype_ids.insert(subtype_repr, ());
+                    } else {
+                        return Err(IzeErr::new(
+                            "Subtypes must be Type expressions".into(),
+                            type_expr.pos,
+                        ));
+                    }
+                }
+            }
+            _ => {}
         }
     }
     Ok(())
+}
+
+/// Convert type expression into string representation.
+fn stringify_type(ident: &str, subtypes: &[Expression]) -> Result<String, IzeErr> {
+    let mut serialized = ident.to_owned() + "[";
+    for (index, subtype_expr) in subtypes.iter().enumerate() {
+        if let ExpressionKind::Type {
+            ident,
+            subtypes: next_subtype,
+        } = &subtype_expr.kind
+        {
+            let s = stringify_type(&ident.id, next_subtype)?;
+            serialized += s.as_str();
+            if index < subtypes.len() - 1 {
+                serialized += ",";
+            }
+        } else {
+            return Err(IzeErr::new(
+                "Subtypes must be Type expressions".into(),
+                subtype_expr.pos,
+            ));
+        }
+    }
+    serialized += "]";
+    Ok(serialized)
 }
 
 fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolKind> {
@@ -322,12 +400,12 @@ fn is_primitive_type(sym: &str) -> bool {
             | "Bool"
             | "None"
             | "Null"
+            | "Any"
             | "Map"
             | "List"
             | "Mux"
             | "Traf"
             | "Tuple"
-            | "Any"
     )
 }
 
