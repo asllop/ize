@@ -96,12 +96,14 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
 
     check_imports(ast, &mut sym_tab)?;
     check_models(ast, &mut sym_tab)?;
+    check_const(ast, &mut sym_tab)?;
 
     Ok(sym_tab)
 }
 
 /// Check import commands. It's a pre-semcheck, for import commands only.
 /// - Check that "path" is a Dot expr and contains only Primary identifiers.
+/// TODO: maybe these checks can be defered to "check_imports".
 /// - Check that imports with "*" only contain that symbol and no rename.
 /// - Check for duplicated imported symbols.
 pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
@@ -332,6 +334,20 @@ fn check_models(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
                     }
                 }
             }
+        }
+    }
+    Ok(())
+}
+
+/// Check constants.
+fn check_const(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
+    for cmd in &ast.commands {
+        if let CommandKind::Const { ident, .. } = &cmd.kind {
+            sym_tab.insert(
+                ident.id.clone(),
+                SymbolMetadata::new(ident.id.clone(), SymbolKind::Const),
+                cmd.pos,
+            )?;
         }
     }
     Ok(())
