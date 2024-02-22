@@ -14,6 +14,8 @@ use ize::{
 use rustc_hash::FxHashMap;
 
 //TODO: detect import cycles.
+//TODO: move all this code into the crate, we could call it "loader" module. Only leave the file read here and absolute path.
+//      Use a Path type instead of a String, is more portable.
 
 fn main() {
     let file_path = "izeware/experiment_semcheck.iz";
@@ -35,9 +37,6 @@ fn recursive_check_ast(ast: &Ast) {
         recursive_check_ast(import_ast);
     }
 }
-
-//TODO: move all this code into the crate, we could call it "loader" module. Only leave the file read here and absolute path.
-//      Use a Path type instead of a String, is more portable.
 
 fn absolute_path(path_str: &str) -> String {
     let mut path_buf = env::current_dir().expect("Error getting current dir");
@@ -80,7 +79,6 @@ fn parse_and_import(file_path: &str) -> Ast {
         let file_path = import_path.path + ".iz";
         let symbols = import_path.symbols;
         let ast = parse_and_import(file_path.as_str());
-        //TODO: if imported symbol is "*", we have to import all symbols from the AST.
         for sym in symbols {
             let symbol = sym.symbol.id;
             let rename = if let Some(rename) = sym.rename {

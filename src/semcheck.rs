@@ -34,6 +34,36 @@ pub struct SymbolTable {
     pub symbols: FxHashMap<String, SymbolMetadata>,
 }
 
+impl SymbolTable {
+    /// Check if identifier is present in the ST and and is a model.
+    pub fn contains_model(&self, id: &str) -> bool {
+        if self.symbols.contains_key(id) {
+            if let SymbolKind::Model = self.symbols[id].kind {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Insert symbol in the ST.
+    pub fn insert(
+        &mut self,
+        key: String,
+        value: SymbolMetadata,
+        pos: RangePos,
+    ) -> Result<(), IzeErr> {
+        if !self.symbols.contains_key(key.as_str()) {
+            self.symbols.insert(key, value);
+            Ok(())
+        } else {
+            Err(IzeErr::new(format!("Symbol already exist: {}", key), pos))
+        }
+    }
+}
+
 #[derive(Debug)]
 /// Symbol metadata.
 pub struct SymbolMetadata {
@@ -107,7 +137,7 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
                 return Err(IzeErr::new(
                     "Imported symbols must contain at least one element".into(),
                     cmd.pos,
-                ))
+                ));
             }
             if symbols.len() == 1 {
                 // Make sure it's a "*", and no rename present
@@ -162,7 +192,7 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
 /// - Insert impored symbols into the Symbol Table.
 fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for ((sym, _), import_ref) in &ast.imported_symbols {
-        if is_primitive_type(sym) {
+        if is_reserved_word(sym) {
             return Err(IzeErr::new(
                 format!("Symbol {sym} is a reserved identifier"),
                 import_ref.pos,
@@ -173,7 +203,7 @@ fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
         if let Some(sym_kind) = find_symbol_in_ast(sym, import_ast) {
             let real_sym = sym.clone();
             let sym = if let Some(rename) = &import_ref.rename {
-                if is_primitive_type(rename) {
+                if is_reserved_word(rename) {
                     return Err(IzeErr::new(
                         format!("Rename symbol {rename} is a reserved identifier"),
                         import_ref.pos,
@@ -184,9 +214,7 @@ fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
                 sym.clone()
             };
             // Insert impored symbol into the Symbol Table.
-            sym_tab
-                .symbols
-                .insert(sym, SymbolMetadata::new(real_sym, sym_kind));
+            sym_tab.insert(sym, SymbolMetadata::new(real_sym, sym_kind), import_ref.pos)?;
         } else {
             return Err(IzeErr::new(
                 format!(
@@ -208,9 +236,11 @@ fn check_models(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for cmd in &ast.commands {
         if let CommandKind::Model { ident, .. } = &cmd.kind {
             let sym = ident.id.clone();
-            sym_tab
-                .symbols
-                .insert(sym.clone(), SymbolMetadata::new(sym, SymbolKind::Model));
+            sym_tab.insert(
+                sym.clone(),
+                SymbolMetadata::new(sym, SymbolKind::Model),
+                cmd.pos,
+            )?;
         }
     }
     // Scan again and check that each property has a type that actually exist in the ST, and is a model.
@@ -315,7 +345,7 @@ fn check_type_exists(
     pos: RangePos,
 ) -> Result<(), IzeErr> {
     // Type is either a primitive or is in the ST
-    if !is_primitive_type(ident) && !sym_tab.symbols.contains_key(ident) {
+    if !is_primitive_type(ident) && !sym_tab.contains_model(ident) {
         return Err(IzeErr::new(format!("Undefined type: {}", ident), pos));
     }
     if let Some(subtypes) = subtypes {
@@ -463,6 +493,14 @@ fn is_primitive_type(sym: &str) -> bool {
             | "Traf"
             | "Tuple"
             | "..."
+    )
+}
+
+/// Check if identifier is a reserved word.
+fn is_reserved_word(id: &str) -> bool {
+    matches!(
+        id,
+        "Str" | "Int" | "Float" | "Bool" | "None" | "Null" | "Any"
     )
 }
 
