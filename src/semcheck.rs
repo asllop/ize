@@ -219,10 +219,50 @@ fn check_models(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
                     }
                 },
                 ModelBody::Struct(pairs) => {
+                    let mut three_dots_found = false;
+                    let mut field_names = FxHashMap::default();
+                    let mut field_aliases = FxHashMap::default();
                     for pair in pairs {
-                        if let ExpressionKind::Pair { right, .. } = &pair.kind {
+                        if let ExpressionKind::Pair { left, alias, right } = &pair.kind {
+                            // Look for duplicated field aliases
+                            if let Some(alias) = alias {
+                                if field_aliases.contains_key(&alias.id) {
+                                    return Err(IzeErr::new(
+                                        "Duplicated field alias".into(),
+                                        alias.pos,
+                                    ));
+                                }
+                                field_aliases.insert(alias.id.clone(), ());
+                            }
+                            // Look for duplicated field names
+                            if let ExpressionKind::Primary(Primary::Identifier(name)) = &left.kind {
+                                if field_names.contains_key(name) {
+                                    return Err(IzeErr::new(
+                                        "Duplicated field name".into(),
+                                        left.pos,
+                                    ));
+                                }
+                                field_names.insert(name.clone(), ());
+                            } else {
+                                return Err(IzeErr::new(
+                                    "Field name must be a primary identifier".into(),
+                                    left.pos,
+                                ));
+                            }
+
                             match &right.kind {
                                 ExpressionKind::Primary(Primary::Identifier(ident)) => {
+                                    // Look for duplicated '...' fields
+                                    if ident == "..." {
+                                        if three_dots_found {
+                                            return Err(IzeErr::new(
+                                                "Only one '...' field allowed".into(),
+                                                right.pos,
+                                            ));
+                                        }
+                                        three_dots_found = true;
+                                    }
+
                                     check_type_exists(ident, None, sym_tab, right.pos)?;
                                 }
                                 ExpressionKind::Type { ident, subtypes } => {
@@ -284,7 +324,10 @@ fn check_type_exists(
             // In the future, we could improve it and use types without floats, but meanwhile we only allow Str and Int.
             "Map" => {
                 if subtypes.len() != 2 {
-                    return Err(IzeErr::new("Map must have two subtypes, key and value".into(), pos));
+                    return Err(IzeErr::new(
+                        "Map must have two subtypes, key and value".into(),
+                        pos,
+                    ));
                 }
                 let key_type = &subtypes[0];
                 if let ExpressionKind::Type { ident, .. } = &key_type.kind {
@@ -406,6 +449,7 @@ fn is_primitive_type(sym: &str) -> bool {
             | "Mux"
             | "Traf"
             | "Tuple"
+            | "..."
     )
 }
 
