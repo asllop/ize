@@ -103,51 +103,49 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
                 }
             }
             // Check symbols
-            match symbols.len() {
-                0 => {
+            if symbols.is_empty() {
+                return Err(IzeErr::new(
+                    "Imported symbols must contain at least one element".into(),
+                    cmd.pos,
+                ))
+            }
+            if symbols.len() == 1 {
+                // Make sure it's a "*", and no rename present
+                let sym = &symbols[0];
+                if sym.symbol.id == "*" && sym.rename.is_some() {
                     return Err(IzeErr::new(
-                        "Imported symbols must contain at least one element".into(),
+                        "Imported '*' can't include a rename".into(),
                         cmd.pos,
-                    ))
+                    ));
                 }
-                _ => {
-                    if symbols.len() == 1 {
-                        // Make sure it's a "*", and no rename present
-                        let sym = &symbols[0];
-                        if sym.symbol.id == "*" && sym.rename.is_some() {
-                            return Err(IzeErr::new(
-                                "Imported '*' can't include a rename".into(),
-                                cmd.pos,
-                            ));
-                        }
-                        // TODO: implement importing all symbols
-                        if sym.symbol.id == "*" {
-                            return Err(IzeErr::new(
-                                "Importing '*' is not implemented yet".into(),
-                                cmd.pos,
-                            ));
-                        }
-                    }
-                    for sym in symbols {
-                        // Make sure there's no "*" symbol here
-                        if sym.symbol.id == "*" {
-                            return Err(IzeErr::new("Imported '*' must be alone".into(), cmd.pos));
-                        }
-                        // Look for duplicated symbols
-                        let actual_sym = if let Some(rename) = &sym.rename {
-                            rename
-                        } else {
-                            &sym.symbol
-                        };
-                        if imported_syms.contains_key(&actual_sym.id) {
-                            return Err(IzeErr::new(
-                                format!("Duplicated imported symbol: {}", actual_sym.id),
-                                actual_sym.pos,
-                            ));
-                        }
-                        imported_syms.insert(actual_sym.id.clone(), ());
+                // TODO: implement importing all symbols
+                if sym.symbol.id == "*" {
+                    return Err(IzeErr::new(
+                        "Importing '*' is not implemented yet".into(),
+                        cmd.pos,
+                    ));
+                }
+            }
+            for sym in symbols {
+                if symbols.len() > 1 {
+                    // Make sure there's no "*" symbol here
+                    if sym.symbol.id == "*" {
+                        return Err(IzeErr::new("Imported '*' must be alone".into(), cmd.pos));
                     }
                 }
+                // Look for duplicated symbols
+                let actual_sym = if let Some(rename) = &sym.rename {
+                    rename
+                } else {
+                    &sym.symbol
+                };
+                if imported_syms.contains_key(&actual_sym.id) {
+                    return Err(IzeErr::new(
+                        format!("Duplicated imported symbol: {}", actual_sym.id),
+                        actual_sym.pos,
+                    ));
+                }
+                imported_syms.insert(actual_sym.id.clone(), ());
             }
         } else {
             return Err(IzeErr::new(
