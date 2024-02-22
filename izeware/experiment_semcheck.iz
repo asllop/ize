@@ -1,5 +1,5 @@
 import EventData as Data from izeware.models.event_data
-import EventData from izeware.models.event_data_bis
+import EventData, APIFY_URL from izeware.models.event_data_bis
 
 model Event (
     msg as "message": Str,
@@ -10,5 +10,5 @@ model Event (
 
 model Timestamp Int
 
-transfer MyTransfer in:Event -> Str
-    in.data.type.Inner().Type().ToStr()
+transfer my_transfer in:Event -> Str
+    in.data.ev_type.inner().type().to_str()

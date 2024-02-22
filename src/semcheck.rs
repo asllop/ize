@@ -41,7 +41,7 @@ pub struct SymbolMetadata {
     pub real_sym: String,
     /// Command kind that defined this symbol.
     pub kind: SymbolKind,
-    //TODO: more metadata specific to the command, or ref to command
+    //TODO: more metadata specific to the command, or ref to command or to the imported AST that contains the symbol
 }
 
 impl SymbolMetadata {

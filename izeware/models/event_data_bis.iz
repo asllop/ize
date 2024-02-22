@@ -1,1 +1,3 @@
 model EventData Any
+
+const APIFY_URL "https://api.ipify.org?format=json"

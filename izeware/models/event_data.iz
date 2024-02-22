@@ -1,6 +1,8 @@
-import EventType from izeware.models.event_type
+import EventType, Api from izeware.models.event_type
 
 model EventData (
     attr: Map[Str,Any],
-    type: EventType
+    ev_type: EventType
 )
+
+model MyApi Api
