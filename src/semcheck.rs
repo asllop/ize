@@ -73,8 +73,9 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
 /// Check import commands. It's a pre-semcheck, for import commands only.
 /// - Check that "path" is a Dot expr and contains only Primary identifiers.
 /// - Check that imports with "*" only contain that symbol and no rename.
-///TODO: check for duplicated symbols (same imported symbol, either original or renamed)
+/// - Check for duplicated imported symbols.
 pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
+    let mut imported_syms = FxHashMap::default();
     for cmd in commands {
         if let CommandKind::Import { path, symbols } = &cmd.kind {
             // Check path
@@ -109,29 +110,42 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
                         cmd.pos,
                     ))
                 }
-                1 => {
-                    // Make sure it's a "*", and no rename present
-                    let sym = &symbols[0];
-                    if sym.symbol.id == "*" && sym.rename.is_some() {
-                        return Err(IzeErr::new(
-                            "Imported '*' can't include a rename".into(),
-                            cmd.pos,
-                        ));
-                    }
-                    // TODO: implement importing all symbols
-                    if sym.symbol.id == "*" {
-                        return Err(IzeErr::new(
-                            "Importing '*' is not implemented yet".into(),
-                            cmd.pos,
-                        ));
-                    }
-                }
                 _ => {
-                    // Make sure there's no "*" symbol here
+                    if symbols.len() == 1 {
+                        // Make sure it's a "*", and no rename present
+                        let sym = &symbols[0];
+                        if sym.symbol.id == "*" && sym.rename.is_some() {
+                            return Err(IzeErr::new(
+                                "Imported '*' can't include a rename".into(),
+                                cmd.pos,
+                            ));
+                        }
+                        // TODO: implement importing all symbols
+                        if sym.symbol.id == "*" {
+                            return Err(IzeErr::new(
+                                "Importing '*' is not implemented yet".into(),
+                                cmd.pos,
+                            ));
+                        }
+                    }
                     for sym in symbols {
+                        // Make sure there's no "*" symbol here
                         if sym.symbol.id == "*" {
                             return Err(IzeErr::new("Imported '*' must be alone".into(), cmd.pos));
                         }
+                        // Look for duplicated symbols
+                        let actual_sym = if let Some(rename) = &sym.rename {
+                            rename
+                        } else {
+                            &sym.symbol
+                        };
+                        if imported_syms.contains_key(&actual_sym.id) {
+                            return Err(IzeErr::new(
+                                format!("Duplicated imported symbol: {}", actual_sym.id),
+                                actual_sym.pos,
+                            ));
+                        }
+                        imported_syms.insert(actual_sym.id.clone(), ());
                     }
                 }
             }
