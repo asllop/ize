@@ -73,6 +73,7 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
 /// Check import commands. It's a pre-semcheck, for import commands only.
 /// - Check that "path" is a Dot expr and contains only Primary identifiers.
 /// - Check that imports with "*" only contain that symbol and no rename.
+///TODO: check for duplicated symbols (same imported symbol, either original or renamed)
 pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
     for cmd in commands {
         if let CommandKind::Import { path, symbols } = &cmd.kind {
@@ -148,7 +149,7 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
 /// - Check that each imported symbol actually exists in the imported AST.
 /// - Insert impored symbols into the Symbol Table.
 fn check_imports(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
-    for (sym, import_ref) in &ast.imported_symbols {
+    for ((sym, _), import_ref) in &ast.imported_symbols {
         if is_primitive_type(sym) {
             return Err(IzeErr::new(
                 format!("Symbol {sym} is a reserved identifier"),

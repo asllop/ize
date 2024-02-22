@@ -88,7 +88,7 @@ fn parse_and_import(file_path: &str) -> Ast {
             } else {
                 None
             };
-            imported_symbols.insert(symbol, ImportRef::new(index, rename, import_path.pos));
+            imported_symbols.insert((symbol, rename.clone()), ImportRef::new(index, rename, import_path.pos));
         }
         imports.push(ast);
     }

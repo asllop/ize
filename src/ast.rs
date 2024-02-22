@@ -21,8 +21,8 @@ pub struct Ast {
     /// Imported modules and required symbols.
     pub imports: Vec<Ast>,
     /// Table of imported symbols.
-    /// Link each imported symbol to a position in the "imports" vector, and other metadata.
-    pub imported_symbols: FxHashMap<String, ImportRef>,
+    /// Link each imported symbol (original + rename) to a position in the "imports" vector, and other metadata.
+    pub imported_symbols: FxHashMap<(String, Option<String>), ImportRef>,
 }
 
 impl Ast {
@@ -31,7 +31,7 @@ impl Ast {
         file_path: String,
         commands: Vec<Command>,
         imports: Vec<Ast>,
-        imported_symbols: FxHashMap<String, ImportRef>,
+        imported_symbols: FxHashMap<(String, Option<String>), ImportRef>,
     ) -> Self {
         Self {
             file_path,

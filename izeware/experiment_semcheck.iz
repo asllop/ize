@@ -1,4 +1,5 @@
 import EventData as Data from izeware.models.event_data
+import EventData from izeware.models.event_data_bis
 
 model Event (
     msg as "message": Str,
