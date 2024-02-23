@@ -143,9 +143,10 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
             CommandKind::Model { body, .. } => check_model(body, &mut sym_tab)?,
-            CommandKind::Transfer { .. } => {}
+            CommandKind::Transfer { .. } => {
+                //TODO: check transfer!!
+            }
             CommandKind::Pipe { .. } => {}
-            CommandKind::Const { .. } => {}
             CommandKind::Run(_) => {}
             _ => {}
         }
@@ -154,7 +155,7 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
     Ok(sym_tab)
 }
 
-/// Scan each command and insert an entry in the ST, checking for duplicated.
+/// Scan each command and insert an entry into the ST, checking for duplicated.
 fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
@@ -226,7 +227,8 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
 }
 
 /// Model Check.
-/// Check that each property has a type that actually exist and is a model.
+/// - Check that referenced types actually exist.
+/// - Check struct integrity: unique attribute names, unique alias names, only one "..." field.
 fn check_model(body: &ModelBody, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     match body {
         ModelBody::Type(type_expr) => match &type_expr.kind {
@@ -470,7 +472,7 @@ fn is_primitive_type(sym: &str) -> bool {
 fn is_reserved_word(id: &str) -> bool {
     matches!(
         id,
-        "Str" | "Int" | "Float" | "Bool" | "None" | "Null" | "Any"
+        "Str" | "Int" | "Float" | "Bool" | "None" | "Null" | "Any" | "init"
     )
 }
 
