@@ -161,18 +161,22 @@ fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
         match &cmd.kind {
             CommandKind::Model { ident, .. } => {
                 let sym = ident.id.clone();
+                check_is_reserved_word(&sym, cmd.pos)?;
                 sym_tab.insert(sym.clone(), SymbolMetadata::default_model(), cmd.pos)?;
             }
             CommandKind::Transfer { ident, .. } => {
                 let sym = ident.id.clone();
+                check_is_reserved_word(&sym, cmd.pos)?;
                 sym_tab.insert(sym.clone(), SymbolMetadata::default_transfer(), cmd.pos)?;
             }
             CommandKind::Pipe { ident, .. } => {
                 let sym = ident.id.clone();
+                check_is_reserved_word(&sym, cmd.pos)?;
                 sym_tab.insert(sym.clone(), SymbolMetadata::default_pipe(), cmd.pos)?;
             }
             CommandKind::Const { ident, .. } => {
                 let sym = ident.id.clone();
+                check_is_reserved_word(&sym, cmd.pos)?;
                 sym_tab.insert(sym.clone(), SymbolMetadata::default_const(), cmd.pos)?;
             }
             _ => {}
@@ -188,7 +192,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
     for ((sym, _), import_ref) in &ast.imported_symbols {
         if is_reserved_word(sym) {
             return Err(IzeErr::new(
-                format!("Symbol {sym} is a reserved identifier"),
+                format!("Imported symbol is a reserved identifier: {sym}"),
                 import_ref.pos,
             ));
         }
@@ -199,7 +203,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
             let sym = if let Some(rename) = &import_ref.rename {
                 if is_reserved_word(rename) {
                     return Err(IzeErr::new(
-                        format!("Rename symbol {rename} is a reserved identifier"),
+                        format!("Rename symbol is a reserved identifier: {rename} "),
                         import_ref.pos,
                     ));
                 }
@@ -472,8 +476,16 @@ fn is_primitive_type(sym: &str) -> bool {
 fn is_reserved_word(id: &str) -> bool {
     matches!(
         id,
-        "Str" | "Int" | "Float" | "Bool" | "None" | "Null" | "Any" | "init"
+        "Str" | "Int" | "Float" | "Bool" | "None" | "Null" | "Any"
     )
+}
+
+fn check_is_reserved_word(id: &str, pos: RangePos) -> Result<(), IzeErr> {
+    if is_reserved_word(id) {
+        Err(IzeErr::new(format!("Symbol is a reserved word: {id}"), pos))
+    } else {
+        Ok(())
+    }
 }
 
 /// Check import commands. It's a pre-check, before we have the AST.
