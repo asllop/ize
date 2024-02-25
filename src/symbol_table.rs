@@ -1,24 +1,21 @@
 //! # Symbol Table
 
 use alloc::{string::String, vec::Vec};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{
-    err::IzeErr,
-    pos::RangePos,
-};
+use crate::{err::IzeErr, pos::RangePos};
 
 #[derive(Debug, Default)]
-/// Symbol Table, associate each identifier in the code with metadata.
+/// Symbol Table, associate each identifier in the code with a [Symbol] object.
 pub struct SymbolTable {
-    symbols: FxHashMap<String, SymbolMetadata>,
+    symbols: FxHashMap<String, Symbol>,
 }
 
 impl SymbolTable {
     /// Check if identifier is present in the ST and and is a model.
     pub fn contains_model(&self, id: &str) -> bool {
         if self.symbols.contains_key(id) {
-            if let SymbolKind::Model() = self.symbols[id].kind {
+            if let SymbolData::Model(_) = self.symbols[id].data {
                 true
             } else {
                 false
@@ -29,12 +26,7 @@ impl SymbolTable {
     }
 
     /// Insert symbol in the ST.
-    pub fn insert(
-        &mut self,
-        key: String,
-        value: SymbolMetadata,
-        pos: RangePos,
-    ) -> Result<(), IzeErr> {
+    pub fn insert(&mut self, key: String, value: Symbol, pos: RangePos) -> Result<(), IzeErr> {
         if !self.symbols.contains_key(key.as_str()) {
             self.symbols.insert(key, value);
             Ok(())
@@ -45,12 +37,12 @@ impl SymbolTable {
 }
 
 #[derive(Debug)]
-/// Symbol metadata.
-pub struct SymbolMetadata {
+/// Symbol.
+pub struct Symbol {
     /// Is imported symbol.
     pub is_imported: IsImported,
-    /// Command kind that defined this symbol.
-    pub kind: SymbolKind,
+    /// Symbol metadata.
+    pub data: SymbolData,
 }
 
 #[derive(Debug)]
@@ -63,17 +55,25 @@ pub enum IsImported {
     },
 }
 
-impl SymbolMetadata {
-    /// New SymbolMetadata.
-    pub fn new(is_imported: IsImported, kind: SymbolKind) -> Self {
-        Self { is_imported, kind }
+impl Symbol {
+    /// New Symbol.
+    pub fn new(is_imported: IsImported, data: SymbolData) -> Self {
+        Self { is_imported, data }
+    }
+
+    /// Default model.
+    pub fn new_imported(real_sym: String, data: SymbolData) -> Self {
+        Self {
+            is_imported: IsImported::Yes { real_sym },
+            data,
+        }
     }
 
     /// Default model.
     pub fn default_model() -> Self {
         Self {
             is_imported: IsImported::No,
-            kind: SymbolKind::Model(),
+            data: SymbolData::Model(Default::default()),
         }
     }
 
@@ -81,7 +81,7 @@ impl SymbolMetadata {
     pub fn default_transfer() -> Self {
         Self {
             is_imported: IsImported::No,
-            kind: SymbolKind::Transfer(),
+            data: SymbolData::Transfer(Default::default()),
         }
     }
 
@@ -89,7 +89,7 @@ impl SymbolMetadata {
     pub fn default_const() -> Self {
         Self {
             is_imported: IsImported::No,
-            kind: SymbolKind::Const(),
+            data: SymbolData::Const(Default::default()),
         }
     }
 
@@ -97,22 +97,61 @@ impl SymbolMetadata {
     pub fn default_pipe() -> Self {
         Self {
             is_imported: IsImported::No,
-            kind: SymbolKind::Pipe(),
+            data: SymbolData::Pipe(Default::default()),
         }
     }
 }
 
 #[derive(Debug)]
-/// Symbol kind. TODO: add metadata to variants.
-//TODO: more metadata specific to the command, or ref to command or to the imported AST that contains the symbol
-pub enum SymbolKind {
-    Model(),
-    Transfer(),
-    Const(),
-    Pipe(),
+/// Symbol metadata.
+pub enum SymbolData {
+    Model(ModelMetadata),
+    Transfer(TransferMetadata),
+    Const(ConstMetadata),
+    Pipe(PipeMetadata),
 }
 
-#[derive(Debug, PartialEq)]
+/// Model metadata.
+#[derive(Debug, Default)]
+pub enum ModelMetadata {
+    #[default]
+    Uninit,
+    Data {
+        //TODO: add metadata
+    },
+}
+
+/// Transfer metadata.
+#[derive(Debug, Default)]
+pub enum TransferMetadata {
+    #[default]
+    Uninit,
+    Data {
+        //TODO: add metadata
+    },
+}
+
+/// Const metadata.
+#[derive(Debug, Default)]
+pub enum ConstMetadata {
+    #[default]
+    Uninit,
+    Data {
+        //TODO: add metadata
+    },
+}
+
+/// Pipe metadata.
+#[derive(Debug, Default)]
+pub enum PipeMetadata {
+    #[default]
+    Uninit,
+    Data {
+        //TODO: add metadata
+    },
+}
+
+#[derive(Debug, Eq, Hash)]
 /// Type representation.
 pub struct Type {
     pub ident: String,
@@ -123,6 +162,25 @@ impl Type {
     /// New Type.
     pub fn new(ident: String, subtypes: Vec<Type>) -> Self {
         Type { ident, subtypes }
+    }
+}
+
+// Custom PartialEq: in the case of a Mux, types can be in different orders: Mux[Int,Str] == Mux[Str,Int]
+impl PartialEq for Type {
+    fn eq(&self, other: &Self) -> bool {
+        if self.ident == other.ident {
+            let mut self_subtype_set = FxHashSet::default();
+            for subtype in &self.subtypes {
+                self_subtype_set.insert(subtype);
+            }
+            let mut other_subtype_set = FxHashSet::default();
+            for subtype in &other.subtypes {
+                other_subtype_set.insert(subtype);
+            }
+            self.subtypes == other.subtypes
+        } else {
+            false
+        }
     }
 }
 

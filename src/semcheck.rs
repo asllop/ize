@@ -5,10 +5,16 @@
 //! Semchecking is the last step before code generation.
 
 use alloc::{borrow::ToOwned, string::String};
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 use crate::{
-    ast::{Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Literal, ModelBody, Primary, UnaryOp}, err::IzeErr, pos::RangePos, symbol_table::*
+    ast::{
+        Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Literal, ModelBody,
+        Primary, UnaryOp,
+    },
+    err::IzeErr,
+    pos::RangePos,
+    symbol_table::*,
 };
 
 /// Check AST validity.
@@ -61,50 +67,66 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
             } else {
                 Err(IzeErr::new("Chain expression is empty".into(), expr.pos))
             }
-        },
-        ExpressionKind::IfElse { cond, if_expr, else_expr } => {
+        }
+        ExpressionKind::IfElse {
+            cond,
+            if_expr,
+            else_expr,
+        } => {
             if expr_type_eval(cond)?.ident != BOOL_TYPE {
-                return Err(IzeErr::new("If-else condition must evaluate into a Bool type".into(), cond.pos));
+                return Err(IzeErr::new(
+                    "If-else condition must evaluate into a Bool type".into(),
+                    cond.pos,
+                ));
             }
             let if_expr_type = expr_type_eval(if_expr)?;
             let else_expr_type = expr_type_eval(else_expr)?;
             if if_expr_type == else_expr_type {
-                Ok(if_expr_type)    
+                Ok(if_expr_type)
             } else {
                 // NOTE:
                 // We generate a provisional Mux with the two types. Later steps will check if the provisional Mux is compatible
                 // with the requiered type. For example, Mux[Str,Int] is compatible with a transfer returning Mux[Str,Int,Float],
                 // because the subtypes (Str,Int) are a subset of the required subtypes (Str,Int,Float).
                 // Cases: transfer return type, transfer parameter type.
-                Ok(Type::new(MAP_TYPE.into(), vec![if_expr_type, else_expr_type]))
+                Ok(Type::new(
+                    MAP_TYPE.into(),
+                    vec![if_expr_type, else_expr_type],
+                ))
             }
-        },
+        }
         ExpressionKind::Binary { op, left, right } => {
             let left_expr_type = expr_type_eval(left)?;
             let right_expr_type = expr_type_eval(right)?;
 
             if left_expr_type != right_expr_type {
-                return Err(IzeErr::new("Left and right expressions must evaluate into the same type".into(), left.pos));
+                return Err(IzeErr::new(
+                    "Left and right expressions must evaluate into the same type".into(),
+                    left.pos,
+                ));
             }
             let ident = &left_expr_type.ident;
             match op {
                 // Can only be applied to Str, Int, and Float and return the same type of arguments
                 BinaryOp::Plus => {
                     if ident != STR_TYPE && ident != INT_TYPE && ident != FLOAT_TYPE {
-                        return Err(IzeErr::new("Plus operator con only be applied to Str, Int and Float types".into(), left.pos));
+                        return Err(IzeErr::new(
+                            "Plus operator con only be applied to Str, Int and Float types".into(),
+                            left.pos,
+                        ));
                     }
                     Ok(left_expr_type)
-                },
+                }
                 // Can only be applied to Int, and Float and return the same type of arguments
-                BinaryOp::Minus
-                | BinaryOp::Star
-                | BinaryOp::Slash
-                | BinaryOp::Percent => {
+                BinaryOp::Minus | BinaryOp::Star | BinaryOp::Slash | BinaryOp::Percent => {
                     if ident != INT_TYPE && ident != FLOAT_TYPE {
-                        return Err(IzeErr::new("Aritmetic operators con only be applied to Int and Float types".into(), left.pos));
+                        return Err(IzeErr::new(
+                            "Aritmetic operators con only be applied to Int and Float types".into(),
+                            left.pos,
+                        ));
                     }
                     Ok(left_expr_type)
-                },
+                }
                 // Can only be applied to Int, and Float and return bool type
                 BinaryOp::LesserThan
                 | BinaryOp::GreaterThan
@@ -114,54 +136,72 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
                         return Err(IzeErr::new("Ordering comparation operators con only be applied to Int and Float types".into(), left.pos));
                     }
                     Ok(Type::new(BOOL_TYPE.into(), vec![]))
-                },
+                }
                 // Can be applied to any type and return bool type
-                BinaryOp::NotEqual
-                | BinaryOp::TwoEquals =>  {
-                    Ok(left_expr_type)
-                },
+                BinaryOp::NotEqual | BinaryOp::TwoEquals => Ok(left_expr_type),
                 // Can only be applied to int and bool and return the same type of arguments
                 BinaryOp::And | BinaryOp::Or => {
                     if ident != INT_TYPE && ident != BOOL_TYPE {
-                        return Err(IzeErr::new("Logic operators con only be applied to Int and Bool types".into(), left.pos));
+                        return Err(IzeErr::new(
+                            "Logic operators con only be applied to Int and Bool types".into(),
+                            left.pos,
+                        ));
                     }
                     Ok(left_expr_type)
-                },
+                }
                 // Can only be applied to bool type and return bool type
                 BinaryOp::TwoAnds | BinaryOp::TwoOrs => {
                     if ident != BOOL_TYPE {
-                        return Err(IzeErr::new("Logic comparation operators con only be applied to Bool type".into(), left.pos));
+                        return Err(IzeErr::new(
+                            "Logic comparation operators con only be applied to Bool type".into(),
+                            left.pos,
+                        ));
                     }
                     Ok(Type::new(BOOL_TYPE.into(), vec![]))
-                },
+                }
             }
-        },
-        ExpressionKind::Unary { op, expr } => {
-            match op {
-                UnaryOp::Minus => {
-                    let expr_type = expr_type_eval(expr)?;
-                    if expr_type.ident != INT_TYPE && expr_type.ident != FLOAT_TYPE {
-                        return Err(IzeErr::new("Minus operator con only be applied to Int and Float types".into(), expr.pos));
-                    }
-                    Ok(expr_type)
-                },
-                UnaryOp::Not => {
-                    let expr_type = expr_type_eval(expr)?;
-                    if expr_type.ident != INT_TYPE && expr_type.ident != BOOL_TYPE {
-                        return Err(IzeErr::new("Not operator con only be applied to Int and Bool types".into(), expr.pos));
-                    }
-                    Ok(expr_type)
-                },
+        }
+        ExpressionKind::Unary { op, expr } => match op {
+            UnaryOp::Minus => {
+                let expr_type = expr_type_eval(expr)?;
+                if expr_type.ident != INT_TYPE && expr_type.ident != FLOAT_TYPE {
+                    return Err(IzeErr::new(
+                        "Minus operator con only be applied to Int and Float types".into(),
+                        expr.pos,
+                    ));
+                }
+                Ok(expr_type)
+            }
+            UnaryOp::Not => {
+                let expr_type = expr_type_eval(expr)?;
+                if expr_type.ident != INT_TYPE && expr_type.ident != BOOL_TYPE {
+                    return Err(IzeErr::new(
+                        "Not operator con only be applied to Int and Bool types".into(),
+                        expr.pos,
+                    ));
+                }
+                Ok(expr_type)
             }
         },
         ExpressionKind::Call { ident, args } => todo!(),
         ExpressionKind::Dot(_) => todo!(),
-        ExpressionKind::SelectUnwrap { op, expr, alias, arms } => todo!(),
+        ExpressionKind::SelectUnwrap {
+            op,
+            expr,
+            alias,
+            arms,
+        } => todo!(),
         ExpressionKind::Arm { left, right } => todo!(),
         ExpressionKind::Type { ident, subtypes } => todo!(),
         // Invalid
-        ExpressionKind::Pair { .. } => Err(IzeErr::new("ETE can't be used over a Pair expression".into(), expr.pos)),
-        ExpressionKind::PipeBody(_) => Err(IzeErr::new("ETE can't be used over a PipeBody expression".into(), expr.pos)),
+        ExpressionKind::Pair { .. } => Err(IzeErr::new(
+            "ETE can't be used over a Pair expression".into(),
+            expr.pos,
+        )),
+        ExpressionKind::PipeBody(_) => Err(IzeErr::new(
+            "ETE can't be used over a PipeBody expression".into(),
+            expr.pos,
+        )),
     }
 }
 
@@ -172,22 +212,22 @@ fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
             CommandKind::Model { ident, .. } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
-                sym_tab.insert(sym.clone(), SymbolMetadata::default_model(), cmd.pos)?;
+                sym_tab.insert(sym.clone(), Symbol::default_model(), cmd.pos)?;
             }
             CommandKind::Transfer { ident, .. } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
-                sym_tab.insert(sym.clone(), SymbolMetadata::default_transfer(), cmd.pos)?;
+                sym_tab.insert(sym.clone(), Symbol::default_transfer(), cmd.pos)?;
             }
             CommandKind::Pipe { ident, .. } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
-                sym_tab.insert(sym.clone(), SymbolMetadata::default_pipe(), cmd.pos)?;
+                sym_tab.insert(sym.clone(), Symbol::default_pipe(), cmd.pos)?;
             }
             CommandKind::Const { ident, .. } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
-                sym_tab.insert(sym.clone(), SymbolMetadata::default_const(), cmd.pos)?;
+                sym_tab.insert(sym.clone(), Symbol::default_const(), cmd.pos)?;
             }
             _ => {}
         }
@@ -208,7 +248,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
         }
         let import_ast = &ast.imports[import_ref.ast_index];
         // Check that imported symbol actually exists in the imported AST.
-        if let Some(sym_kind) = find_symbol_in_ast(sym, import_ast) {
+        if let Some(sym_data) = find_symbol_in_ast(sym, import_ast) {
             let real_sym = sym.clone();
             let sym = if let Some(rename) = &import_ref.rename {
                 if is_reserved_word(rename) {
@@ -224,7 +264,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
             // Insert impored symbol into the Symbol Table, or return an error if it's duplicated.
             sym_tab.insert(
                 sym,
-                SymbolMetadata::new(IsImported::Yes { real_sym }, sym_kind),
+                Symbol::new_imported(real_sym, sym_data),
                 import_ref.pos,
             )?;
         } else {
@@ -261,23 +301,23 @@ fn check_model(body: &ModelBody, sym_tab: &mut SymbolTable) -> Result<(), IzeErr
         },
         ModelBody::Struct(pairs) => {
             let mut three_dots_found = false;
-            let mut field_names = FxHashMap::default();
-            let mut field_aliases = FxHashMap::default();
+            let mut field_names = FxHashSet::default();
+            let mut field_aliases = FxHashSet::default();
             for pair in pairs {
                 if let ExpressionKind::Pair { left, alias, right } = &pair.kind {
                     // Look for duplicated field aliases
                     if let Some(alias) = alias {
-                        if field_aliases.contains_key(&alias.id) {
+                        if field_aliases.contains(&alias.id) {
                             return Err(IzeErr::new("Duplicated field alias".into(), alias.pos));
                         }
-                        field_aliases.insert(alias.id.clone(), ());
+                        field_aliases.insert(alias.id.clone());
                     }
                     // Look for duplicated field names
                     if let ExpressionKind::Primary(Primary::Identifier(name)) = &left.kind {
-                        if field_names.contains_key(name) {
+                        if field_names.contains(name) {
                             return Err(IzeErr::new("Duplicated field name".into(), left.pos));
                         }
-                        field_names.insert(name.clone(), ());
+                        field_names.insert(name.clone());
                     } else {
                         return Err(IzeErr::new(
                             "Field name must be a primary identifier".into(),
@@ -381,18 +421,18 @@ fn check_type_exists(
             }
             // Mux subtypes can't be duplicated.
             "Mux" => {
-                let mut subtype_ids = FxHashMap::default();
+                let mut subtype_ids = FxHashSet::default();
                 for type_expr in subtypes {
                     if let ExpressionKind::Type { ident, subtypes } = &type_expr.kind {
                         // Convert each type into a string representation we can use as a map key.
                         let subtype_repr = stringify_type(&ident.id, subtypes)?;
-                        if subtype_ids.contains_key(&subtype_repr) {
+                        if subtype_ids.contains(&subtype_repr) {
                             return Err(IzeErr::new(
                                 "Mux contains a duplicated subtype".into(),
                                 type_expr.pos,
                             ));
                         }
-                        subtype_ids.insert(subtype_repr, ());
+                        subtype_ids.insert(subtype_repr);
                     } else {
                         return Err(IzeErr::new(
                             "Subtypes must be Type expressions".into(),
@@ -436,27 +476,27 @@ fn stringify_type(ident: &str, subtypes: &[Expression]) -> Result<String, IzeErr
 }
 
 /// Search a symbo in an AST and returns the symbol kind if it is found.
-fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolKind> {
+fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolData> {
     for cmd in &ast.commands {
         match &cmd.kind {
             CommandKind::Transfer { ident, .. } => {
                 if ident.id == sym {
-                    return Some(SymbolKind::Transfer());
+                    return Some(SymbolData::Transfer(Default::default()));
                 }
             }
             CommandKind::Model { ident, .. } => {
                 if ident.id == sym {
-                    return Some(SymbolKind::Model());
+                    return Some(SymbolData::Model(Default::default()));
                 }
             }
             CommandKind::Pipe { ident, .. } => {
                 if ident.id == sym {
-                    return Some(SymbolKind::Pipe());
+                    return Some(SymbolData::Pipe(Default::default()));
                 }
             }
             CommandKind::Const { ident, .. } => {
                 if ident.id == sym {
-                    return Some(SymbolKind::Const());
+                    return Some(SymbolData::Const(Default::default()));
                 }
             }
             CommandKind::Run(_) => {}
@@ -507,7 +547,7 @@ fn check_is_reserved_word(id: &str, pos: RangePos) -> Result<(), IzeErr> {
 /// - Check that imports with "*" only contain that symbol and no rename.
 /// - Check for duplicated imported symbols.
 pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
-    let mut imported_syms = FxHashMap::default();
+    let mut imported_syms = FxHashSet::default();
     for cmd in commands {
         if let CommandKind::Import { path, symbols } = &cmd.kind {
             // Check path
@@ -571,13 +611,13 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
                 } else {
                     &sym.symbol
                 };
-                if imported_syms.contains_key(&actual_sym.id) {
+                if imported_syms.contains(&actual_sym.id) {
                     return Err(IzeErr::new(
                         format!("Duplicated imported symbol: {}", actual_sym.id),
                         actual_sym.pos,
                     ));
                 }
-                imported_syms.insert(actual_sym.id.clone(), ());
+                imported_syms.insert(actual_sym.id.clone());
             }
         } else {
             return Err(IzeErr::new(
