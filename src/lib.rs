@@ -62,6 +62,9 @@ pub mod grammar_expr;
 /// Grammar rules to parse IZE commands.
 pub mod grammar_cmd;
 
+/// Symbol table.
+pub mod symbol_table;
+
 /// Semantic checker.
 pub mod semcheck;
 
