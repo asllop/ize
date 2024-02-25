@@ -10,7 +10,7 @@ use rustc_hash::FxHashSet;
 use crate::{
     ast::{
         Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Literal, ModelBody,
-        Primary, UnaryOp,
+        Primary, TransferBody, UnaryOp,
     },
     err::IzeErr,
     pos::RangePos,
@@ -28,10 +28,16 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
             CommandKind::Model { body, .. } => check_model(body, &mut sym_tab)?,
-            CommandKind::Transfer { .. } => {
+            CommandKind::Transfer { body, .. } => {
                 //TODO: check transfer!!
                 //TODO: expression type evaluator: calculates the resulting type of an expression
-                //TODO: for struct transfers, check that return type is a struct model and atttributes and types match.
+                //TODO: for struct transfers, check that return type is a struct model and attributes and types match.
+                match body {
+                    TransferBody::Expression(body_expr) => {
+                        let expr_type = expr_type_eval(body_expr)?;
+                    }
+                    TransferBody::Struct(_) => todo!(),
+                }
             }
             CommandKind::Pipe { .. } => {}
             CommandKind::Run(_) => {}
@@ -46,15 +52,8 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
 fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
     match &expr.kind {
         ExpressionKind::Primary(p) => match p {
-            Primary::Identifier(id) => todo!("Search id in the ST and return type"),
-            Primary::Literal(lit) => match lit {
-                Literal::String(_) => Ok(Type::new(STR_TYPE.into(), vec![])),
-                Literal::Integer(_) => Ok(Type::new(INT_TYPE.into(), vec![])),
-                Literal::Float(_) => Ok(Type::new(FLOAT_TYPE.into(), vec![])),
-                Literal::Boolean(_) => Ok(Type::new(BOOL_TYPE.into(), vec![])),
-                Literal::Null => Ok(Type::new(NULL_TYPE.into(), vec![])),
-                Literal::None => Ok(Type::new(NONE_TYPE.into(), vec![])),
-            },
+            Primary::Identifier(id) => identifier_type_eval(id),
+            Primary::Literal(lit) => Ok(literal_type_eval(lit)),
         },
         ExpressionKind::Group(expr) => expr_type_eval(expr),
         ExpressionKind::Let { expr, .. } => expr_type_eval(expr),
@@ -138,7 +137,7 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
                     Ok(Type::new(BOOL_TYPE.into(), vec![]))
                 }
                 // Can be applied to any type and return bool type
-                BinaryOp::NotEqual | BinaryOp::TwoEquals => Ok(left_expr_type),
+                BinaryOp::NotEqual | BinaryOp::TwoEquals => Ok(Type::new(BOOL_TYPE.into(), vec![])),
                 // Can only be applied to int and bool and return the same type of arguments
                 BinaryOp::And | BinaryOp::Or => {
                     if ident != INT_TYPE && ident != BOOL_TYPE {
@@ -183,16 +182,20 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
                 Ok(expr_type)
             }
         },
-        ExpressionKind::Call { ident, args } => todo!(),
-        ExpressionKind::Dot(_) => todo!(),
-        ExpressionKind::SelectUnwrap {
-            op,
-            expr,
-            alias,
-            arms,
-        } => todo!(),
-        ExpressionKind::Arm { left, right } => todo!(),
-        ExpressionKind::Type { ident, subtypes } => todo!(),
+        ExpressionKind::Call { ident, args } => {
+            //TODO: find ident in the ST
+            //TODO: If sym is transfer: check that argument types of the call match parameter types of the transfer
+            //TODO: If sym is model: check that argument types of the call match parameter types of the model constructor
+            todo!()
+        }
+        ExpressionKind::Dot(expr_vec) => {
+            //TODO: follow the vec of expressions from pos 0, and eval type of each element.
+            //      on each step make sure the next step is something that exists in the previous (attribute or method).
+            todo!()
+        }
+        ExpressionKind::SelectUnwrap { .. } => todo!(),
+        ExpressionKind::Arm { .. } => todo!(),
+        ExpressionKind::Type { .. } => todo!(),
         // Invalid
         ExpressionKind::Pair { .. } => Err(IzeErr::new(
             "ETE can't be used over a Pair expression".into(),
@@ -205,6 +208,23 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
     }
 }
 
+/// Evaluate type of a literal.
+fn literal_type_eval(lit: &Literal) -> Type {
+    match lit {
+        Literal::String(_) => Type::new(STR_TYPE.into(), vec![]),
+        Literal::Integer(_) => Type::new(INT_TYPE.into(), vec![]),
+        Literal::Float(_) => Type::new(FLOAT_TYPE.into(), vec![]),
+        Literal::Boolean(_) => Type::new(BOOL_TYPE.into(), vec![]),
+        Literal::Null => Type::new(NULL_TYPE.into(), vec![]),
+        Literal::None => Type::new(NONE_TYPE.into(), vec![]),
+    }
+}
+
+/// Find identifier in the ST and return type.
+fn identifier_type_eval(id: &str) -> Result<Type, IzeErr> {
+    todo!("Search id in the ST and return type")
+}
+
 /// Scan each command and insert an entry into the ST, checking for duplicated symbols and reserved words.
 fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for cmd in &ast.commands {
@@ -212,22 +232,27 @@ fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
             CommandKind::Model { ident, .. } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
+                //TODO: add metadata to ST entry
                 sym_tab.insert(sym.clone(), Symbol::default_model(), cmd.pos)?;
             }
             CommandKind::Transfer { ident, .. } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
+                //TODO: add metadata to ST entry
                 sym_tab.insert(sym.clone(), Symbol::default_transfer(), cmd.pos)?;
             }
             CommandKind::Pipe { ident, .. } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
+                //TODO: add metadata to ST entry
                 sym_tab.insert(sym.clone(), Symbol::default_pipe(), cmd.pos)?;
             }
-            CommandKind::Const { ident, .. } => {
+            CommandKind::Const { ident, value } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
-                sym_tab.insert(sym.clone(), Symbol::default_const(), cmd.pos)?;
+                let const_type = literal_type_eval(value);
+                let symbol = Symbol::new(IsImported::No, SymbolData::new_const(const_type));
+                sym_tab.insert(sym.clone(), symbol, cmd.pos)?;
             }
             _ => {}
         }
@@ -391,7 +416,7 @@ fn check_type_exists(
             // NOTE: we would like to use any type as a key, but we can't use floats or anything that contains a float:
             // https://stackoverflow.com/questions/39638363/how-can-i-use-a-hashmap-with-f64-as-key-in-rust
             // In the future, we could improve it and use types without floats, but meanwhile we only allow Str and Int.
-            "Map" => {
+            MAP_TYPE => {
                 if subtypes.len() != 2 {
                     return Err(IzeErr::new(
                         "Map must have two subtypes, key and value".into(),
@@ -414,13 +439,13 @@ fn check_type_exists(
                 }
             }
             // List only one subtype.
-            "List" => {
+            LIST_TYPE => {
                 if subtypes.len() != 1 {
                     return Err(IzeErr::new("List must have one subtype".into(), pos));
                 }
             }
             // Mux subtypes can't be duplicated.
-            "Mux" => {
+            MUX_TYPE => {
                 let mut subtype_ids = FxHashSet::default();
                 for type_expr in subtypes {
                     if let ExpressionKind::Type { ident, subtypes } = &type_expr.kind {
@@ -522,7 +547,7 @@ fn is_primitive_type(sym: &str) -> bool {
             | MUX_TYPE
             | TRAF_TYPE
             | TUPLE_TYPE
-            | OTHER_TYPE
+            | REST_MARKER
     )
 }
 

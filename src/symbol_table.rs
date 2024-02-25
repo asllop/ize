@@ -111,6 +111,13 @@ pub enum SymbolData {
     Pipe(PipeMetadata),
 }
 
+impl SymbolData {
+    /// New constant symbol metadata.
+    pub fn new_const(const_type: Type) -> Self {
+        Self::Const(ConstMetadata::Data { const_type })
+    }
+}
+
 /// Model metadata.
 #[derive(Debug, Default)]
 pub enum ModelMetadata {
@@ -137,7 +144,7 @@ pub enum ConstMetadata {
     #[default]
     Uninit,
     Data {
-        //TODO: add metadata
+        const_type: Type,
     },
 }
 
@@ -197,4 +204,4 @@ pub const LIST_TYPE: &str = "List";
 pub const MUX_TYPE: &str = "Mux";
 pub const TUPLE_TYPE: &str = "Tuple";
 pub const TRAF_TYPE: &str = "Traf";
-pub const OTHER_TYPE: &str = "...";
+pub const REST_MARKER: &str = "...";
