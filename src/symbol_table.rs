@@ -3,7 +3,11 @@
 use alloc::{string::String, vec::Vec};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{err::IzeErr, pos::RangePos};
+use crate::{
+    ast::{Expression, ExpressionKind, Primary},
+    err::IzeErr,
+    pos::RangePos,
+};
 
 #[derive(Debug, Default)]
 /// Symbol Table, associate each identifier in the code with a [Symbol] object.
@@ -61,6 +65,14 @@ impl Symbol {
         Self { is_imported, data }
     }
 
+    /// New defined (not imported) Symbol.
+    pub fn new_def(data: SymbolData) -> Self {
+        Self {
+            is_imported: IsImported::No,
+            data,
+        }
+    }
+
     /// Default model.
     pub fn new_imported(real_sym: String, data: SymbolData) -> Self {
         Self {
@@ -116,6 +128,16 @@ impl SymbolData {
     pub fn new_const(const_type: Type) -> Self {
         Self::Const(ConstMetadata::Data { const_type })
     }
+
+    /// New newtype model symbol metadata.
+    pub fn new_newtype_model(model_type: Type) -> Self {
+        Self::Model(ModelMetadata::Data(ModelData::Newtype(model_type)))
+    }
+
+    /// New struct model symbol metadata.
+    pub fn new_struct_model(attributes: FxHashMap<String, (Option<String>, Type)>) -> Self {
+        Self::Model(ModelMetadata::Data(ModelData::Struct { attributes }))
+    }
 }
 
 /// Model metadata.
@@ -123,8 +145,16 @@ impl SymbolData {
 pub enum ModelMetadata {
     #[default]
     Uninit,
-    Data {
-        //TODO: add metadata
+    Data(ModelData),
+}
+
+/// Model metadata data.
+#[derive(Debug)]
+pub enum ModelData {
+    Newtype(Type),
+    Struct {
+        /// Key = attribute name , Value = (alias, type)
+        attributes: FxHashMap<String, (Option<String>, Type)>,
     },
 }
 
@@ -169,6 +199,22 @@ impl Type {
     /// New Type.
     pub fn new(ident: String, subtypes: Vec<Type>) -> Self {
         Type { ident, subtypes }
+    }
+}
+
+impl TryFrom<&Expression> for Type {
+    type Error = IzeErr;
+
+    fn try_from(value: &Expression) -> Result<Self, Self::Error> {
+        match &value.kind {
+            ExpressionKind::Type { ident, subtypes } => {
+                let subtypes: Result<Vec<Type>, _> =
+                    subtypes.iter().map(|expr| expr.try_into()).collect();
+                Ok(Self::new(ident.id.clone(), subtypes?))
+            }
+            ExpressionKind::Primary(Primary::Identifier(id)) => Ok(Type::new(id.clone(), vec![])),
+            _ => Err(IzeErr::new("Expected a type".into(), value.pos)),
+        }
     }
 }
 

@@ -5,7 +5,7 @@
 //! Semchecking is the last step before code generation.
 
 use alloc::{borrow::ToOwned, string::String};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     ast::{
@@ -29,14 +29,13 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
         match &cmd.kind {
             CommandKind::Model { body, .. } => check_model(body, &mut sym_tab)?,
             CommandKind::Transfer { body, .. } => {
-                //TODO: check transfer!!
-                //TODO: expression type evaluator: calculates the resulting type of an expression
-                //TODO: for struct transfers, check that return type is a struct model and attributes and types match.
                 match body {
                     TransferBody::Expression(body_expr) => {
+                        //TODO: check expression transfers
                         let expr_type = expr_type_eval(body_expr)?;
                     }
-                    TransferBody::Struct(_) => todo!(),
+                    //TODO: for struct transfers, check that return type is a struct model and attributes and types match.
+                    TransferBody::Struct(_) => todo!("Check struct transfers"),
                 }
             }
             CommandKind::Pipe { .. } => {}
@@ -48,7 +47,7 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
     Ok(sym_tab)
 }
 
-/// TODO: Expression Type Evaluator.
+/// Expression Type Evaluator.
 fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
     match &expr.kind {
         ExpressionKind::Primary(p) => match p {
@@ -186,23 +185,23 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
             //TODO: find ident in the ST
             //TODO: If sym is transfer: check that argument types of the call match parameter types of the transfer
             //TODO: If sym is model: check that argument types of the call match parameter types of the model constructor
-            todo!()
+            todo!("Call expression type evaluator")
         }
         ExpressionKind::Dot(expr_vec) => {
             //TODO: follow the vec of expressions from pos 0, and eval type of each element.
             //      on each step make sure the next step is something that exists in the previous (attribute or method).
-            todo!()
+            todo!("Dot expression type evaluator")
         }
-        ExpressionKind::SelectUnwrap { .. } => todo!(),
-        ExpressionKind::Arm { .. } => todo!(),
-        ExpressionKind::Type { .. } => todo!(),
-        // Invalid
+        ExpressionKind::SelectUnwrap { .. } => todo!("Select/Unwrap expression type evaluator"),
+        ExpressionKind::Arm { .. } => todo!("Arm expression type evaluator"),
+        ExpressionKind::Type { .. } => expr.try_into(),
+        // Invalid expressions, don't evaluate into a type.
         ExpressionKind::Pair { .. } => Err(IzeErr::new(
-            "ETE can't be used over a Pair expression".into(),
+            "Illegal expression, Pair expression can't be used here".into(),
             expr.pos,
         )),
         ExpressionKind::PipeBody(_) => Err(IzeErr::new(
-            "ETE can't be used over a PipeBody expression".into(),
+            "Illegal expression, PipeBody expression can't be used here".into(),
             expr.pos,
         )),
     }
@@ -222,18 +221,21 @@ fn literal_type_eval(lit: &Literal) -> Type {
 
 /// Find identifier in the ST and return type.
 fn identifier_type_eval(id: &str) -> Result<Type, IzeErr> {
-    todo!("Search id in the ST and return type")
+    //TODO: Search id in the ST and return type.
+    //      If it's imported symbol, the type must be searched in the original AST. We need a way to reference to the original ST,
+    //      instead of creating a new entry in the current ST that contains all the metadata again.
+    Ok(Type::new(format!("TODO {id}"), vec![]))
 }
 
 /// Scan each command and insert an entry into the ST, checking for duplicated symbols and reserved words.
 fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
-            CommandKind::Model { ident, .. } => {
+            CommandKind::Model { ident, body } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
-                //TODO: add metadata to ST entry
-                sym_tab.insert(sym.clone(), Symbol::default_model(), cmd.pos)?;
+                let symbol = Symbol::new_def(build_model_symbol_data(body)?);
+                sym_tab.insert(sym.clone(), symbol, cmd.pos)?;
             }
             CommandKind::Transfer { ident, .. } => {
                 let sym = ident.id.clone();
@@ -250,8 +252,7 @@ fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
             CommandKind::Const { ident, value } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
-                let const_type = literal_type_eval(value);
-                let symbol = Symbol::new(IsImported::No, SymbolData::new_const(const_type));
+                let symbol = Symbol::new_def(build_const_symbol_data(value));
                 sym_tab.insert(sym.clone(), symbol, cmd.pos)?;
             }
             _ => {}
@@ -273,7 +274,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
         }
         let import_ast = &ast.imports[import_ref.ast_index];
         // Check that imported symbol actually exists in the imported AST.
-        if let Some(sym_data) = find_symbol_in_ast(sym, import_ast) {
+        if let Some(sym_data) = find_symbol_in_ast(sym, import_ast)? {
             let real_sym = sym.clone();
             let sym = if let Some(rename) = &import_ref.rename {
                 if is_reserved_word(rename) {
@@ -501,34 +502,76 @@ fn stringify_type(ident: &str, subtypes: &[Expression]) -> Result<String, IzeErr
 }
 
 /// Search a symbo in an AST and returns the symbol kind if it is found.
-fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Option<SymbolData> {
+fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Result<Option<SymbolData>, IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
             CommandKind::Transfer { ident, .. } => {
                 if ident.id == sym {
-                    return Some(SymbolData::Transfer(Default::default()));
+                    //TODO: add metadata to symbol
+                    return Ok(Some(SymbolData::Transfer(Default::default())));
                 }
             }
-            CommandKind::Model { ident, .. } => {
+            CommandKind::Model { ident, body } => {
                 if ident.id == sym {
-                    return Some(SymbolData::Model(Default::default()));
+                    return Ok(Some(build_model_symbol_data(body)?));
                 }
             }
             CommandKind::Pipe { ident, .. } => {
                 if ident.id == sym {
-                    return Some(SymbolData::Pipe(Default::default()));
+                    //TODO: add metadata to symbol
+                    return Ok(Some(SymbolData::Pipe(Default::default())));
                 }
             }
-            CommandKind::Const { ident, .. } => {
+            CommandKind::Const { ident, value } => {
                 if ident.id == sym {
-                    return Some(SymbolData::Const(Default::default()));
+                    return Ok(Some(build_const_symbol_data(value)));
                 }
             }
             CommandKind::Run(_) => {}
             CommandKind::Import { .. } => panic!("Ast.commands can't contain an import"),
         }
     }
-    None
+    Ok(None)
+}
+
+/// Build a SymbolData::Const from the contents of a const command.
+fn build_const_symbol_data(lit: &Literal) -> SymbolData {
+    let const_type = literal_type_eval(lit);
+    SymbolData::new_const(const_type)
+}
+
+/// Build a SymbolData::Model from the contents of a model command.
+fn build_model_symbol_data(body: &ModelBody) -> Result<SymbolData, IzeErr> {
+    match body {
+        ModelBody::Type(model_expr) => {
+            let model_type = expr_type_eval(model_expr)?;
+            Ok(SymbolData::new_newtype_model(model_type))
+        }
+        ModelBody::Struct(model_struct) => {
+            let mut attributes: FxHashMap<String, (Option<String>, Type)> = FxHashMap::default();
+            for pair_expr in model_struct {
+                if let ExpressionKind::Pair { left, alias, right } = &pair_expr.kind {
+                    if let ExpressionKind::Primary(Primary::Identifier(attr_name)) = &left.kind {
+                        let pair_type: Type = right.as_ref().try_into()?;
+                        let alias = if let Some(alias) = alias {
+                            Some(alias.id.clone())
+                        } else {
+                            None
+                        };
+                        attributes.insert(attr_name.clone(), (alias, pair_type));
+                    } else {
+                        return Err(IzeErr::new("Expected an attribute name".into(), left.pos));
+                    }
+                } else {
+                    return Err(IzeErr::new(
+                        "Expected Pair expression".into(),
+                        pair_expr.pos,
+                    ));
+                }
+            }
+            Ok(SymbolData::new_struct_model(attributes))
+        }
+    }
 }
 
 /// Check if symbol is a primitive type.
