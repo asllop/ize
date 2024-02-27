@@ -24,6 +24,8 @@ fn main() {
     println!("\n============ AST ============\n\n");
     println!("{:#?}", ast);
 
+    println!("\n=============================\n");
+
     recursive_check_ast(&ast);
 }
 

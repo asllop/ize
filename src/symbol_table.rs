@@ -19,7 +19,7 @@ impl SymbolTable {
     /// Check if identifier is present in the ST and and is a model.
     pub fn contains_model(&self, id: &str) -> bool {
         if self.symbols.contains_key(id) {
-            if let SymbolData::Model(_) = self.symbols[id].data {
+            if let SymbolData::Model(_) = self.symbols[id].metadata {
                 true
             } else {
                 false
@@ -35,7 +35,7 @@ impl SymbolTable {
             self.symbols.insert(key, value);
             Ok(())
         } else {
-            Err(IzeErr::new(format!("Symbol already exist: {}", key), pos))
+            Err(IzeErr::new(format!("Symbol already exists: {}", key), pos))
         }
     }
 }
@@ -46,7 +46,7 @@ pub struct Symbol {
     /// Is imported symbol.
     pub is_imported: IsImported,
     /// Symbol metadata.
-    pub data: SymbolData,
+    pub metadata: SymbolData,
 }
 
 #[derive(Debug)]
@@ -60,24 +60,19 @@ pub enum IsImported {
 }
 
 impl Symbol {
-    /// New Symbol.
-    pub fn new(is_imported: IsImported, data: SymbolData) -> Self {
-        Self { is_imported, data }
-    }
-
     /// New defined (not imported) Symbol.
-    pub fn new_def(data: SymbolData) -> Self {
+    pub fn new_def(metadata: SymbolData) -> Self {
         Self {
             is_imported: IsImported::No,
-            data,
+            metadata,
         }
     }
 
-    /// Default model.
-    pub fn new_imported(real_sym: String, data: SymbolData) -> Self {
+    /// New imported Symbol.
+    pub fn new_imported(real_sym: String, metadata: SymbolData) -> Self {
         Self {
             is_imported: IsImported::Yes { real_sym },
-            data,
+            metadata,
         }
     }
 
@@ -85,7 +80,7 @@ impl Symbol {
     pub fn default_model() -> Self {
         Self {
             is_imported: IsImported::No,
-            data: SymbolData::Model(Default::default()),
+            metadata: SymbolData::Model(Default::default()),
         }
     }
 
@@ -93,7 +88,7 @@ impl Symbol {
     pub fn default_transfer() -> Self {
         Self {
             is_imported: IsImported::No,
-            data: SymbolData::Transfer(Default::default()),
+            metadata: SymbolData::Transfer(Default::default()),
         }
     }
 
@@ -101,7 +96,7 @@ impl Symbol {
     pub fn default_const() -> Self {
         Self {
             is_imported: IsImported::No,
-            data: SymbolData::Const(Default::default()),
+            metadata: SymbolData::Const(Default::default()),
         }
     }
 
@@ -109,7 +104,7 @@ impl Symbol {
     pub fn default_pipe() -> Self {
         Self {
             is_imported: IsImported::No,
-            data: SymbolData::Pipe(Default::default()),
+            metadata: SymbolData::Pipe(Default::default()),
         }
     }
 }
@@ -126,17 +121,17 @@ pub enum SymbolData {
 impl SymbolData {
     /// New constant symbol metadata.
     pub fn new_const(const_type: Type) -> Self {
-        Self::Const(ConstMetadata::Data { const_type })
+        Self::Const(ConstMetadata::Metadata { const_type })
     }
 
     /// New newtype model symbol metadata.
     pub fn new_newtype_model(model_type: Type) -> Self {
-        Self::Model(ModelMetadata::Data(ModelData::Newtype(model_type)))
+        Self::Model(ModelMetadata::Metadata(ModelDataKind::Newtype(model_type)))
     }
 
     /// New struct model symbol metadata.
     pub fn new_struct_model(attributes: FxHashMap<String, (Option<String>, Type)>) -> Self {
-        Self::Model(ModelMetadata::Data(ModelData::Struct { attributes }))
+        Self::Model(ModelMetadata::Metadata(ModelDataKind::Struct { attributes }))
     }
 }
 
@@ -145,12 +140,12 @@ impl SymbolData {
 pub enum ModelMetadata {
     #[default]
     Uninit,
-    Data(ModelData),
+    Metadata(ModelDataKind),
 }
 
-/// Model metadata data.
+/// Model metadata kind.
 #[derive(Debug)]
-pub enum ModelData {
+pub enum ModelDataKind {
     Newtype(Type),
     Struct {
         /// Key = attribute name , Value = (alias, type)
@@ -163,7 +158,7 @@ pub enum ModelData {
 pub enum TransferMetadata {
     #[default]
     Uninit,
-    Data {
+    Metadata {
         //TODO: add metadata
     },
 }
@@ -173,7 +168,7 @@ pub enum TransferMetadata {
 pub enum ConstMetadata {
     #[default]
     Uninit,
-    Data {
+    Metadata {
         const_type: Type,
     },
 }
@@ -183,7 +178,7 @@ pub enum ConstMetadata {
 pub enum PipeMetadata {
     #[default]
     Uninit,
-    Data {
+    Metadata {
         //TODO: add metadata
     },
 }

@@ -32,7 +32,7 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
                 match body {
                     TransferBody::Expression(body_expr) => {
                         //TODO: check expression transfers
-                        let expr_type = expr_type_eval(body_expr)?;
+                        let _expr_type = expr_type_eval(body_expr)?;
                     }
                     //TODO: for struct transfers, check that return type is a struct model and attributes and types match.
                     TransferBody::Struct(_) => todo!("Check struct transfers"),
@@ -181,13 +181,13 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
                 Ok(expr_type)
             }
         },
-        ExpressionKind::Call { ident, args } => {
+        ExpressionKind::Call { ident: _, args: _ } => {
             //TODO: find ident in the ST
             //TODO: If sym is transfer: check that argument types of the call match parameter types of the transfer
             //TODO: If sym is model: check that argument types of the call match parameter types of the model constructor
             todo!("Call expression type evaluator")
         }
-        ExpressionKind::Dot(expr_vec) => {
+        ExpressionKind::Dot(_expr_vec) => {
             //TODO: follow the vec of expressions from pos 0, and eval type of each element.
             //      on each step make sure the next step is something that exists in the previous (attribute or method).
             todo!("Dot expression type evaluator")
@@ -221,10 +221,13 @@ fn literal_type_eval(lit: &Literal) -> Type {
 
 /// Find identifier in the ST and return type.
 fn identifier_type_eval(id: &str) -> Result<Type, IzeErr> {
-    //TODO: Search id in the ST and return type.
-    //      If it's imported symbol, the type must be searched in the original AST. We need a way to reference to the original ST,
-    //      instead of creating a new entry in the current ST that contains all the metadata again.
-    Ok(Type::new(format!("TODO {id}"), vec![]))
+    if is_primitive_type(id) {
+        Ok(Type::new(id.to_owned(), vec![]))
+    } else {
+        //TODO: Check if symbol is a constant or a variable, and return the inner type.
+        //      Otherwise, it's just a type, return it.
+        Ok(Type::new(id.to_owned(), vec![]))
+    }
 }
 
 /// Scan each command and insert an entry into the ST, checking for duplicated symbols and reserved words.
