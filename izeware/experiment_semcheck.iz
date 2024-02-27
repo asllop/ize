@@ -10,6 +10,8 @@ model Event (
 
 model Timestamp Int
 
-transfer my_transfer in:Event -> Str
+traf type_to_str self:Event -> Str
     //in.data.ev_type.inner().type().to_str()
     "Hello"
+
+pipe main ()

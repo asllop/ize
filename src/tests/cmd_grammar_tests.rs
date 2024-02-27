@@ -174,102 +174,102 @@ fn check_const() {
 
 #[test]
 fn check_transfer() {
-    let code = "transfer Suma a:Int, b:Int -> Int a + b";
+    let code = "traf Suma a:Int, b:Int -> Int a + b";
     let cmd = parse_single_cmd(code);
 
     assert_eq!(
         cmd,
         Command::new_transfer_with_expr(
-            Identifier::new("Suma".into(), RangePos::inline_new(0, 9, 13, 9)),
+            Identifier::new("Suma".into(), RangePos::inline_new(0, 5, 9, 5)),
             vec![
                 Expression::new_pair(
                     Expression::new_primary(
                         Primary::Identifier("a".into()),
-                        RangePos::inline_new(0, 14, 15, 14)
+                        RangePos::inline_new(0, 10, 11, 10)
                     )
                     .into(),
                     Expression::new_primary(
                         Primary::Identifier("Int".into()),
-                        RangePos::inline_new(0, 16, 19, 16),
+                        RangePos::inline_new(0, 12, 15, 12),
                     )
                     .into(),
                 ),
                 Expression::new_pair(
                     Expression::new_primary(
                         Primary::Identifier("b".into()),
-                        RangePos::inline_new(0, 21, 22, 21),
+                        RangePos::inline_new(0, 17, 18, 17),
                     )
                     .into(),
                     Expression::new_primary(
                         Primary::Identifier("Int".into()),
-                        RangePos::inline_new(0, 23, 26, 23)
+                        RangePos::inline_new(0, 19, 22, 19)
                     )
                     .into(),
                 )
             ],
             Expression::new_type(
-                Identifier::new("Int".into(), RangePos::inline_new(0, 30, 33, 30)),
+                Identifier::new("Int".into(), RangePos::inline_new(0, 26, 29, 26)),
                 vec![],
-                RangePos::inline_new(0, 30, 33, 30)
+                RangePos::inline_new(0, 26, 29, 26)
             ),
             Expression::new_binary(
                 BinaryOp::Plus,
                 Expression::new_primary(
                     Primary::Identifier("a".into()),
-                    RangePos::inline_new(0, 34, 35, 34)
+                    RangePos::inline_new(0, 30, 31, 30)
                 )
                 .into(),
                 Expression::new_primary(
                     Primary::Identifier("b".into()),
-                    RangePos::inline_new(0, 38, 39, 38)
+                    RangePos::inline_new(0, 34, 35, 34)
                 )
                 .into(),
             ),
-            Pos::new(0, 39, 39) - Pos::new(0, 0, 0)
+            Pos::new(0, 35, 35) - Pos::new(0, 0, 0)
         )
         .into()
     );
 
-    let code = "transfer X -> O (a: 0, b: 1)";
+    let code = "traf X -> O (a: 0, b: 1)";
     let cmd = parse_single_cmd(code);
 
     assert_eq!(
         cmd,
         Command::new_transfer_with_struct(
-            Identifier::new("X".into(), RangePos::inline_new(0, 9, 10, 9)),
+            Identifier::new("X".into(), RangePos::inline_new(0, 5, 6, 5)),
             vec![],
             Expression::new_type(
-                Identifier::new("O".into(), RangePos::inline_new(0, 14, 15, 14)),
+                Identifier::new("O".into(), RangePos::inline_new(0, 10, 11, 10)),
                 vec![],
-                RangePos::inline_new(0, 14, 15, 14)
+                RangePos::inline_new(0, 10, 11, 10)
             ),
             vec![
                 Expression::new_pair(
                     Expression::new_primary(
                         Primary::Identifier("a".into()),
-                        RangePos::inline_new(0, 17, 18, 17)
+                        RangePos::inline_new(0, 13, 14, 13)
                     )
                     .into(),
                     Expression::new_primary(
                         Primary::Literal(Literal::Integer(0)),
-                        RangePos::inline_new(0, 20, 21, 20),
+                        RangePos::inline_new(0, 16, 17, 16),
                     )
                     .into(),
                 ),
                 Expression::new_pair(
                     Expression::new_primary(
                         Primary::Identifier("b".into()),
-                        RangePos::inline_new(0, 23, 24, 23)
+                        RangePos::inline_new(0, 19, 20, 19)
                     )
                     .into(),
                     Expression::new_primary(
                         Primary::Literal(Literal::Integer(1)),
-                        RangePos::inline_new(0, 26, 27, 26),
+                        RangePos::inline_new(0, 22, 23, 22),
                     )
                     .into(),
                 )
             ],
-            Pos::new(0, 28, 28) - Pos::new(0, 0, 0)
+            Pos::new(0, 24, 24) - Pos::new(0, 0, 0)
         )
         .into()
     )

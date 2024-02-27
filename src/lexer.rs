@@ -125,7 +125,7 @@ pub enum TokenKind {
     // Commands
     #[token("model")]
     Model,
-    #[token("transfer")]
+    #[token("traf")]
     Transfer,
     #[token("pipe")]
     Pipe,

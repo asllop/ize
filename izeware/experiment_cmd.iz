@@ -1,20 +1,20 @@
 // Parse commands
 
 // Expression transfer
-transfer Suma a:Int, b:Int -> Int
+traf Suma a:Int, b:Int -> Int
     a + b
 
 // Model transfer
-transfer MyTransfer in:Tuple[A,B] -> C (
+traf MyTransfer in:Tuple[A,B] -> C (
     one: 100,
     two: a+b
 )
 
-transfer HelloWorld -> Str
+traf HelloWorld -> Str
     "Hello, World!\n"
 
 // Transfers with "_" as body are defined with the FFI in Rust.
-transfer Http input:None, config:Request -> Bytes _
+traf Http input:None, config:Request -> Bytes _
 
 // Models with "_" as body are defined with the FFI in Rust.
 model ForeignModel _
@@ -55,13 +55,13 @@ run (
 
 run ()
 
-transfer ExecTransfer fn:Traf[Int,Str] -> Str
+traf ExecTransfer fn:Traf[Int,Str] -> Str
     "Result is = " + fn(100)
 
 run ("Hello, World!\n", Stdout)
 
 // Test unicode identifiers and string literals
-transfer こんにちは _:None -> Str "こんにちは世界！"
+traf こんにちは _:None -> Str "こんにちは世界！"
 run (こんにちは, Stdout)
 
 import NREvent from com.newrelic.models
