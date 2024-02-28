@@ -131,7 +131,9 @@ impl SymbolData {
 
     /// New struct model symbol metadata.
     pub fn new_struct_model(attributes: FxHashMap<String, (Option<String>, Type)>) -> Self {
-        Self::Model(ModelMetadata::Metadata(ModelDataKind::Struct { attributes }))
+        Self::Model(ModelMetadata::Metadata(ModelDataKind::Struct {
+            attributes,
+        }))
     }
 }
 

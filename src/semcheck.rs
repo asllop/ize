@@ -4,7 +4,7 @@
 //!
 //! Semchecking is the last step before code generation.
 
-use alloc::{borrow::ToOwned, string::String};
+use alloc::{borrow::ToOwned, string::String, vec};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -504,7 +504,7 @@ fn stringify_type(ident: &str, subtypes: &[Expression]) -> Result<String, IzeErr
     Ok(serialized)
 }
 
-/// Search a symbo in an AST and returns the symbol kind if it is found.
+/// Search a symbol in an AST and returns the symbol kind if it's found.
 fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Result<Option<SymbolData>, IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
@@ -547,7 +547,16 @@ fn build_const_symbol_data(lit: &Literal) -> SymbolData {
 fn build_model_symbol_data(body: &ModelBody) -> Result<SymbolData, IzeErr> {
     match body {
         ModelBody::Type(model_expr) => {
-            let model_type = expr_type_eval(model_expr)?;
+            let model_type = match &model_expr.kind {
+                ExpressionKind::Primary(Primary::Identifier(id)) => {
+                    Ok(Type::new(id.clone(), vec![]))
+                }
+                ExpressionKind::Type { .. } => model_expr.try_into(),
+                _ => Err(IzeErr::new(
+                    "Model type must be either a Type expression or an Identifier".into(),
+                    model_expr.pos,
+                )),
+            }?;
             Ok(SymbolData::new_newtype_model(model_type))
         }
         ModelBody::Struct(model_struct) => {
