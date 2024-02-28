@@ -4,8 +4,8 @@
 //!
 //! - Chain: `a;b;c`
 //! - Let: `let var a`
-//! - Binary - Equality: `a == b`
 //! - Binary - Comparison: `a > b`
+//! - Binary - Equality: `a == b`
 //! - Binary - Logic: `a & b`
 //! - Binary - Term: `a + b`
 //! - Binary - Factor: `a * b`
@@ -100,7 +100,7 @@ pub fn expr_let(input: &[Token]) -> IzeResult {
         |input, e| {
             match e.id {
                 // Precedence
-                1 => expr_equality(input),
+                1 => expr_comparison(input),
                 // Errors
                 2 => Err(IzeErr::new(
                     "Let expression, expected identifier after 'let'".into(),
@@ -118,28 +118,12 @@ pub fn expr_let(input: &[Token]) -> IzeResult {
     )
 }
 
-/// Parse a Equality Binary expression.
-pub fn expr_equality(input: &[Token]) -> IzeResult {
-    def_grammar(
-        input,
-        &[
-            Fun(expr_comparison, 1),
-            Zero(&[
-                Sel(&[Key(TokenKind::TwoEquals, 2), Key(TokenKind::NotEqual, 2)]),
-                Fun(expr_comparison, 3),
-            ]),
-        ],
-        binary_expr_success,
-        binary_expr_error,
-    )
-}
-
 /// Parse a Comparison Binary expression.
 pub fn expr_comparison(input: &[Token]) -> IzeResult {
     def_grammar(
         input,
         &[
-            Fun(expr_logic, 1),
+            Fun(expr_equality, 1),
             Zero(&[
                 Sel(&[
                     Key(TokenKind::GreaterThan, 2),
@@ -149,6 +133,22 @@ pub fn expr_comparison(input: &[Token]) -> IzeResult {
                     Key(TokenKind::TwoAnds, 2),
                     Key(TokenKind::TwoOrs, 2),
                 ]),
+                Fun(expr_equality, 3),
+            ]),
+        ],
+        binary_expr_success,
+        binary_expr_error,
+    )
+}
+
+/// Parse a Equality Binary expression.
+pub fn expr_equality(input: &[Token]) -> IzeResult {
+    def_grammar(
+        input,
+        &[
+            Fun(expr_logic, 1),
+            Zero(&[
+                Sel(&[Key(TokenKind::TwoEquals, 2), Key(TokenKind::NotEqual, 2)]),
                 Fun(expr_logic, 3),
             ]),
         ],
