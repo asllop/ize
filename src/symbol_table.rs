@@ -19,9 +19,9 @@ impl SymbolTable {
     /// Check if identifier is present in the ST and and is a model.
     pub fn contains_model(&self, id: &str) -> bool {
         if self.symbols.contains_key(id) {
-            match self.symbols[id].metadata  {
+            match self.symbols[id].metadata {
                 SymbolData::Model(_) | SymbolData::Imported(_) => true,
-                _ => false
+                _ => false,
             }
         } else {
             false
@@ -49,9 +49,7 @@ pub struct Symbol {
 impl Symbol {
     /// New defined (not imported) Symbol.
     pub fn new_def(metadata: SymbolData) -> Self {
-        Self {
-            metadata,
-        }
+        Self { metadata }
     }
 
     /// New imported Symbol.

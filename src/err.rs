@@ -32,4 +32,9 @@ impl IzeErr {
     pub fn new(message: String, pos: RangePos) -> Self {
         IzeErr { message, pos }
     }
+
+    /// Build a new error encapsulated into a Result.
+    pub fn err<T>(message: String, pos: RangePos) -> Result<T, Self> {
+        Err(Self::new(message, pos))
+    }
 }

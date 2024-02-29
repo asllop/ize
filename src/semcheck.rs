@@ -9,8 +9,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     ast::{
-        Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Literal, ModelBody,
-        Primary, TransferBody, UnaryOp,
+        Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Identifier, Literal,
+        ModelBody, Primary, TransferBody, UnaryOp,
     },
     err::IzeErr,
     pos::RangePos,
@@ -28,17 +28,12 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
             CommandKind::Model { body, .. } => check_model(body, &mut sym_tab)?,
-            CommandKind::Transfer { body, .. } => {
-                //TODO: check that parameters types and return type actually exist
-                match body {
-                    TransferBody::Expression(body_expr) => {
-                        //TODO: check expression transfers
-                        let _expr_type = expr_type_eval(body_expr)?;
-                    }
-                    //TODO: for struct transfers, check that return type is a struct model and attributes and types match.
-                    TransferBody::Struct(_) => todo!("Check struct transfers"),
-                }
-            }
+            CommandKind::Transfer {
+                ident,
+                params,
+                return_type,
+                body,
+            } => check_transfer(ident, params, return_type, body, &mut sym_tab)?,
             CommandKind::Pipe { .. } => {}
             CommandKind::Run(_) => {}
             _ => {}
@@ -293,11 +288,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
             //PROBLEM: how can we access the ST of imported modules? We have to include it in the AST struct or create a higher level struct that containsd both, the AST and the ST.
 
             // Insert impored symbol into the Symbol Table, or return an error if it's duplicated.
-            sym_tab.insert(
-                sym,
-                Symbol::new_imported(real_sym),
-                import_ref.pos,
-            )?;
+            sym_tab.insert(sym, Symbol::new_imported(real_sym), import_ref.pos)?;
         } else {
             return Err(IzeErr::new(
                 format!(
@@ -390,6 +381,81 @@ fn check_model(body: &ModelBody, sym_tab: &mut SymbolTable) -> Result<(), IzeErr
                 }
             }
         }
+    }
+    Ok(())
+}
+
+/// Transfer check.
+/// - Check parameter types.
+/// - Check return type.
+/// - Check unique parameter names.
+/// - TODO: Check body integrity: expression types and struct integrity.
+fn check_transfer(
+    _ident: &Identifier,
+    params: &[Expression],
+    return_type: &Expression,
+    body: &TransferBody,
+    sym_tab: &mut SymbolTable,
+) -> Result<(), IzeErr> {
+    // Check parameters: type and uniqueness.
+    let mut param_names = FxHashSet::default();
+    for param_expr in params {
+        if let ExpressionKind::Pair { left, alias, right } = &param_expr.kind {
+            if let Some(alias) = alias {
+                IzeErr::err(
+                    "Pair expression when used as transfer parameter can't contain an alias".into(),
+                    alias.pos,
+                )?
+            }
+            if let ExpressionKind::Primary(Primary::Identifier(param_name)) = &left.kind {
+                if param_names.contains(param_name) {
+                    IzeErr::err(format!("Duplicated parameter name: {param_name}"), left.pos)?
+                } else {
+                    param_names.insert(param_name.clone());
+                }
+            } else {
+                IzeErr::err("Parameter name must be an identifier".into(), left.pos)?
+            }
+            match &right.kind {
+                ExpressionKind::Primary(Primary::Identifier(id)) => {
+                    check_type_exists(id, None, sym_tab, right.pos)?
+                }
+                ExpressionKind::Type { ident, subtypes } => {
+                    check_type_exists(&ident.id, Some(subtypes), sym_tab, right.pos)?
+                }
+                _ => IzeErr::err(
+                    "Parameter type must be a Type expression or an identifier".into(),
+                    left.pos,
+                )?,
+            }
+        } else {
+            IzeErr::err(
+                "Transfer parameters must be Pair expressions".into(),
+                param_expr.pos,
+            )?
+        }
+    }
+    // Check return type
+    match &return_type.kind {
+        ExpressionKind::Primary(Primary::Identifier(id)) => {
+            check_type_exists(id, None, sym_tab, return_type.pos)?
+        }
+        ExpressionKind::Type { ident, subtypes } => {
+            check_type_exists(&ident.id, Some(subtypes), sym_tab, return_type.pos)?
+        }
+        _ => IzeErr::err(
+            "Return type must be a Type expression or an identifier".into(),
+            return_type.pos,
+        )?,
+    }
+    // Check body
+    match body {
+        TransferBody::Expression(body_expr) => {
+            //TODO: check expression transfers
+            let _expr_type = expr_type_eval(body_expr)?;
+        }
+        //TODO: for struct transfers, check that return type is a struct model and attributes and types match.
+        TransferBody::Struct(_) => todo!("Check struct transfers"),
     }
     Ok(())
 }
