@@ -29,6 +29,7 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
         match &cmd.kind {
             CommandKind::Model { body, .. } => check_model(body, &mut sym_tab)?,
             CommandKind::Transfer { body, .. } => {
+                //TODO: check that parameters types and return type actually exist
                 match body {
                     TransferBody::Expression(body_expr) => {
                         //TODO: check expression transfers
@@ -221,16 +222,11 @@ fn literal_type_eval(lit: &Literal) -> Type {
 
 /// Find identifier in the ST and return type.
 fn identifier_type_eval(id: &str) -> Result<Type, IzeErr> {
-    if is_primitive_type(id) {
-        Ok(Type::new(id.to_owned(), vec![]))
-    } else {
-        //TODO: Check if symbol is a constant or a variable, and return the inner type.
-        //      Otherwise, it's just a type, return it.
-        Ok(Type::new(id.to_owned(), vec![]))
-    }
+    //TODO: Check if identifier is a constant, variable or transfer parameter, and return the inner type.
+    todo!("identifier_type_eval {id}")
 }
 
-/// Scan each command and insert an entry into the ST, checking for duplicated symbols and reserved words.
+/// Scan each command and insert an entry into the ST, checking for duplicated symbols, reserved words and signature types.
 fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
@@ -277,7 +273,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
         }
         let import_ast = &ast.imports[import_ref.ast_index];
         // Check that imported symbol actually exists in the imported AST.
-        if let Some(sym_data) = find_symbol_in_ast(sym, import_ast)? {
+        if let Some(_sym_data) = find_imported_symbol(sym, import_ast)? {
             let real_sym = sym.clone();
             let sym = if let Some(rename) = &import_ref.rename {
                 if is_reserved_word(rename) {
@@ -290,10 +286,16 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
             } else {
                 sym.clone()
             };
+
+            //TODO: when we add imported symbol to the ST, we need a reference to the original AST / ST.
+            //      Otherwise we won't be able to resolve references to types, because those types are define in the original AST.
+            //      Also, we can avoid adding the metadata again, we will have it already in the original ST.
+            //PROBLEM: how can we access the ST of imported modules? We have to include it in the AST struct or create a higher level struct that containsd both, the AST and the ST.
+
             // Insert impored symbol into the Symbol Table, or return an error if it's duplicated.
             sym_tab.insert(
                 sym,
-                Symbol::new_imported(real_sym, sym_data),
+                Symbol::new_imported(real_sym),
                 import_ref.pos,
             )?;
         } else {
@@ -504,30 +506,32 @@ fn stringify_type(ident: &str, subtypes: &[Expression]) -> Result<String, IzeErr
     Ok(serialized)
 }
 
-/// Search a symbol in an AST and returns the symbol kind if it's found.
-fn find_symbol_in_ast(sym: &str, ast: &Ast) -> Result<Option<SymbolData>, IzeErr> {
+/// Search a symbol in an imported AST and returns the symbol kind if it's found.
+fn find_imported_symbol(sym: &str, ast: &Ast) -> Result<Option<SymbolData>, IzeErr> {
     for cmd in &ast.commands {
         match &cmd.kind {
             CommandKind::Transfer { ident, .. } => {
                 if ident.id == sym {
-                    //TODO: add metadata to symbol
-                    return Ok(Some(SymbolData::Transfer(Default::default())));
+                    //TODO: add imported metadata (original AST and ST)
+                    return Ok(Some(SymbolData::Imported(Default::default())));
                 }
             }
-            CommandKind::Model { ident, body } => {
+            CommandKind::Model { ident, .. } => {
                 if ident.id == sym {
-                    return Ok(Some(build_model_symbol_data(body)?));
+                    //TODO: add imported metadata (original AST and ST)
+                    return Ok(Some(SymbolData::Imported(Default::default())));
                 }
             }
             CommandKind::Pipe { ident, .. } => {
                 if ident.id == sym {
-                    //TODO: add metadata to symbol
-                    return Ok(Some(SymbolData::Pipe(Default::default())));
+                    //TODO: add imported metadata (original AST and ST)
+                    return Ok(Some(SymbolData::Imported(Default::default())));
                 }
             }
-            CommandKind::Const { ident, value } => {
+            CommandKind::Const { ident, .. } => {
                 if ident.id == sym {
-                    return Ok(Some(build_const_symbol_data(value)));
+                    //TODO: add imported metadata (original AST and ST)
+                    return Ok(Some(SymbolData::Imported(Default::default())));
                 }
             }
             CommandKind::Run(_) => {}

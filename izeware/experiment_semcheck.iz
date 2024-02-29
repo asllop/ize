@@ -10,8 +10,11 @@ model Event (
 
 model Timestamp Int
 
-traf type_to_str self:Event -> Str
-    //in.data.ev_type.inner().type().to_str()
-    "Hello"
+//traf type_to_str self:Event -> Str
+//    in.data.ev_type.inner().type().to_str()
+
+traf create_map -> Mux[Int,Float,Str]
+    // This returns Mux[Str,Int] which is compatible with the traf return type Mux[Int,Float,Str]
+    if (10 == 10 && 1 != 0) "hello" else 100
 
 pipe main ()

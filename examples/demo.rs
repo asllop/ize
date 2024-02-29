@@ -32,7 +32,7 @@ fn main() {
 fn recursive_check_ast(ast: &Ast) {
     let symtab = semcheck::check_ast(&ast).expect("Error semchecking the AST");
 
-    println!("\n========== SEMCHECKER ==========\n\n");
+    println!("\n========== SEMCHECKER {} ==========\n\n", ast.file_path);
     println!("Symbol table = {:#?}", symtab);
 
     for import_ast in &ast.imports {
