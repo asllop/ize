@@ -19,10 +19,7 @@ impl SymbolTable {
     /// Check if identifier is present in the ST and and is a model.
     pub fn contains_model(&self, id: &str) -> bool {
         if self.symbols.contains_key(id) {
-            match self.symbols[id].metadata {
-                SymbolData::Model(_) | SymbolData::Imported(_) => true,
-                _ => false,
-            }
+            matches!(self.symbols[id].metadata, SymbolData::Model(_) | SymbolData::Imported(_))
         } else {
             false
         }

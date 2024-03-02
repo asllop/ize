@@ -288,7 +288,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
             //PROBLEM: how can we access the ST of imported modules? We have to include it in the AST struct or create a higher level struct that containsd both, the AST and the ST.
 
             // Insert impored symbol into the Symbol Table, or return an error if it's duplicated.
-            sym_tab.insert(sym.into(), Symbol::new_imported(real_sym.into()), import_ref.pos)?;
+            sym_tab.insert(sym, Symbol::new_imported(real_sym), import_ref.pos)?;
         } else {
             return Err(IzeErr::new(
                 format!(
@@ -635,11 +635,7 @@ fn build_model_symbol_data(body: &ModelBody) -> Result<SymbolData, IzeErr> {
                 if let ExpressionKind::Pair { left, alias, right } = &pair_expr.kind {
                     if let ExpressionKind::Primary(Primary::Identifier(attr_name)) = &left.kind {
                         let pair_type: Type = right.as_ref().try_into()?;
-                        let alias = if let Some(alias) = alias {
-                            Some(alias.id.clone())
-                        } else {
-                            None
-                        };
+                        let alias = alias.as_ref().map(|alias| alias.id.clone());
                         attributes.insert(attr_name.clone(), (alias, pair_type));
                     } else {
                         return Err(IzeErr::new("Expected an attribute name".into(), left.pos));
