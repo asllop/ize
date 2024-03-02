@@ -6,12 +6,12 @@ use std::{
 };
 
 use ize::{
+    FxHashMap,
     ast::{Ast, Command, CommandKind, ExpressionKind, ImportRef, ImportSymbol, Primary},
     grammar_cmd, lexer,
     pos::RangePos,
     semcheck,
 };
-use rustc_hash::FxHashMap;
 
 //TODO: detect import cycles.
 //TODO: move all this code into the crate, we could call it "loader" module. Only leave the file read here and absolute path.

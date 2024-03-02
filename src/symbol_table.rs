@@ -1,9 +1,9 @@
 //! # Symbol Table
 
+use core::hash::Hash;
 use alloc::{string::String, vec::Vec};
-use rustc_hash::{FxHashMap, FxHashSet};
-
 use crate::{
+    FxHashMap,
     ast::{Expression, ExpressionKind, Primary},
     err::IzeErr,
     pos::RangePos,
@@ -173,7 +173,8 @@ pub struct ImportedMetadata {
     //TODO: add ref to original AST and ST
 }
 
-#[derive(Debug, Eq, Hash)]
+//NOTE: Given this default implementation of PartialEq, Mux[Int,Str] != Mux[Str,Int]
+#[derive(Debug, PartialEq, Eq, Hash)]
 /// Type representation.
 pub struct Type {
     pub ident: String,
@@ -203,24 +204,33 @@ impl TryFrom<&Expression> for Type {
     }
 }
 
-// Custom PartialEq: in the case of a Mux, types can be in different orders: Mux[Int,Str] == Mux[Str,Int]
-impl PartialEq for Type {
-    fn eq(&self, other: &Self) -> bool {
-        if self.ident == other.ident {
-            let mut self_subtype_set = FxHashSet::default();
-            for subtype in &self.subtypes {
-                self_subtype_set.insert(subtype);
-            }
-            let mut other_subtype_set = FxHashSet::default();
-            for subtype in &other.subtypes {
-                other_subtype_set.insert(subtype);
-            }
-            self.subtypes == other.subtypes
-        } else {
-            false
-        }
-    }
-}
+//NOTE: this implementation doesn't work
+
+// // Custom PartialEq: in the case of a Mux, types can be in different orders: Mux[Int,Str] == Mux[Str,Int]
+// impl PartialEq for Type {
+//     fn eq(&self, other: &Self) -> bool {
+//         if self.ident == other.ident {
+//             let mut self_subtype_set = FxHashSet::default();
+//             for subtype in &self.subtypes {
+//                 self_subtype_set.insert(subtype);
+//             }
+//             let mut other_subtype_set = FxHashSet::default();
+//             for subtype in &other.subtypes {
+//                 other_subtype_set.insert(subtype);
+//             }
+//             self.subtypes == other.subtypes
+//         } else {
+//             false
+//         }
+//     }
+// }
+
+// // Manually implement hash to assert that: IF k1 == k2 THEN hash(k1) == hash(k2)
+// impl Hash for Type {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         self.ident.hash(state);
+//     }
+// }
 
 pub const STR_TYPE: &str = "Str";
 pub const INT_TYPE: &str = "Int";

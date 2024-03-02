@@ -41,6 +41,16 @@
 #[macro_use]
 extern crate alloc;
 
+use hashbrown::{HashMap, HashSet};
+use rustc_hash::FxHasher;
+use core::hash::BuildHasherDefault;
+
+/// Type alias for a hashmap using the `fx` hash algorithm.
+pub type FxHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FxHasher>>;
+
+/// Type alias for a hashmap using the `fx` hash algorithm.
+pub type FxHashSet<V> = HashSet<V, BuildHasherDefault<FxHasher>>;
+
 /// Position types.
 pub mod pos;
 

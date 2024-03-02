@@ -5,12 +5,11 @@
 //! Semchecking is the last step before code generation.
 
 use alloc::{borrow::ToOwned, string::String, vec};
-use rustc_hash::{FxHashMap, FxHashSet};
-
 use crate::{
+    FxHashMap, FxHashSet,
     ast::{
-        Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Identifier, Literal,
-        ModelBody, Primary, TransferBody, UnaryOp,
+        Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Literal, ModelBody,
+        Primary, TransferBody, UnaryOp,
     },
     err::IzeErr,
     pos::RangePos,
@@ -29,11 +28,11 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
         match &cmd.kind {
             CommandKind::Model { body, .. } => check_model(body, &mut sym_tab)?,
             CommandKind::Transfer {
-                ident,
                 params,
                 return_type,
                 body,
-            } => check_transfer(ident, params, return_type, body, &mut sym_tab)?,
+                ..
+            } => check_transfer(params, return_type, body, &mut sym_tab)?,
             CommandKind::Pipe { .. } => {}
             CommandKind::Run(_) => {}
             _ => {}
@@ -177,6 +176,7 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
                 Ok(expr_type)
             }
         },
+        ExpressionKind::Type { .. } => expr.try_into(),
         ExpressionKind::Call { ident: _, args: _ } => {
             //TODO: find ident in the ST
             //TODO: If sym is transfer: check that argument types of the call match parameter types of the transfer
@@ -190,7 +190,7 @@ fn expr_type_eval(expr: &Expression) -> Result<Type, IzeErr> {
         }
         ExpressionKind::SelectUnwrap { .. } => todo!("Select/Unwrap expression type evaluator"),
         ExpressionKind::Arm { .. } => todo!("Arm expression type evaluator"),
-        ExpressionKind::Type { .. } => expr.try_into(),
+
         // Invalid expressions, don't evaluate into a type.
         ExpressionKind::Pair { .. } => Err(IzeErr::new(
             "Illegal expression, Pair expression can't be used here".into(),
@@ -288,7 +288,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
             //PROBLEM: how can we access the ST of imported modules? We have to include it in the AST struct or create a higher level struct that containsd both, the AST and the ST.
 
             // Insert impored symbol into the Symbol Table, or return an error if it's duplicated.
-            sym_tab.insert(sym, Symbol::new_imported(real_sym), import_ref.pos)?;
+            sym_tab.insert(sym.into(), Symbol::new_imported(real_sym.into()), import_ref.pos)?;
         } else {
             return Err(IzeErr::new(
                 format!(
@@ -391,7 +391,6 @@ fn check_model(body: &ModelBody, sym_tab: &mut SymbolTable) -> Result<(), IzeErr
 /// - Check unique parameter names.
 /// - TODO: Check body integrity: expression types and struct integrity.
 fn check_transfer(
-    _ident: &Identifier,
     params: &[Expression],
     return_type: &Expression,
     body: &TransferBody,
@@ -487,7 +486,8 @@ fn check_type_exists(
             // Map must contain two subtypes, and the first must be Str or Int.
             // NOTE: we would like to use any type as a key, but we can't use floats or anything that contains a float:
             // https://stackoverflow.com/questions/39638363/how-can-i-use-a-hashmap-with-f64-as-key-in-rust
-            // In the future, we could improve it and use types without floats, but meanwhile we only allow Str and Int.
+            // In the future, we could improve it and use types without floats, but in the meantime we only allow Str and Int.
+            // (we could also allow Bool, None and Null, but it doesn't make any sense).
             MAP_TYPE => {
                 if subtypes.len() != 2 {
                     return Err(IzeErr::new(
