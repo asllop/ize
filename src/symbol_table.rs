@@ -1,13 +1,13 @@
 //! # Symbol Table
 
-use core::hash::Hash;
-use alloc::{string::String, vec::Vec};
 use crate::{
-    FxHashMap,
     ast::{Expression, ExpressionKind, Primary},
     err::IzeErr,
     pos::RangePos,
+    FxHashMap,
 };
+use alloc::{string::String, vec::Vec};
+use core::hash::Hash;
 
 #[derive(Debug, Default)]
 /// Symbol Table, associate each identifier in the code with a [Symbol] object.
@@ -19,7 +19,10 @@ impl SymbolTable {
     /// Check if identifier is present in the ST and and is a model.
     pub fn contains_model(&self, id: &str) -> bool {
         if self.symbols.contains_key(id) {
-            matches!(self.symbols[id].metadata, SymbolData::Model(_) | SymbolData::Imported(_))
+            matches!(
+                self.symbols[id].metadata,
+                SymbolData::Model(_) | SymbolData::Imported(_)
+            )
         } else {
             false
         }
@@ -32,6 +35,18 @@ impl SymbolTable {
             Ok(())
         } else {
             Err(IzeErr::new(format!("Symbol already exists: {}", key), pos))
+        }
+    }
+
+    /// Update entry in the ST.
+    pub fn update(&mut self, key: &str, metadata: SymbolData, pos: RangePos) -> Result<(), IzeErr> {
+        if self.symbols.contains_key(key) {
+            let (k, mut v) = self.symbols.remove_entry(key).expect("msg");
+            v.metadata = metadata;
+            self.symbols.insert(k, v);
+            Ok(())
+        } else {
+            IzeErr::err(format!("Symbol not found: {}", key), pos)
         }
     }
 }
@@ -112,6 +127,11 @@ impl SymbolData {
             attributes,
         }))
     }
+
+    /// New transfer symbol metadata.
+    pub fn new_traf(params: FxHashMap<String, Type>, ret: Type) -> Self {
+        Self::Transfer(TransferMetadata::Metadata { params, ret })
+    }
 }
 
 /// Model metadata.
@@ -138,7 +158,10 @@ pub enum TransferMetadata {
     #[default]
     Uninit,
     Metadata {
-        //TODO: add metadata
+        /// Parameters. Key = name , Value = type.
+        params: FxHashMap<String, Type>,
+        /// Return type.
+        ret: Type,
     },
 }
 
@@ -201,7 +224,7 @@ impl TryFrom<&Expression> for Type {
     }
 }
 
-//NOTE: this implementation doesn't work
+//NOTE: this implementation doesn't work. Maybe implement PartialOrd to sort the array of subtypes and then hash/compare it.
 
 // // Custom PartialEq: in the case of a Mux, types can be in different orders: Mux[Int,Str] == Mux[Str,Int]
 // impl PartialEq for Type {

@@ -4,17 +4,17 @@
 //!
 //! Semchecking is the last step before code generation.
 
-use alloc::{borrow::ToOwned, string::String, vec};
 use crate::{
-    FxHashMap, FxHashSet,
     ast::{
-        Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Literal, ModelBody,
-        Primary, TransferBody, UnaryOp,
+        Ast, BinaryOp, Command, CommandKind, Expression, ExpressionKind, Identifier, Literal,
+        ModelBody, Primary, TransferBody, UnaryOp,
     },
     err::IzeErr,
     pos::RangePos,
     symbol_table::*,
+    FxHashMap, FxHashSet,
 };
+use alloc::{borrow::ToOwned, string::String, vec};
 
 /// Check AST validity.
 pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
@@ -28,11 +28,11 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
         match &cmd.kind {
             CommandKind::Model { body, .. } => check_model(body, &mut sym_tab)?,
             CommandKind::Transfer {
+                ident,
                 params,
                 return_type,
                 body,
-                ..
-            } => check_transfer(params, return_type, body, &mut sym_tab)?,
+            } => check_transfer(ident, params, return_type, body, &mut sym_tab)?,
             CommandKind::Pipe { .. } => {}
             CommandKind::Run(_) => {}
             _ => {}
@@ -234,7 +234,6 @@ fn insert_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), IzeErr> {
             CommandKind::Transfer { ident, .. } => {
                 let sym = ident.id.clone();
                 check_is_reserved_word(&sym, cmd.pos)?;
-                //TODO: add metadata to ST entry
                 sym_tab.insert(sym.clone(), Symbol::default_transfer(), cmd.pos)?;
             }
             CommandKind::Pipe { ident, .. } => {
@@ -391,13 +390,14 @@ fn check_model(body: &ModelBody, sym_tab: &mut SymbolTable) -> Result<(), IzeErr
 /// - Check unique parameter names.
 /// - TODO: Check body integrity: expression types and struct integrity.
 fn check_transfer(
+    ident: &Identifier,
     params: &[Expression],
     return_type: &Expression,
     body: &TransferBody,
     sym_tab: &mut SymbolTable,
 ) -> Result<(), IzeErr> {
-    // Check parameters: type and uniqueness.
-    let mut param_names = FxHashSet::default();
+    // Check parameters: type and name uniqueness.
+    let mut param_names_types = FxHashMap::default();
     for param_expr in params {
         if let ExpressionKind::Pair { left, alias, right } = &param_expr.kind {
             if let Some(alias) = alias {
@@ -406,26 +406,30 @@ fn check_transfer(
                     alias.pos,
                 )?
             }
-            if let ExpressionKind::Primary(Primary::Identifier(param_name)) = &left.kind {
-                if param_names.contains(param_name) {
-                    IzeErr::err(format!("Duplicated parameter name: {param_name}"), left.pos)?
-                } else {
-                    param_names.insert(param_name.clone());
-                }
-            } else {
-                IzeErr::err("Parameter name must be an identifier".into(), left.pos)?
-            }
-            match &right.kind {
+            // Check parameter type
+            let param_type = match &right.kind {
                 ExpressionKind::Primary(Primary::Identifier(id)) => {
-                    check_type_exists(id, None, sym_tab, right.pos)?
+                    check_type_exists(id, None, sym_tab, right.pos)?;
+                    Type::try_from(right.as_ref())?
                 }
                 ExpressionKind::Type { ident, subtypes } => {
-                    check_type_exists(&ident.id, Some(subtypes), sym_tab, right.pos)?
+                    check_type_exists(&ident.id, Some(subtypes), sym_tab, right.pos)?;
+                    Type::try_from(right.as_ref())?
                 }
                 _ => IzeErr::err(
                     "Parameter type must be a Type expression or an identifier".into(),
                     left.pos,
                 )?,
+            };
+            // Check that parameter name is unique
+            if let ExpressionKind::Primary(Primary::Identifier(param_name)) = &left.kind {
+                if param_names_types.contains_key(param_name) {
+                    IzeErr::err(format!("Duplicated parameter name: {param_name}"), left.pos)?
+                } else {
+                    param_names_types.insert(param_name.clone(), param_type);
+                }
+            } else {
+                IzeErr::err("Parameter name must be an identifier".into(), left.pos)?
             }
         } else {
             IzeErr::err(
@@ -435,18 +439,26 @@ fn check_transfer(
         }
     }
     // Check return type
-    match &return_type.kind {
+    let ret_type = match &return_type.kind {
         ExpressionKind::Primary(Primary::Identifier(id)) => {
-            check_type_exists(id, None, sym_tab, return_type.pos)?
+            check_type_exists(id, None, sym_tab, return_type.pos)?;
+            Type::try_from(return_type)?
         }
         ExpressionKind::Type { ident, subtypes } => {
-            check_type_exists(&ident.id, Some(subtypes), sym_tab, return_type.pos)?
+            check_type_exists(&ident.id, Some(subtypes), sym_tab, return_type.pos)?;
+            Type::try_from(return_type)?
         }
         _ => IzeErr::err(
             "Return type must be a Type expression or an identifier".into(),
             return_type.pos,
         )?,
-    }
+    };
+    // Update ST with transfer metadata
+    sym_tab.update(
+        &ident.id,
+        SymbolData::new_traf(param_names_types, ret_type),
+        ident.pos,
+    )?;
     // Check body
     match body {
         TransferBody::Expression(body_expr) => {

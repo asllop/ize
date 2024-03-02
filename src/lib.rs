@@ -41,9 +41,9 @@
 #[macro_use]
 extern crate alloc;
 
+use core::hash::BuildHasherDefault;
 use hashbrown::{HashMap, HashSet};
 use rustc_hash::FxHasher;
-use core::hash::BuildHasherDefault;
 
 /// Type alias for a hashmap using the `fx` hash algorithm.
 pub type FxHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FxHasher>>;

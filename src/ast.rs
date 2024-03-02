@@ -2,8 +2,8 @@
 //!
 //! Types and method to construct and store an AST.
 
-use alloc::{boxed::Box, string::String, vec::Vec};
 use crate::FxHashMap;
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
     err::IzeErr,

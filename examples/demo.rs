@@ -6,11 +6,10 @@ use std::{
 };
 
 use ize::{
-    FxHashMap,
     ast::{Ast, Command, CommandKind, ExpressionKind, ImportRef, ImportSymbol, Primary},
     grammar_cmd, lexer,
     pos::RangePos,
-    semcheck,
+    semcheck, FxHashMap,
 };
 
 //TODO: detect import cycles.
