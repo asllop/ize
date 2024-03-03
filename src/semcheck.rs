@@ -556,31 +556,25 @@ fn check_type_exists(
     Ok(())
 }
 
-//TODO: rewrite this using split_last:
-// https://users.rust-lang.org/t/how-to-check-whether-this-is-the-last-item-in-an-iterator/105612/3
-// https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=f95a7586388b9bab06d2b66674227177
 /// Convert type expression into string representation.
 fn stringify_type(ident: &str, subtypes: &[Expression]) -> Result<String, IzeErr> {
-    let mut serialized = ident.to_owned() + "[";
-    for (index, subtype_expr) in subtypes.iter().enumerate() {
-        if let ExpressionKind::Type {
-            ident,
-            subtypes: next_subtype,
-        } = &subtype_expr.kind
-        {
-            let s = stringify_type(&ident.id, next_subtype)?;
-            serialized += s.as_str();
-            if index < subtypes.len() - 1 {
-                serialized += ",";
-            }
+    let type_expr_into_str = |expr: &Expression| {
+        if let ExpressionKind::Type { ident, subtypes } = &expr.kind {
+            Ok(stringify_type(&ident.id, subtypes)?)
         } else {
-            return Err(IzeErr::new(
-                "Subtypes must be Type expressions".into(),
-                subtype_expr.pos,
-            ));
+            IzeErr::err("Subtypes must be Type expressions".into(), expr.pos)
         }
+    };
+    let mut serialized = ident.to_owned();
+    if let Some((last, rest)) = subtypes.split_last() {
+        serialized += "[";
+        for expr in rest {
+            serialized += type_expr_into_str(expr)?.as_str();
+            serialized += ",";
+        }
+        serialized += type_expr_into_str(last)?.as_str();
+        serialized += "]";
     }
-    serialized += "]";
     Ok(serialized)
 }
 
@@ -856,3 +850,65 @@ Expressions:
 */
 //- Expression Type Evaluator (ETE), given an expression, calculate the resulting type. It requires a ST already filled with explicit type symbols.
 //- Use the ETE to fill the ST with non-explicit type symbols (lets).
+
+#[cfg(test)]
+/// Test unexposed functions.
+mod private_tests {
+    use crate::{
+        ast::{Expression, Identifier},
+        pos::RangePos,
+    };
+
+    use super::stringify_type;
+
+    #[test]
+    fn test_stringify_type() {
+        let type_str = stringify_type("Str", &[]).unwrap();
+        assert_eq!(type_str, "Str");
+
+        let type_str = stringify_type(
+            "List",
+            &[Expression::new_type(
+                Identifier::new("Mux".into(), RangePos::default()),
+                vec![
+                    Expression::new_type(
+                        Identifier::new("Int".into(), RangePos::default()),
+                        vec![],
+                        RangePos::default(),
+                    ),
+                    Expression::new_type(
+                        Identifier::new("Str".into(), RangePos::default()),
+                        vec![],
+                        RangePos::default(),
+                    ),
+                ],
+                RangePos::default(),
+            )],
+        )
+        .unwrap();
+        assert_eq!(type_str, "List[Mux[Int,Str]]");
+
+        let type_str = stringify_type(
+            "Mux",
+            &[
+                Expression::new_type(
+                    Identifier::new("Int".into(), RangePos::default()),
+                    vec![],
+                    RangePos::default(),
+                ),
+                Expression::new_type(
+                    Identifier::new("Str".into(), RangePos::default()),
+                    vec![],
+                    RangePos::default(),
+                ),
+                Expression::new_type(
+                    Identifier::new("Float".into(), RangePos::default()),
+                    vec![],
+                    RangePos::default(),
+                ),
+            ],
+        )
+        .unwrap();
+        assert_eq!(type_str, "Mux[Int,Str,Float]");
+    }
+}
