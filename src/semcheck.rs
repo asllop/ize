@@ -21,6 +21,8 @@ pub fn check_ast(ast: &Ast) -> Result<SymbolTable, IzeErr> {
     let mut sym_tab = SymbolTable::default();
 
     check_imported_symbols(ast, &mut sym_tab)?;
+    // We have to traverse the AST first and insert all symbols in the ST,
+    // so the next time we can check if the symbols is duplicated or a reference to another symbol is correct.
     insert_symbols(ast, &mut sym_tab)?;
 
     // Check commands in the order they appear.
@@ -282,7 +284,7 @@ fn check_imported_symbols(ast: &Ast, sym_tab: &mut SymbolTable) -> Result<(), Iz
             };
 
             //TODO: when we add imported symbol to the ST, we need a reference to the original AST / ST.
-            //      Otherwise we won't be able to resolve references to types, because those types are define in the original AST.
+            //      Otherwise we won't be able to resolve references to types, because those types are defined in the original AST.
             //      Also, we can avoid adding the metadata again, we will have it already in the original ST.
             //PROBLEM: how can we access the ST of imported modules? We have to include it in the AST struct or create a higher level struct that containsd both, the AST and the ST.
 
@@ -782,74 +784,32 @@ pub fn check_import_commands(commands: &[Command]) -> Result<(), IzeErr> {
 }
 
 /*
-Required checks:
-
-GENERAL:
-
-    - Check that there is no repeated name across models, pipes and consts.
-    - Check that only transfers and models can have the same name. Not transfers and other kinds of commands.
+Remaining checks:
 
 TRANSFERS:
-
-    - Check that transfers with the same name have different signatures.
-    - Check that argument types and return type are either Type expressions or Primary identifiers.
     - Check all symbols used by the expression (need ST).
     - If transfer is expression, check that expression is correct in terms of types (need ETE).
     - If transfer is key/val, check all attributes exist in the return model and values are of the right type for the attribute (need ST).
 
 MODELS:
-
-    - Check there is no repeated model names.
-    - Check all types are valid (either Type expr of Primary ident).
-    - Check there is no repeated attribute names.
-    - Check there is no repeated alias.
-    - Check no more than one "..." field is present.
-    - Check all types actually exist (need ST).
     - Recursive references (or we can use a Box to avoid problems).
 
 PIPE:
-
-    - Check there is no repeated pipe names.
     - Check that symbols exist and are the appropiate.
     - Check that input and output types of each step match.
     - Check arguments.
 
 RUN:
-
     - If it's a pipe id, check that the id exists and it's a pipe.
     - If it's an inline pipe, same checks as PIPE apply.
-
-IMPORT:
-
-    - Check that imported entities do exist.
-    - Check name clashes.
-
-CONST:
-
-    - Check there is no repeated const names.
-    - Check that expression is a literal.
 
 Expressions:
 
     Types:
-        - Check that compound types are correctly formed (List, Map, Tuple, etc).
         - Make sure that Mux types with the same subtypes in different order are actually the same type.
 
-    Chain expressions define a scope for variables. Chains can contain other chains, thhat inherit the parent scope plus adding its own.
+    Chain expressions define a scope for variables. Chains can contain other chains, that inherit the parent scope plus adding its own.
 */
-
-/*
-
-- Build symbol table (ST):
-    Scan de AST and add each model, transfer, pipe, and const identifier to a hashmap. Also scan transfer bodies looking for variables.
-    Each entry will contain the entity type (model, transfer, pipe, const, let), and the types involved.
-    - pipe, no types.
-    - transfer, the signature, parameters and return types.
-    - const, the literal type.
-    - let, the type is not explicit, we have to calculate it from the expression used to define the variable. We need an Expression Type Evaluator (ETE).
-*/
-//- Expression Type Evaluator (ETE), given an expression, calculate the resulting type. It requires a ST already filled with explicit type symbols.
-//- Use the ETE to fill the ST with non-explicit type symbols (lets).
 
 #[cfg(test)]
 /// Test unexposed functions.

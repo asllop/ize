@@ -193,7 +193,7 @@ pub struct ImportedMetadata {
     //TODO: add ref to original AST and ST
 }
 
-//NOTE: Given this default implementation of PartialEq, Mux[Int,Str] != Mux[Str,Int]
+//TODO: Implement custom PartialEq and Hash to ensure that Mux[Int,Str] == Mux[Str,Int]
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// Type representation.
 pub struct Type {

@@ -117,6 +117,7 @@ pub enum TokenKind {
     Map,
     #[token("Mux")]
     Mux,
+    //TODO: rename to Tup
     #[token("Tuple")]
     Tuple,
     #[token("Traf")]
@@ -163,7 +164,7 @@ impl Token {
     }
 }
 
-/// Tokenize. Convert string containing source code into a vector of [Token](crate::lexer::Token)s.
+/// Tokenize. Convert string containing source code into a vector of [Token]s.
 pub fn tokenize(input: &str) -> Result<Vec<Token>, IzeErr> {
     let mut lex = TokenKind::lexer(input);
     let mut tokens = vec![];

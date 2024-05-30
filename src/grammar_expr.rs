@@ -82,6 +82,8 @@ pub fn expr_chain(input: &[Token]) -> IzeResult {
     )
 }
 
+//TODO: add optional type annotation: let var_name:Type expr
+//      necessary when type inference is not possible, for example when defining a lambda, or collecting an iterator.
 /// Parse a Let expression.
 pub fn expr_let(input: &[Token]) -> IzeResult {
     def_grammar(
